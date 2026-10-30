@@ -1,0 +1,100 @@
+# VBNotes
+
+Markdown notes for iPhone and the desktop, with search that understands meaning and runs on the device.
+
+Your notes are plain `.md` files in a folder you choose. Put that folder in iCloud Drive and the phone
+and the desktop app show the same notes. There is no account and no server: the search model runs on
+the phone, and the files stay yours to open in any editor.
+
+**Download:** see [Releases](https://github.com/elavneet/vbnotes.com/releases) for macOS, Windows,
+Linux and Android builds. The iPhone app is built from source for now (see below).
+
+## Phone
+
+| Notes | A note | Library | Search by meaning | Settings |
+|---|---|---|---|---|
+| ![Notes list](docs/screenshots/phone-list-light.png) | ![A note with tasks and a diagram](docs/screenshots/phone-note-light.png) | ![Library with nested tags](docs/screenshots/phone-library-light.png) | ![Search by meaning](docs/screenshots/phone-search-light.png) | ![Settings](docs/screenshots/phone-settings-light.png) |
+
+| Dark | Pictures | Tables and tasks | Tags | Search |
+|---|---|---|---|---|
+| ![Notes list, dark](docs/screenshots/phone-list-dark.png) | ![A note with a picture](docs/screenshots/phone-note-dark.png) | ![A table and a task list](docs/screenshots/phone-note-table-dark.png) | ![Library, dark](docs/screenshots/phone-library-dark.png) | ![Search, dark](docs/screenshots/phone-search-dark.png) |
+
+"what does my flatmate owe" finds *Rent split with Arjun* although the note never uses those words.
+
+## Desktop (macOS, Windows, Linux)
+
+![Desktop, Paper theme](docs/screenshots/desktop-light.png)
+
+![Desktop, Ink theme](docs/screenshots/desktop-dark.png)
+
+| Tags | Search | Right-click |
+|---|---|---|
+| ![Notes of one tag](docs/screenshots/desktop-tag.png) | ![Keyword search](docs/screenshots/desktop-search.png) | ![Note menu](docs/screenshots/desktop-menu.png) |
+
+| Settings | Themes |
+|---|---|
+| ![Settings](docs/screenshots/desktop-settings.png) | ![Red Graphite theme](docs/screenshots/desktop-red-graphite.png) |
+
+## What it does
+
+- **Plain files.** Every note is one `.md` file. The file is named after the note's first line.
+  Pictures and voice notes go in `attachments/` and are linked from the note.
+- **Tags, not folders.** Write `#work` or a nested `#work/clients` anywhere in a note. The library shows
+  them as a tree with counts.
+- **A rich editor that writes markdown.** Headings, lists, task lists, quotes, tables, code blocks
+  coloured by language, Mermaid diagrams, pictures and audio. What you type is saved the way you typed it.
+- **Search by meaning (phone).** Each note is embedded on the phone with LFM2.5-embedding-350M
+  (about 190 MB, downloaded once) and searched by meaning, mixed with keyword matches. Two smaller
+  models are offered, one of them multilingual.
+- **Fast with thousands of notes.** The list, tags and keyword search come from a SQLite index
+  (FTS5) that is rebuilt from the files when needed, so opening the app reads only notes that changed.
+- **Pins, Archive and Trash**, kept as folders and a small `.vbnotes/meta.json` beside your notes.
+- **Themes.** Ink and Paper (with a lime "Volt" accent) plus Bear-style themes: Red Graphite,
+  High Contrast, Solarized, Nord, Dracula, Gruvbox, Catppuccin, Rosé Pine, Tokyo Night and more.
+
+## How it is built
+
+| Part | Stack |
+|---|---|
+| Phone app | Expo SDK 58, React Native 0.88, expo-router, zustand, expo-sqlite |
+| Editor | Tiptap 3 through `@10play/tentap-editor`, with our own extensions in `editor-web/` |
+| Meaning search | `react-native-executorch` (on-device embeddings) |
+| Desktop app | Tauri 2 (Rust + the system webview, no Electron), React, the same editor extensions |
+| Desktop index | SQLite with FTS5 in Rust (`desktop/src-tauri/src/index.rs`), the same schema as the phone |
+
+```
+src/app            phone screens: notes, note, search, settings
+src/components     list rows, library, editor host, toolbars
+src/store          notes store, SQLite index (noteDb.ts), shared note model (noteModel.ts)
+src/search         embedding models, meaning index, merged search
+editor-web         the editor page (Vite), shared by the phone and the desktop
+desktop/src        desktop screens (React)
+desktop/src-tauri  desktop back end: files, folder watching, index (Rust)
+modules/vb-folder  iOS module that keeps a picked folder (iCloud Drive) open across launches
+```
+
+## Build it
+
+Phone (needs Xcode; meaning search needs a development build):
+
+```bash
+npm install
+npm run editor:build        # editor page → src/editor/editorHtml.js
+npx expo run:ios
+```
+
+Desktop (needs Rust 1.90+ and, on Linux, `libwebkit2gtk-4.1-dev`):
+
+```bash
+npm install                 # the desktop page uses the repo's packages
+cd desktop && npm install
+npm run tauri dev           # or: npm run tauri build
+```
+
+Open a folder from the command line with `vbnotes ~/Notes` (macOS: `open -a VBNotes --args ~/Notes`).
+
+## Releases
+
+Pushing a tag like `v0.1.0` builds Windows, Linux and Android in GitHub Actions
+(`.github/workflows/release.yml`) and adds them to the release. The macOS app is signed with a
+Developer ID and notarized on a Mac, then uploaded to the same release.
