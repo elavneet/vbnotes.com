@@ -1,0 +1,27 @@
+[package]
+name = "vbnotes"
+version = "0.1.0"
+description = "VBNotes for the desktop: markdown notes in a plain folder"
+authors = ["Lavneet Sharma"]
+edition = "2021"
+rust-version = "1.90"
+resolver = "3"
+
+[build-dependencies]
+tauri-build = { version = "=2.7.3", features = [] }
+
+[dependencies]
+tauri = { version = "=2.12.4", features = ["protocol-asset"] }
+tauri-plugin-dialog = "=2.8.3"
+tauri-plugin-opener = "=2.7.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Bundled SQLite comes with FTS5, which the keyword search needs.
+rusqlite = { version = "=0.40.2", features = ["bundled"] }
+notify-debouncer-mini = "=0.7.0"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
