@@ -5,6 +5,6 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ['dist/*', 'desktop/dist/**', 'desktop/src-tauri/**', 'store-screenshots/**'],
+    ignores: ['dist/*', 'desktop/dist/**', 'desktop/src-tauri/**', 'store-screenshots/**', 'website/**'],
   },
 ]);

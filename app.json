@@ -4,7 +4,7 @@
     "slug": "vbnotes",
     "owner": "ramarya",
     "scheme": "vbnotes",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -46,6 +46,7 @@
     },
     "plugins": [
       "./plugins/withIphoneOnlyExtensions",
+      "./plugins/withGradleMemory",
       "expo-router",
       "expo-font",
       [
@@ -66,7 +67,10 @@
           },
           "android": {
             "newArchEnabled": true,
-            "minSdkVersion": 26
+            "minSdkVersion": 26,
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "-keep class com.ReactNativeBlobUtil.** { *; }"
           }
         }
       ],
