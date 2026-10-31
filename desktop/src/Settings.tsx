@@ -4,6 +4,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { open } from '@tauri-apps/plugin-dialog';
 import type { ThemeName } from '@/theme/tokens';
 import { CODE_FONTS, TEXT_FONTS, codeFont, textFont, type Typography } from '@/theme/typography';
+import { api } from './api';
 import { useMeaning } from './meaning';
 import { useNotes } from './store';
 import { themesOf, useThemePrefs, type ThemePref } from './theme';
@@ -16,6 +17,10 @@ export function Settings() {
   const prefs = useThemePrefs();
   const folder = useNotes((s) => s.folder);
   const openFolder = useNotes((s) => s.openFolder);
+  const noteCount = useNotes((s) => s.counts.notes + s.counts.archive + s.counts.trash);
+  // A folder just picked, waiting for: copy the notes there, or open it as it is.
+  const [picked, setPicked] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const [version, setVersion] = useState('');
   useEffect(() => { void getVersion().then(setVersion).catch(() => {}); }, []);
   useEffect(() => {
@@ -29,8 +34,22 @@ export function Settings() {
   const ty = prefs.typography;
   const setTy = (patch: Partial<Typography>) => prefs.set({ typography: { ...ty, ...patch } });
   const changeFolder = async () => {
-    const picked = await open({ directory: true, title: 'Choose your notes folder' });
-    if (typeof picked === 'string') { await openFolder(picked); setOpen(false); }
+    const path = await open({ directory: true, title: 'Choose your notes folder' });
+    if (typeof path !== 'string' || path === folder) return;
+    setCopyError(null);
+    if (noteCount) setPicked(path); else { await openFolder(path); setOpen(false); }
+  };
+  const switchTo = async (copy: boolean) => {
+    if (!picked) return;
+    try {
+      if (copy) await api.copyFolder(picked);
+    } catch (e) {
+      setCopyError(String(e));
+      return;
+    }
+    await openFolder(picked);
+    setPicked(null);
+    setOpen(false);
   };
 
   return (
@@ -70,6 +89,17 @@ export function Settings() {
             <span className="path" title={folder ?? ''}><bdi>{folder}</bdi></span>
             <button className="text-btn" onClick={() => void changeFolder()}>Change…</button>
           </div>
+          {picked ? (
+            <div className="folder-choice">
+              <p>Copy your {noteCount.toLocaleString()} notes to <b>{picked.split(/[\\/]/).pop()}</b>, or open it as it is? The notes here stay where they are.</p>
+              {copyError ? <p className="error">{copyError}</p> : null}
+              <div className="folder-choice-buttons">
+                <button className="secondary" onClick={() => setPicked(null)}>Cancel</button>
+                <button className="secondary" onClick={() => void switchTo(false)}>Open as it is</button>
+                <button className="primary" onClick={() => void switchTo(true)}>Copy {noteCount.toLocaleString()} notes</button>
+              </div>
+            </div>
+          ) : null}
           <p className="hint">Notes are plain .md files. Use the folder your phone uses (iCloud Drive › VBNotes) to see the same notes on both.</p>
 
           <h3>About</h3>

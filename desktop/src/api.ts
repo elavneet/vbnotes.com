@@ -27,6 +27,7 @@ export const api = {
   writeFile: (path: string, text: string) => invoke<Stat>('write_file', { path, text }),
   moveFile: (from: string, to: string) => invoke<Stat>('move_file', { from, to }),
   removeFile: (path: string) => invoke<void>('remove_file', { path }),
+  copyFolder: (to: string) => invoke<number>('copy_folder', { to }),
   exists: (path: string) => invoke<boolean>('exists', { path }),
   known: () => invoke<{ path: string; mtime: number; size: number }[]>('db_known'),
   put: (records: NoteRecord[], pinned: string[]) => invoke<void>('db_put', { records, pinned }),
