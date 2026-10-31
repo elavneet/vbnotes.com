@@ -6,7 +6,7 @@ import { noteRoute } from '@/components/NotesList';
 import { saveImage } from './attachments';
 
 /**
- * Text, links and photos shared from other apps ("Save to VBNotes" in the share sheet) become a new
+ * Text, links and photos shared from other apps ("Save to VB Notes" in the share sheet) become a new
  * note, which then opens. Does nothing in Expo Go, which has no share extension.
  */
 export function useSharedIn() {

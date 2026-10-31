@@ -128,7 +128,7 @@ function Welcome({ error }: { error?: string }) {
   return (
     <div className="welcome" data-tauri-drag-region>
       <div className="welcome-card">
-        <h1>VBNotes</h1>
+        <h1>VB Notes</h1>
         <p>Your notes are plain markdown files in a folder. Pick the same folder as on your phone (iCloud Drive › VBNotes) and both stay in step.</p>
         {error ? <p className="error">{error}</p> : null}
         <button className="primary" onClick={() => void useSuggested()}>Use {suggested.split(/[\\/]/).slice(-2).join(' › ') || 'VBNotes'}</button>

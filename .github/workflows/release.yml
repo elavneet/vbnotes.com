@@ -55,7 +55,7 @@ jobs:
         with:
           projectPath: desktop
           tagName: ${{ env.TAG }}
-          releaseName: VBNotes ${{ env.TAG }}
+          releaseName: VB Notes ${{ env.TAG }}
           releaseDraft: false
           prerelease: false
 

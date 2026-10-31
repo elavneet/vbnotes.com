@@ -116,7 +116,7 @@ export default function SettingsScreen() {
     if (m.id === model.id) return;
     Alert.alert(
       `Switch to ${m.name}?`,
-      `This downloads the model and reads all your notes again. Until it is done, search matches words only. Keep VBNotes open while it downloads.\n\nDownload size: ${sizeOf(m)} MB`,
+      `This downloads the model and reads all your notes again. Until it is done, search matches words only. Keep VB Notes open while it downloads.\n\nDownload size: ${sizeOf(m)} MB`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'OK', onPress: () => settings.setSearchModel(m.id) },
@@ -131,7 +131,7 @@ export default function SettingsScreen() {
     : modelStatus;
   const searchFooter =
     !smart ? 'Meaning search is off. Turn it on in search.'
-    : downloading ? 'Keep VBNotes open until the download finishes. If you leave, it carries on from there when you come back.'
+    : downloading ? 'Keep VB Notes open until the download finishes. If you leave, it carries on from there when you come back.'
     : `Runs on this phone; your notes never leave it. One download of about ${sizeOf(model)} MB.`;
 
   return (

@@ -49,7 +49,7 @@ export class NativeEmbedder implements Embedder {
       lib.setTelemetryEnabled?.(false);
       return lib;
     } catch (e: any) {
-      this.reason = 'Smart search needs the development build of VBNotes (not Expo Go).';
+      this.reason = 'Smart search needs the development build of VB Notes (not Expo Go).';
       this.status = 'unavailable';
       this.error = String(e?.message ?? e);
       return null;

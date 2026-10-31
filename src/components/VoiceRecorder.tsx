@@ -77,7 +77,7 @@ export function VoiceRecorder({ visible, onClose, onDone }: { visible: boolean; 
           {denied ? (
             <>
               <Text style={[styles.title, { color: t.colors.text }]}>Microphone is off</Text>
-              <Text style={[styles.hint, { color: t.colors.textMuted }]}>Allow VBNotes to use the microphone in Settings to record voice notes.</Text>
+              <Text style={[styles.hint, { color: t.colors.textMuted }]}>Allow VB Notes to use the microphone in Settings to record voice notes.</Text>
               <Pressable onPress={() => void Linking.openSettings()} style={[styles.wide, { backgroundColor: t.colors.volt }]}>
                 <Text style={[styles.wideText, { color: t.colors.onVolt }]}>Open Settings</Text>
               </Pressable>

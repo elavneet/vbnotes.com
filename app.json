@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "VBNotes",
+    "name": "VB Notes",
     "slug": "vbnotes",
     "scheme": "vbnotes",
     "version": "0.1.0",
@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "backgroundColor": "#17181C",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.lavneet.vbnotes",
       "infoPlist": {
         "UIFileSharingEnabled": true,
@@ -61,15 +61,15 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "VBNotes adds the photos you pick to your notes.",
-          "cameraPermission": "VBNotes adds the photos you take to your notes.",
+          "photosPermission": "VB Notes adds the photos you pick to your notes.",
+          "cameraPermission": "VB Notes adds the photos you take to your notes.",
           "microphonePermission": false
         }
       ],
       [
         "expo-audio",
         {
-          "microphonePermission": "VBNotes records voice notes into your notes."
+          "microphonePermission": "VB Notes records voice notes into your notes."
         }
       ],
       [
@@ -81,7 +81,7 @@
             "NSExtensionActivationSupportsWebPageWithMaxCount": 1,
             "NSExtensionActivationSupportsImageWithMaxCount": 10
           },
-          "iosShareExtensionName": "Save to VBNotes",
+          "iosShareExtensionName": "Save to VB Notes",
           "androidIntentFilters": [
             "text/*",
             "image/*"
