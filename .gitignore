@@ -55,3 +55,6 @@ desktop/node_modules/
 desktop/dist/
 desktop/src-tauri/target/
 desktop/src-tauri/gen/
+
+# local tool settings
+.claude/
