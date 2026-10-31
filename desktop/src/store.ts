@@ -3,8 +3,10 @@ import { create } from 'zustand';
 import { listen } from '@tauri-apps/api/event';
 import { fileNameFromTitle, splitTitle } from '@/utils/markdown';
 import { META_PATH, RESERVED_FOLDERS, basename, dirname, joinPath, type VaultMeta } from '@/vault/types';
-import { buildTags, recordFrom, sectionOf, type NoteMeta, type NoteRecord, type Section, type SectionCounts, type TagNode } from '@/store/noteModel';
-import { api, type Hit } from './api';
+import { buildTags, cleanHiddenTags, recordFrom, sectionOf, type NoteMeta, type NoteRecord, type Section, type SectionCounts, type TagNode } from '@/store/noteModel';
+import { fuse } from '@/search/fuse';
+import { api } from './api';
+import { MODEL, meaningReady, syncMeaning } from './meaning';
 
 /** Watch events this soon after our own write are our own echo. */
 const SELF_WRITE_MS = 2000;
@@ -22,6 +24,8 @@ interface NotesState {
   tags: TagNode[];
   counts: SectionCounts;
   pinned: string[];
+  /** Tag names kept out of the main Notes list, shared with the phone (`VaultMeta.hiddenTags`). */
+  hiddenTags: string[];
   /** Goes up whenever a note changes; lists read the index again. */
   revision: number;
   section: Section;
@@ -43,6 +47,7 @@ interface NotesState {
   restore: (path: string) => Promise<string>;
   deleteForever: (path: string) => Promise<void>;
   togglePin: (path: string) => Promise<void>;
+  setHiddenTags: (names: string[]) => Promise<void>;
   show: (section: Section, tag?: string) => void;
   select: (path: string | null) => void;
 }
@@ -64,13 +69,13 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
 function parseMeta(text: string | null | undefined): VaultMeta {
   try {
-    if (text) return { pinned: [], tagIcons: {}, ...JSON.parse(text) };
+    if (text) return { pinned: [], tagIcons: {}, hiddenTags: [], ...JSON.parse(text) };
   } catch {}
-  return { pinned: [], tagIcons: {} };
+  return { pinned: [], tagIcons: {}, hiddenTags: [] };
 }
 
-const summary = async () => {
-  const [counts, rows] = await Promise.all([api.counts(), api.tagCounts()]);
+const summary = async (hidden = useNotes.getState().hiddenTags) => {
+  const [counts, rows] = await Promise.all([api.counts(hidden), api.tagCounts()]);
   return { counts, tags: buildTags(rows) };
 };
 
@@ -120,6 +125,7 @@ export const useNotes = create<NotesState>((set, get) => {
     tags: [],
     counts: EMPTY_COUNTS,
     pinned: [],
+    hiddenTags: [],
     revision: 0,
     section: 'notes',
     tag: '',
@@ -188,14 +194,18 @@ export const useNotes = create<NotesState>((set, get) => {
         }
         await api.setPinned(meta.pinned);
         const pinsMoved = !same(meta.pinned, get().pinned);
-        const sum = changed.length || pinsMoved ? await summary() : null;
+        const hiddenTags = meta.hiddenTags ?? [];
+        const hiddenMoved = !same(hiddenTags, get().hiddenTags);
+        const sum = changed.length || pinsMoved || hiddenMoved ? await summary(hiddenTags) : null;
         // When nothing changed only `scanned` is set, so the list doesn't redraw.
         set((s) => ({
           scanned: true,
           ...(pinsMoved ? { pinned: meta.pinned } : null),
+          ...(hiddenMoved ? { hiddenTags } : null),
           ...(sum ? { ...sum, revision: s.revision + 1 } : null),
         }));
         emit(changed);
+        void syncMeaning();
       })().finally(() => { refreshing = null; });
       return refreshing;
     },
@@ -218,6 +228,7 @@ export const useNotes = create<NotesState>((set, get) => {
       await api.put([recordFrom(path, mtime, size, initial)], get().pinned);
       const sum = await summary();
       set((s) => ({ ...sum, revision: s.revision + 1, section: 'notes', selected: path, fresh: path }));
+      void syncMeaning();
       return path;
     },
 
@@ -233,6 +244,7 @@ export const useNotes = create<NotesState>((set, get) => {
       // Only rebuild the tag tree (and redraw the sidebar) when the tags changed.
       const sum = same(before?.tags, record.tags) ? null : await summary();
       set((s) => ({ ...sum, revision: s.revision + 1 }));
+      void syncMeaning();
     },
 
     /** Renames the file so its name follows the first line, like the phone app. Returns the (maybe new) path. */
@@ -272,6 +284,14 @@ export const useNotes = create<NotesState>((set, get) => {
       set((s) => ({ revision: s.revision + 1 }));
     },
 
+    setHiddenTags: async (names) => {
+      const hiddenTags = cleanHiddenTags(names);
+      set({ hiddenTags });
+      await writeMeta({ hiddenTags });
+      const sum = await summary(hiddenTags);
+      set((s) => ({ ...sum, revision: s.revision + 1 }));
+    },
+
     show: (section, tag = '') => set({ section, tag, selected: null }),
     select: (path) => set({ selected: path, fresh: null }),
   };
@@ -295,16 +315,43 @@ function useIndexQuery<T>(read: () => Promise<T>, empty: T, deps: unknown[]): T 
   return value;
 }
 
+export interface Found {
+  notes: NoteMeta[];
+  snippets: Map<string, string>;
+  /** Found by meaning alone: none of the words are in the note. */
+  meaning: Set<string>;
+}
+
+/**
+ * Notes of a section matching `query`: keyword matches and, once the model is ready, notes close in
+ * meaning, merged as on the phone (`fuse`). A single word brings in meaning only when no note has
+ * it: on its own ("rent") it pulled in loosely related notes.
+ */
+export async function findNotes(query: string, section: Section, limit: number): Promise<Found> {
+  const hits = await api.search(query, section, limit);
+  const ask = query.trim().split(/\s+/).length > 1 || hits.length === 0;
+  const near = ask && meaningReady() ? await api.meaningSearch(query, section, 40).catch(() => []) : [];
+  if (!near.length) return { notes: hits.map((h) => h.note), snippets: new Map(hits.map((h) => [h.note.path, h.snippet])), meaning: new Set() };
+  const results = fuse(hits.map((h) => ({ path: h.note.path, snippet: h.snippet })), near, MODEL.minScore);
+  const known = new Map(hits.map((h) => [h.note.path, h.note]));
+  const notes = await Promise.all(results.map((r) => known.get(r.path) ?? api.get(r.path)));
+  return {
+    notes: notes.filter((n): n is NoteMeta => !!n),
+    snippets: new Map(results.map((r) => [r.path, r.snippet])),
+    meaning: new Set(results.filter((r) => r.via === 'smart').map((r) => r.path)),
+  };
+}
+
 /** The newest `limit` notes of a section (and tag), pinned first; or the notes matching `query`. */
-export function useNoteList(section: Section, tag: string, query: string, limit: number): { notes: NoteMeta[]; snippets?: Map<string, string> } {
-  return useIndexQuery(
+export function useNoteList(section: Section, tag: string, query: string, limit: number): Partial<Found> & { notes: NoteMeta[] } {
+  const hidden = useNotes((s) => s.hiddenTags);
+  return useIndexQuery<Partial<Found> & { notes: NoteMeta[] }>(
     async () => {
-      if (!query.trim()) return { notes: await api.list(section, tag, limit) };
-      const hits: Hit[] = await api.search(query, section, limit);
-      return { notes: hits.map((h) => h.note), snippets: new Map(hits.map((h) => [h.note.path, h.snippet])) };
+      if (!query.trim()) return { notes: await api.list(section, tag, limit, hidden) };
+      return findNotes(query, section, limit);
     },
     { notes: [] },
-    [section, tag, query, limit],
+    [section, tag, query, limit, hidden],
   );
 }
 

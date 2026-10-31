@@ -37,7 +37,7 @@ export default function HomeScreen() {
         ) : (
           <View style={styles.emptyPane}>
             <Ionicons name="document-text-outline" size={36} color={t.colors.textMuted} />
-            <Text style={[styles.emptyText, { color: t.colors.textMuted }]}>Pick a note, or find or start one with the button under the list.</Text>
+            <Text style={[styles.emptyText, { color: t.colors.textMuted }]}>Pick a note, or start one with the + button under the list.</Text>
           </View>
         )}
       </View>

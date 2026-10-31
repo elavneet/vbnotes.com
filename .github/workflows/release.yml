@@ -40,11 +40,15 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: desktop/src-tauri
-      - name: Linux libraries for the webview
+      # Search by meaning builds llama.cpp from source: CMake, and libclang for its bindings.
+      - name: Linux libraries for the webview and llama.cpp
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf cmake libclang-dev
+      - name: libclang for llama.cpp's bindings
+        if: runner.os == 'Windows'
+        run: echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $env:GITHUB_ENV
       # The desktop page builds from the repo's own packages (editor, themes, shared code).
       - run: npm ci
       - run: npm ci
@@ -56,6 +60,8 @@ jobs:
           projectPath: desktop
           tagName: ${{ env.TAG }}
           releaseName: VB Notes ${{ env.TAG }}
+          # The product name has a space, which GitHub turns into a dot in file names.
+          assetNamePattern: VBNotes_[version]_[arch][setup][ext]
           releaseDraft: false
           prerelease: false
 
@@ -75,6 +81,11 @@ jobs:
           distribution: temurin
           java-version: 17
       - run: npm ci
+      # Firebase's google-services.json (push on Android) is a repository secret, not in the repo.
+      - name: Firebase config
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: if [ -n "$GOOGLE_SERVICES_JSON_B64" ]; then echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > google-services.json; fi
       - run: npx expo prebuild --platform android --no-install
       - name: Build the APK
         working-directory: android

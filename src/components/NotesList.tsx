@@ -13,13 +13,26 @@ import { dateGroup } from '@/utils/dates';
 import { NoteRow } from './NoteRow';
 import type { IconName } from './IconButton';
 import { ActionSheet, type SheetAction } from './ActionSheet';
-import { QuickOpen } from './QuickOpen';
+import { UpdateCard } from './UpdateCard';
 
 export const SECTION_TITLES = { notes: 'Notes', archive: 'Archive', trash: 'Trash' } as const;
 
 export function noteRoute(path: string) { return `/note/${encodeURIComponent(path)}` as const; }
 
 type Group = { title: string; data: NoteMeta[] };
+
+/**
+ * Makes a note and opens it. A note made while a tag is picked starts with that tag under the
+ * title. A titled note ends in an empty line for the caret (the editor reads the last blank pair
+ * as an empty paragraph).
+ */
+export async function startNote(title: string, wide: boolean) {
+  const { tag, select } = useUi.getState();
+  const tagLine = tag && tag !== UNTAGGED ? formatTag(tag) : '';
+  const initial = title ? `# ${title}\n\n${tagLine ? `${tagLine}\n\n` : ''}` : tagLine ? `# \n\n${tagLine} ` : '';
+  const path = await useNotes.getState().createNote(initial);
+  if (wide) select(path); else router.push({ pathname: '/note/[id]', params: { id: encodeURIComponent(path), new: '1' } });
+}
 
 /** Rows read from the index at a time; scrolling near the end reads the next ones. */
 const PAGE = 200;
@@ -39,7 +52,7 @@ function groupNotes(list: NoteMeta[]): Group[] {
   return out;
 }
 
-/** The notes feed: notes grouped by time under a bare top, and the dock (library, search, find or create) at the thumb. */
+/** The notes feed: notes grouped by time under a bare top, and the dock (library, search, new note) at the thumb. */
 export function NotesList({ wide, onLibrary }: { wide: boolean; onLibrary?: () => void }) {
   const t = useTheme();
   const scanned = useNotes((s) => s.scanned);
@@ -51,28 +64,16 @@ export function NotesList({ wide, onLibrary }: { wide: boolean; onLibrary?: () =
   const more = useCallback(() => { if (list.length >= limit) setPage({ filter, limit: limit + PAGE }); }, [list.length, limit, filter]);
   const groups = useMemo(() => groupNotes(list), [list]);
   const [sheetFor, setSheetFor] = useState<NoteMeta | null>(null);
-  const [finder, setFinder] = useState(false);
-  const { createNote, togglePin, trash, archive, restore, deleteForever } = useNotes.getState();
+  const { togglePin, trash, archive, restore, deleteForever } = useNotes.getState();
 
-
-  const openPath = useCallback((path: string) => {
-    if (wide) select(path); else router.push(noteRoute(path));
+  const open = useCallback((n: NoteMeta) => {
+    if (wide) select(n.path); else router.push(noteRoute(n.path));
   }, [wide, select]);
-  const open = useCallback((n: NoteMeta) => openPath(n.path), [openPath]);
 
-  const onCreate = useCallback(async (title: string) => {
-    // A note made while a tag is picked starts with that tag under the title. A titled note ends
-    // in an empty line for the caret (the editor reads the last blank pair as an empty paragraph).
-    const tagLine = tag && tag !== UNTAGGED ? formatTag(tag) : '';
-    const initial = title ? `# ${title}\n\n${tagLine ? `${tagLine}\n\n` : ''}` : tagLine ? `# \n\n${tagLine} ` : '';
-    const path = await createNote(initial);
-    if (wide) select(path); else router.push({ pathname: '/note/[id]', params: { id: encodeURIComponent(path), new: '1' } });
-  }, [createNote, tag, wide, select]);
-
-  const onFind = useCallback(() => {
+  const onAdd = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setFinder(true);
-  }, []);
+    void startNote('', wide);
+  }, [wide]);
 
   const actions: SheetAction[] = sheetFor ? (
     section === 'trash'
@@ -119,9 +120,9 @@ export function NotesList({ wide, onLibrary }: { wide: boolean; onLibrary?: () =
           </View>
         }
       />
-      <Dock onLibrary={onLibrary} onFind={onFind} />
+      <Dock onLibrary={onLibrary} onAdd={onAdd} />
+      <UpdateCard bottom={dockBottom(insets.bottom) + DOCK_HEIGHT + 12} />
       <ActionSheet visible={!!sheetFor} onClose={() => setSheetFor(null)} actions={actions} title={sheetFor?.title} />
-      <QuickOpen visible={finder} onClose={() => setFinder(false)} onOpen={openPath} onCreate={(title) => void onCreate(title)} />
     </View>
   );
 }
@@ -149,12 +150,15 @@ function LibraryButton({ onPress }: { onPress: () => void }) {
   );
 }
 
-/** Thumb-height row: library, search (by meaning), find or create a note. */
-function Dock({ onLibrary, onFind }: { onLibrary?: () => void; onFind: () => void }) {
+const DOCK_HEIGHT = 56;
+const dockBottom = (inset: number) => Math.max(inset, 12) + 4;
+
+/** Thumb-height row: library, search (by meaning), new note. */
+function Dock({ onLibrary, onAdd }: { onLibrary?: () => void; onAdd: () => void }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   return (
-    <View pointerEvents="box-none" style={[styles.dock, { bottom: Math.max(insets.bottom, 12) + 4 }]}>
+    <View pointerEvents="box-none" style={[styles.dock, { bottom: dockBottom(insets.bottom) }]}>
       {onLibrary ? <LibraryButton onPress={onLibrary} /> : null}
       <Pressable
         accessibilityRole="search"
@@ -167,14 +171,11 @@ function Dock({ onLibrary, onFind }: { onLibrary?: () => void; onFind: () => voi
       </Pressable>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Find or create a note"
-        onPress={onFind}
+        accessibilityLabel="New note"
+        onPress={onAdd}
         style={({ pressed }) => [styles.compose, { backgroundColor: t.colors.volt }, pressed && styles.pressed]}
       >
-        <Ionicons name="search" size={23} color={t.colors.onVolt} />
-        <View style={[styles.plusBadge, { backgroundColor: t.colors.volt }]}>
-          <Ionicons name="add" size={15} color={t.colors.onVolt} />
-        </View>
+        <Ionicons name="add" size={30} color={t.colors.onVolt} />
       </Pressable>
     </View>
   );
@@ -204,7 +205,5 @@ const styles = StyleSheet.create({
     width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6,
   },
-  // A plus on the lens's top right, cut out of the glyph by its Volt ground.
-  plusBadge: { position: 'absolute', top: 11, right: 10, width: 17, height: 17, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   pressed: { transform: [{ scale: 0.96 }], opacity: 0.9 },
 });

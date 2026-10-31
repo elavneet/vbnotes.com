@@ -13,6 +13,7 @@ const PATHS = {
   chevron: 'M9 6l6 6-6 6',
   restore: 'M4 10h11a5 5 0 0 1 0 10h-3M4 10l4-4M4 10l4 4',
   settings: 'M4 7h10M18 7h2M4 17h4M12 17h8M14 4v6M8 14v6',
+  sparkle: 'M12 3c.6 4.6 3.4 7.4 8 8-4.6.6-7.4 3.4-8 8-.6-4.6-3.4-7.4-8-8 4.6-.6 7.4-3.4 8-8z',
 } as const;
 
 export type IconName = keyof typeof PATHS;

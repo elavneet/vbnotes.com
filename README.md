@@ -42,12 +42,16 @@ Linux and Android builds. The iPhone app is built from source for now (see below
 - **Plain files.** Every note is one `.md` file. The file is named after the note's first line.
   Pictures and voice notes go in `attachments/` and are linked from the note.
 - **Tags, not folders.** Write `#work` or a nested `#work/clients` anywhere in a note. The library shows
-  them as a tree with counts.
+  them as a tree with counts. Settings › Hide from Notes keeps a tag's notes (at any level, so `melta`
+  covers `#melta` and `#projects/melta`) out of the main list; they still show under their tag.
 - **A rich editor that writes markdown.** Headings, lists, task lists, quotes, tables, code blocks
   coloured by language, Mermaid diagrams, pictures and audio. What you type is saved the way you typed it.
-- **Search by meaning (phone).** Each note is embedded on the phone with LFM2.5-embedding-350M
-  (about 190 MB, downloaded once) and searched by meaning, mixed with keyword matches. Two smaller
-  models are offered, one of them multilingual.
+- **Search by meaning.** Each note is embedded on the device with LFM2.5-Embedding-350M and
+  searched by meaning, mixed with keyword matches. The phone downloads it once (about 190 MB; two
+  smaller models are offered, one of them multilingual); the desktop app runs the same model through
+  llama.cpp (380 MB, on the GPU with Metal on Apple Silicon).
+- **Find or create (desktop, ⌘O / Ctrl+O).** A Spotlight-style finder: type a few words to jump to a
+  note, or press Return on the first row to start a note with that title.
 - **Fast with thousands of notes.** The list, tags and keyword search come from a SQLite index
   (FTS5) that is rebuilt from the files when needed, so opening the app reads only notes that changed.
 - **Pins, Archive and Trash**, kept as folders and a small `.vbnotes/meta.json` beside your notes.
@@ -60,7 +64,7 @@ Linux and Android builds. The iPhone app is built from source for now (see below
 |---|---|
 | Phone app | Expo SDK 58, React Native 0.88, expo-router, zustand, expo-sqlite |
 | Editor | Tiptap 3 through `@10play/tentap-editor`, with our own extensions in `editor-web/` |
-| Meaning search | `react-native-executorch` (on-device embeddings) |
+| Meaning search | `react-native-executorch` on the phone, llama.cpp (`llama-cpp-2`) on the desktop |
 | Desktop app | Tauri 2 (Rust + the system webview, no Electron), React, the same editor extensions |
 | Desktop index | SQLite with FTS5 in Rust (`desktop/src-tauri/src/index.rs`), the same schema as the phone |
 
@@ -85,7 +89,7 @@ npm run editor:build        # editor page → src/editor/editorHtml.js
 npx expo run:ios
 ```
 
-Desktop (needs Rust 1.90+ and, on Linux, `libwebkit2gtk-4.1-dev`):
+Desktop (needs Rust 1.90+, CMake and, on Linux, `libwebkit2gtk-4.1-dev` and `libclang-dev`):
 
 ```bash
 npm install                 # the desktop page uses the repo's packages

@@ -4,6 +4,7 @@ import { dateGroup, formatNoteDate } from '@/utils/dates';
 import { tagHue } from '@/utils/tags';
 import { Icon } from './Icon';
 import { openEditor } from './NoteEditor';
+import { useMeaning } from './meaning';
 import { useNoteList, useNotes } from './store';
 
 /** Rows read from the index at a time; scrolling near the end reads the next ones. */
@@ -33,11 +34,15 @@ export function NoteList({ searchRef, onCreate }: { searchRef: React.RefObject<H
   const { section, tag, selected, select } = useNotes();
   const scanned = useNotes((s) => s.scanned);
   const [query, setQuery] = useState('');
-  const filter = `${section}:${tag}:${query}`;
+  // The list searches a moment after typing stops: a search by meaning takes a little longer.
+  const [search, setSearch] = useState('');
+  useEffect(() => { const t = setTimeout(() => setSearch(query), query ? 150 : 0); return () => clearTimeout(t); }, [query]);
+  const meaningOn = useMeaning((s) => s.on);
+  const filter = `${section}:${tag}:${search}`;
   const [page, setPage] = useState({ filter, limit: PAGE });
   const limit = page.filter === filter ? page.limit : PAGE;
-  const { notes, snippets } = useNoteList(section, tag, query, limit);
-  const groups = useMemo(() => (query.trim() ? [{ title: `${notes.length} found`, notes }] : groupNotes(notes)), [notes, query]);
+  const { notes, snippets, meaning } = useNoteList(section, tag, search, limit);
+  const groups = useMemo(() => (search.trim() ? [{ title: `${notes.length} found`, notes }] : groupNotes(notes)), [notes, search]);
   const [menu, setMenu] = useState<Menu | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -72,7 +77,7 @@ export function NoteList({ searchRef, onCreate }: { searchRef: React.RefObject<H
       </header>
       <label className="search">
         <Icon name="search" size={16} />
-        <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search (⌘F)" spellCheck={false}
+        <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder={meaningOn ? 'Search or ask (⌘F)' : 'Search (⌘F)'} spellCheck={false}
           onKeyDown={(e) => { if (e.key === 'Escape') setQuery(''); }} />
       </label>
       <div className="list" ref={listRef} onScroll={onScroll} tabIndex={0} onKeyDown={onKeyDown}>
@@ -81,7 +86,7 @@ export function NoteList({ searchRef, onCreate }: { searchRef: React.RefObject<H
           <div key={g.title}>
             <h3 className="group">{g.title}</h3>
             {g.notes.map((n) => (
-              <Row key={n.path} note={n} snippet={snippets?.get(n.path)} selected={n.path === selected}
+              <Row key={n.path} note={n} snippet={snippets?.get(n.path)} byMeaning={!!meaning?.has(n.path)} selected={n.path === selected}
                 onOpen={() => select(n.path)}
                 onMenu={(e) => { e.preventDefault(); select(n.path); setMenu({ x: e.clientX, y: e.clientY, note: n }); }} />
             ))}
@@ -93,14 +98,15 @@ export function NoteList({ searchRef, onCreate }: { searchRef: React.RefObject<H
   );
 }
 
-const Row = React.memo(function Row({ note, snippet, selected, onOpen, onMenu }: {
-  note: NoteMeta; snippet?: string; selected: boolean; onOpen: () => void; onMenu: (e: React.MouseEvent) => void;
+const Row = React.memo(function Row({ note, snippet, byMeaning, selected, onOpen, onMenu }: {
+  note: NoteMeta; snippet?: string; byMeaning: boolean; selected: boolean; onOpen: () => void; onMenu: (e: React.MouseEvent) => void;
 }) {
   const text = snippet ?? note.preview;
   return (
     <button className={`row${selected ? ' selected' : ''}`} onClick={onOpen} onContextMenu={onMenu}>
       <span className="row-top">
         {note.pinned ? <Icon name="pin" size={14} className="row-pin" /> : null}
+        {byMeaning ? <span title="Found by meaning"><Icon name="sparkle" size={14} className="row-meaning" /></span> : null}
         <span className="row-title">{note.title || 'Untitled'}</span>
         <span className="row-time">{formatNoteDate(note.mtime)}</span>
       </span>

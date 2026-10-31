@@ -4,12 +4,13 @@ import { getVersion } from '@tauri-apps/api/app';
 import { open } from '@tauri-apps/plugin-dialog';
 import type { ThemeName } from '@/theme/tokens';
 import { CODE_FONTS, TEXT_FONTS, codeFont, textFont, type Typography } from '@/theme/typography';
+import { useMeaning } from './meaning';
 import { useNotes } from './store';
 import { themesOf, useThemePrefs, type ThemePref } from './theme';
 
 export const useSettingsOpen = create<{ open: boolean; set: (open: boolean) => void }>((set) => ({ open: false, set: (open) => set({ open }) }));
 
-/** Settings (⌘,): the phone's Appearance, Typography, Notes folder and About, in a sheet over the window. */
+/** Settings (⌘,): the phone's Appearance, Typography, Search, Hide from Notes, Notes folder and About, in a sheet over the window. */
 export function Settings() {
   const { open: visible, set: setOpen } = useSettingsOpen();
   const prefs = useThemePrefs();
@@ -58,6 +59,12 @@ export function Settings() {
           <Step label="Line height" value={ty.line} min={1.3} max={2} step={0.05} show={(v) => v.toFixed(2)} onChange={(line) => setTy({ line })} />
           <Step label="Paragraph spacing" value={ty.para} min={0} max={1.5} step={0.25} show={(v) => v.toFixed(2)} onChange={(para) => setTy({ para })} />
 
+          <h3>Search</h3>
+          <MeaningSetting />
+
+          <h3>Hide from Notes</h3>
+          <HiddenTags />
+
           <h3>Notes folder</h3>
           <div className="row-setting">
             <span className="path" title={folder ?? ''}><bdi>{folder}</bdi></span>
@@ -70,6 +77,61 @@ export function Settings() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Search by meaning: on or off, and how far the model has got. */
+function MeaningSetting() {
+  const { on, setOn, status } = useMeaning();
+  const n = (count: number, one: string) => `${count.toLocaleString()} ${one}${count === 1 ? '' : 's'}`;
+  const line = !on
+    ? 'Search finds the words you type. Switched on, it also finds notes by what they mean, with the phone\'s search model (380 MB, downloaded once).'
+    : status.state === 'downloading' ? `Downloading the search model… ${Math.round(status.progress * 100)}%`
+    : status.state === 'loading' ? 'Getting the search model ready…'
+    : status.state === 'error' ? `${status.error ?? 'The search model failed.'} It tries again when a note changes, or switch it off and on.`
+    : status.state === 'ready' && status.pending > 0 ? `Reading your notes… ${n(status.indexed, 'note')} ready, ${n(status.pending, 'part')} to go.`
+    : status.state === 'ready' ? `Ready: ${n(status.indexed, 'note')}. The model runs on this computer; notes never leave it.`
+    : 'Starting…';
+  return (
+    <>
+      <label className="row-setting">
+        <span>Search by meaning</span>
+        <input type="checkbox" className="switch" checked={on} onChange={(e) => setOn(e.target.checked)} />
+      </label>
+      <p className="hint">{line}</p>
+    </>
+  );
+}
+
+/** Tags kept out of the Notes list (shared with the phone through the folder's `.vbnotes/meta.json`). */
+function HiddenTags() {
+  const hidden = useNotes((s) => s.hiddenTags);
+  const setHiddenTags = useNotes((s) => s.setHiddenTags);
+  const [draft, setDraft] = useState('');
+  const add = () => {
+    if (!draft.trim()) return;
+    void setHiddenTags([...hidden, draft]);
+    setDraft('');
+  };
+  return (
+    <>
+      {hidden.length ? (
+        <div className="hidden-tags">
+          {hidden.map((h) => (
+            <span key={h} className="hidden-tag">
+              #{h}
+              <button onClick={() => void setHiddenTags(hidden.filter((x) => x !== h))} aria-label={`Show #${h} in Notes again`} title="Show in Notes again">×</button>
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <div className="row-setting">
+        <input className="text-input" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }}
+          placeholder="Add a tag, like melta" spellCheck={false} aria-label="Tag to hide from Notes" />
+        <button className="text-btn" onClick={add} disabled={!draft.trim()}>Hide</button>
+      </div>
+      <p className="hint">Notes with these tags stay out of Notes, at any level: melta hides #melta and #go2lister/melta. Pick the tag in the sidebar to see them. The phone uses the same list.</p>
+    </>
   );
 }
 

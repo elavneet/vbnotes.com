@@ -10,6 +10,7 @@ import { useNotes } from '@/store/notes';
 import { useIndexing } from '@/search/useIndexing';
 import { WebViewWarmup } from '@/editor/WebViewWarmup';
 import { useSharedIn } from '@/media/useSharedIn';
+import { useUpdateCheck } from '@/store/appUpdate';
 
 export const unstable_settings = { anchor: 'index' };
 
@@ -17,6 +18,7 @@ function Shell() {
   const t = useTheme();
   useIndexing();
   useSharedIn();
+  useUpdateCheck();
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(t.colors.bg);
   }, [t]);

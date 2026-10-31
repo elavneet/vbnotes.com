@@ -51,6 +51,11 @@ export interface VaultMeta {
   pinned: string[];
   /** Tag path → Ionicons name, for tags given an icon by hand. */
   tagIcons: Record<string, string>;
+  /**
+   * Tag names whose notes stay out of the main Notes list, at any level (`melta` hides `#melta` and
+   * `#go2lister/melta`); they still show under their tag. Shared with the desktop app.
+   */
+  hiddenTags?: string[];
 }
 
 export function dirname(p: string): string {

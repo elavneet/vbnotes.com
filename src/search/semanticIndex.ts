@@ -1,5 +1,6 @@
 import { kvGet, kvPrune, kvSet } from '@/utils/kv';
-import { hashText, splitTitle, toPlainText } from '@/utils/markdown';
+import { hashText } from '@/utils/markdown';
+import { chunkNote } from './chunks';
 import { cosine, getEmbedder, normalize, type Embedder } from './embedder';
 import { DEFAULT_SEARCH_MODEL, searchModel, type SearchModelId } from './models';
 
@@ -13,28 +14,9 @@ import { DEFAULT_SEARCH_MODEL, searchModel, type SearchModelId } from './models'
 interface Entry { hash: string; vecs: Float32Array[]; chunks: string[] }
 type Saved = Record<string, { hash: string; chunks: string[]; vecs: string[] }>;
 
-const MAX_CHUNKS = 16;
 const INDEX_KEY = 'semantic.index.v2.';
 /** How often a long run of embedding saves what it has. */
 const SAVE_EVERY_MS = 20_000;
-
-/** Code blocks and diagrams are noise for meaning; keyword search still finds them. */
-const FENCED = /^ {0,3}(`{3,}|~{3,})[^\n]*\n[\s\S]*?^ {0,3}\1[^\n]*$/gm;
-
-export function chunkNote(md: string, chunkWords = 120): string[] {
-  const { title, body } = splitTitle(md);
-  // `#work/dev` reads as "work/dev": the tag's words still say what the note is about.
-  const text = toPlainText(body.replace(FENCED, '')).replace(/(^|\s)#(?=[^\s#])/g, '$1');
-  const words = text.split(/\s+/).filter(Boolean);
-  const chunks: string[] = [];
-  if (words.length === 0) return title ? [title] : [];
-  const step = chunkWords - Math.round(chunkWords / 5);
-  for (let i = 0; i < words.length && chunks.length < MAX_CHUNKS; i += step) {
-    const piece = words.slice(i, i + chunkWords).join(' ');
-    chunks.push(title ? `${title}\n${piece}` : piece);
-  }
-  return chunks;
-}
 
 /**
  * Vectors are saved as int8 plus one scale each, base64: a tenth of the size of JSON

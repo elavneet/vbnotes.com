@@ -30,6 +30,19 @@ CREATE VIRTUAL TABLE notes_text USING fts5 (title, body, tokenize = 'unicode61 r
 type Row = { path: string; title: string; preview: string; image: string | null; mtime: number; tags: string; pinned: number };
 const COLS = 'n.path, n.title, n.preview, n.image, n.mtime, n.tags, n.pinned';
 
+/**
+ * Leaves out notes with a tag named in `hidden` at any level: `melta` matches the tag rows `melta`
+ * and `go2lister/melta` (each tag's parents have rows too, so `melta/x` and `a/melta/x` match).
+ */
+function notHidden(hidden: readonly string[]): { sql: string; params: string[] } {
+  if (!hidden.length) return { sql: '', params: [] };
+  const one = "t.tag = ? OR substr(t.tag, -length(?) - 1) = '/' || ?";
+  return {
+    sql: ` AND n.id NOT IN (SELECT t.note FROM note_tags t WHERE ${hidden.map(() => one).join(' OR ')})`,
+    params: hidden.flatMap((h) => [h, h, h]),
+  };
+}
+
 const withParents = (tags: string[]) => {
   const out = new Set<string>();
   for (const t of tags) {
@@ -114,18 +127,23 @@ export class NoteDb {
     return r ? this.meta(r) : null;
   }
 
-  /** The newest `limit` notes of a section, optionally of one tag (and its nested tags), pinned first. */
-  list(section: Section, tag: string, limit: number): NoteMeta[] {
+  /**
+   * The newest `limit` notes of a section, optionally of one tag (and its nested tags), pinned first.
+   * All of Notes leaves out the notes of `hidden` tags.
+   */
+  list(section: Section, tag: string, limit: number, hidden: readonly string[] = []): NoteMeta[] {
+    const hide = notHidden(section === 'notes' && !tag ? hidden : []);
     const sql = `SELECT ${COLS} FROM notes n WHERE n.section = ?`
       + (tag === UNTAGGED ? " AND n.tags = '[]'" : tag ? ' AND n.id IN (SELECT note FROM note_tags WHERE tag = ?)' : '')
-      + ' ORDER BY n.pinned DESC, n.mtime DESC LIMIT ?';
-    const params = tag && tag !== UNTAGGED ? [section, tag, limit] : [section, limit];
+      + hide.sql + ' ORDER BY n.pinned DESC, n.mtime DESC LIMIT ?';
+    const params = [section, ...(tag && tag !== UNTAGGED ? [tag] : []), ...hide.params, limit];
     return this.db.getAllSync<Row>(sql, params).map((r) => this.meta(r));
   }
 
-  /** The newest `limit` notes of a section by date alone, for "Recent". */
-  recent(section: Section, limit: number): NoteMeta[] {
-    return this.db.getAllSync<Row>(`SELECT ${COLS} FROM notes n WHERE n.section = ? ORDER BY n.mtime DESC LIMIT ?`, section, limit)
+  /** The newest `limit` notes of a section by date alone, for "Recent"; notes of `hidden` tags left out. */
+  recent(section: Section, limit: number, hidden: readonly string[] = []): NoteMeta[] {
+    const hide = notHidden(section === 'notes' ? hidden : []);
+    return this.db.getAllSync<Row>(`SELECT ${COLS} FROM notes n WHERE n.section = ?${hide.sql} ORDER BY n.mtime DESC LIMIT ?`, [section, ...hide.params, limit])
       .map((r) => this.meta(r));
   }
 
@@ -150,9 +168,12 @@ export class NoteDb {
     }
   }
 
-  counts(): SectionCounts {
+  /** Notes per section; Notes counts what its list shows, without the notes of `hidden` tags. */
+  counts(hidden: readonly string[] = []): SectionCounts {
     const c: SectionCounts = { notes: 0, archive: 0, trash: 0, untagged: 0 };
     for (const r of this.db.getAllSync<{ section: Section; n: number }>('SELECT section, count(*) AS n FROM notes GROUP BY section')) c[r.section] = r.n;
+    const hide = notHidden(hidden);
+    if (hide.sql) c.notes = this.db.getFirstSync<{ n: number }>(`SELECT count(*) AS n FROM notes n WHERE n.section = 'notes'${hide.sql}`, hide.params)?.n ?? 0;
     c.untagged = this.db.getFirstSync<{ n: number }>("SELECT count(*) AS n FROM notes WHERE section = 'notes' AND tags = '[]'")?.n ?? 0;
     return c;
   }
