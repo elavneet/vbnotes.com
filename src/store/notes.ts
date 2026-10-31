@@ -8,6 +8,7 @@ import {
   type Vault, type VaultMeta,
 } from '@/vault';
 import { openNoteDb, type NoteDb } from './noteDb';
+import { welcomeOnce } from './welcome';
 import { buildTags, cleanHiddenTags, recordFrom, sectionOf, type NoteMeta, type NoteRecord, type Section, type SectionCounts, type TagNode } from './noteModel';
 
 export { UNTAGGED, sectionOf, type NoteMeta, type Section, type SectionCounts, type TagNode } from './noteModel';
@@ -188,6 +189,9 @@ export const useNotes = create<NotesState>((set, get) => {
       try {
         void kvDel(OLD_CACHE_KEY);
         await get().refresh();
+        const db = get().db;
+        const c = db?.counts();
+        if (db && c && (await welcomeOnce(vault, c.notes + c.archive + c.trash))) await get().refresh();
         startWatching(vault);
         // Files may have changed through iCloud/Drive while the app slept.
         AppState.addEventListener('change', (s) => { if (s === 'active') void get().refresh(); });

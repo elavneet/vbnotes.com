@@ -88,18 +88,33 @@ export default function SettingsScreen() {
     );
   };
   const backToDevice = () => {
-    Alert.alert('Use the folder on this device?', `The notes in ${vault?.label ?? 'that folder'} stay there.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Use this device',
-        onPress: () => {
-          setSwitching(true);
-          void chooseDeviceFolder()
-            .then((v) => useNotes.getState().setVault(v))
-            .finally(() => setSwitching(false));
-        },
-      },
-    ]);
+    const toDevice = async (copy: boolean) => {
+      setSwitching(true);
+      try {
+        const next = await chooseDeviceFolder();
+        if (copy && vault instanceof LocalVault && next instanceof LocalVault) vault.copyInto(next.root);
+        await useNotes.getState().setVault(next);
+      } catch (e: any) {
+        Alert.alert('Could not switch folders', String(e?.message ?? e));
+      } finally {
+        setSwitching(false);
+      }
+    };
+    Alert.alert(
+      'Use the folder on this device?',
+      noteCount
+        ? `Copy your ${noteCount} notes from ${vault?.label ?? 'that folder'} here, or use this device's folder as it is. The notes there stay where they are.`
+        : `The notes in ${vault?.label ?? 'that folder'} stay there.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        ...(noteCount
+          ? [
+              { text: 'Use it as it is', onPress: () => void toDevice(false) },
+              { text: `Copy ${noteCount} notes`, onPress: () => void toDevice(true) },
+            ]
+          : [{ text: 'Use this device', onPress: () => void toDevice(false) }]),
+      ],
+    );
   };
 
   const sizeOf = (m: SearchModel) => sizes[m.id] ?? m.approxMB;
