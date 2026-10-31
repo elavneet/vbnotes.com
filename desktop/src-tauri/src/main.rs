@@ -196,6 +196,33 @@ async fn move_file(open: State<'_, Open>, from: String, to: String) -> Res<Stat>
     })
 }
 
+/// Copies the open folder (notes, attachments, `.vbnotes`) into `to` before switching to it,
+/// never over a file already there. Returns how many files were copied.
+#[tauri::command]
+async fn copy_folder(open: State<'_, Open>, to: String) -> Res<i64> {
+    fn walk(from: &Path, to: &Path, copied: &mut i64) -> Res<()> {
+        fs::create_dir_all(to).map_err(text)?;
+        for item in fs::read_dir(from).map_err(text)?.flatten() {
+            let (src, dest) = (item.path(), to.join(item.file_name()));
+            if item.file_type().map_err(text)?.is_dir() {
+                walk(&src, &dest, copied)?;
+            } else if !dest.exists() {
+                fs::copy(&src, &dest).map_err(text)?;
+                *copied += 1;
+            }
+        }
+        Ok(())
+    }
+    let root = with(&open, |f| Ok(f.root.clone()))?;
+    let dest = PathBuf::from(&to);
+    if dest.starts_with(&root) || root.starts_with(&dest) {
+        return Err("Pick a folder outside the current one".into());
+    }
+    let mut copied = 0;
+    walk(&root, &dest, &mut copied)?;
+    Ok(copied)
+}
+
 #[tauri::command]
 async fn remove_file(open: State<'_, Open>, path: String) -> Res<()> {
     with(&open, |f| fs::remove_file(inside(&f.root, &path)?).map_err(text))
@@ -263,7 +290,7 @@ fn main() {
         .manage(Open::default())
         .manage(meaning::Meaning::default())
         .invoke_handler(tauri::generate_handler![
-            suggested_folder, launch_folder, open_folder, scan, read_files, write_file, move_file, remove_file, exists,
+            suggested_folder, launch_folder, open_folder, scan, read_files, write_file, move_file, copy_folder, remove_file, exists,
             db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_counts, db_tag_counts,
             meaning::meaning_enable, meaning::meaning_status, meaning::meaning_stale, meaning::meaning_set, meaning::meaning_search
         ])

@@ -58,6 +58,3 @@ desktop/src-tauri/gen/
 
 # local tool settings
 .claude/
-
-# Firebase config for Android push: kept out of the public repo (EAS and CI get it as a secret)
-google-services.json

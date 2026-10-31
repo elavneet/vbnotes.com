@@ -133,6 +133,13 @@ input, select { font: inherit; color: inherit; }
 .stepper button:disabled { opacity: 0.35; }
 .stepper .value { min-width: 48px; text-align: center; }
 
+/* Changing the notes folder (Settings) */
+.folder-choice { margin: 10px 0 4px; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); }
+.folder-choice p { margin: 0 0 10px; color: var(--textSecondary); line-height: 1.45; }
+.folder-choice .error { color: var(--danger); }
+.folder-choice-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+.folder-choice-buttons button { height: 34px; padding: 0 14px; border-radius: 17px; }
+
 /* Switch (Settings) */
 .switch { appearance: none; -webkit-appearance: none; position: relative; width: 40px; height: 24px; margin: 0; border-radius: 12px; background: var(--surface2); border: 1px solid var(--border); transition: background 0.15s; flex: none; }
 .switch::before { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 9px; background: var(--raised); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); transition: transform 0.15s; }

@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/theme';
 import type { NoteMeta } from '@/store/notes';
 import { formatNoteDate } from '@/utils/dates';
@@ -29,7 +29,7 @@ export const NoteRow = memo(function NoteRow({ note, onPress, onLongPress, selec
       style={({ pressed }) => [styles.row, (selected || pressed) && { backgroundColor: selected ? t.colors.surface2 : t.colors.surface }]}
     >
       <View style={styles.titleRow}>
-        {note.pinned ? <Ionicons name="pin" size={13} color={t.colors.accent} style={styles.pin} /> : null}
+        {note.pinned ? <MaterialCommunityIcons name="pin-outline" size={16} color={t.colors.accent} /> : null}
         <Text numberOfLines={1} style={[styles.title, { color: t.colors.text }]}>{note.title || 'Untitled'}</Text>
         <Text style={[styles.time, { color: t.colors.textMuted }]}>{formatNoteDate(note.mtime)}</Text>
       </View>
@@ -47,7 +47,6 @@ export const NoteRow = memo(function NoteRow({ note, onPress, onLongPress, selec
 const styles = StyleSheet.create({
   row: { marginHorizontal: 8, paddingHorizontal: 14, paddingVertical: 13, borderRadius: 16 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  pin: { transform: [{ rotate: '45deg' }] },
   title: { flex: 1, fontSize: 17, fontWeight: '600', letterSpacing: -0.2 },
   time: { fontSize: 13, fontVariant: ['tabular-nums'] },
   preview: { fontSize: 15, lineHeight: 21, marginTop: 3 },

@@ -81,11 +81,6 @@ jobs:
           distribution: temurin
           java-version: 17
       - run: npm ci
-      # Firebase's google-services.json (push on Android) is a repository secret, not in the repo.
-      - name: Firebase config
-        env:
-          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
-        run: if [ -n "$GOOGLE_SERVICES_JSON_B64" ]; then echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > google-services.json; fi
       - run: npx expo prebuild --platform android --no-install
       - name: Build the APK
         working-directory: android

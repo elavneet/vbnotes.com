@@ -1,4 +1,4 @@
-import { kvGet, kvPrune, kvSet } from '@/utils/kv';
+import { cacheDir, kvGet, kvPrune, kvSet, moveIndexesToCache } from '@/utils/kv';
 import { hashText } from '@/utils/markdown';
 import { chunkNote } from './chunks';
 import { cosine, getEmbedder, normalize, type Embedder } from './embedder';
@@ -7,7 +7,7 @@ import { DEFAULT_SEARCH_MODEL, searchModel, type SearchModelId } from './models'
 /**
  * Note → vectors. Every note is split into chunks sized for the model (title
  * prepended to each so context is never lost). Vectors live in memory and are
- * persisted to the app's key/value store keyed by content hash, so re-opening
+ * persisted in the app's caches (`cacheDir`) keyed by content hash, so re-opening
  * the app never re-embeds unchanged notes. Brute-force cosine is plenty for
  * thousands of notes: 2000 notes × 3 chunks × 1024 dims ≈ 6M multiplies.
  */
@@ -17,6 +17,8 @@ type Saved = Record<string, { hash: string; chunks: string[]; vecs: string[] }>;
 const INDEX_KEY = 'semantic.index.v2.';
 /** How often a long run of embedding saves what it has. */
 const SAVE_EVERY_MS = 20_000;
+/** Notes in a row the model can't read before the run stops (the model itself is broken). */
+const MAX_FAILED_NOTES = 5;
 
 /**
  * Vectors are saved as int8 plus one scale each, base64: a tenth of the size of JSON
@@ -42,6 +44,33 @@ function unpack(s: string): Float32Array {
   const out = new Float32Array(bytes.length - 4);
   for (let i = 0; i < out.length; i++) out[i] = ((bytes[4 + i] << 24) >> 24) * scale;
   return normalize(out);
+}
+
+/**
+ * Vectors for a note's chunks. A chunk the model fails on is tried again shorter (the export can
+ * reject lengths its metadata allows); one that still fails is left out. Throws when none can be read.
+ */
+async function readChunks(embedder: Embedder, chunks: string[]): Promise<{ chunks: string[]; vecs: Float32Array[] }> {
+  if (!chunks.length) return { chunks, vecs: [] };
+  try {
+    return { chunks, vecs: await embedder.embed(chunks, 'document') };
+  } catch (e) {
+    const kept: string[] = [];
+    const vecs: Float32Array[] = [];
+    for (const chunk of chunks) {
+      for (let words = chunk.split(' '); words.length >= 8; words = words.slice(0, Math.floor(words.length / 2))) {
+        try {
+          vecs.push((await embedder.embed([words.join(' ')], 'document'))[0]);
+          kept.push(chunk);
+          break;
+        } catch {
+          // Shorter next time round.
+        }
+      }
+    }
+    if (!vecs.length) throw e;
+    return { chunks: kept, vecs };
+  }
 }
 
 export interface SemanticHit { path: string; score: number; chunk: string }
@@ -122,8 +151,9 @@ export class SemanticIndex {
   private async restore() {
     this.loaded = true;
     // Indexes of earlier models or formats are never read again.
-    void kvPrune('semantic.index.', this.storageKey);
-    const saved = await kvGet<Saved>(this.storageKey);
+    moveIndexesToCache();
+    void kvPrune('semantic.index.', this.storageKey, cacheDir);
+    const saved = await kvGet<Saved>(this.storageKey, cacheDir);
     if (!saved) return;
     for (const [path, e] of Object.entries(saved)) {
       try {
@@ -145,7 +175,7 @@ export class SemanticIndex {
     if (this.persistTimer) { clearTimeout(this.persistTimer); this.persistTimer = null; }
     const out: Saved = {};
     for (const [path, e] of this.entries) out[path] = { hash: e.hash, chunks: e.chunks, vecs: e.vecs.map(pack) };
-    void kvSet(this.storageKey, out);
+    void kvSet(this.storageKey, out, cacheDir);
   }
 
   /** Forgets every note not in `paths`. */
@@ -174,6 +204,7 @@ export class SemanticIndex {
     if (this.running || !embedder || embedder.status !== 'ready') return;
     this.running = true;
     let savedAt = Date.now();
+    let failed = 0;
     try {
       // Stops as soon as another model is picked; its vectors would not match.
       while (this.queue.size && this.embedder === embedder) {
@@ -182,10 +213,19 @@ export class SemanticIndex {
         const text = await source.text(path);
         if (text === undefined) continue;
         const hash = hashText(text);
-        const chunks = chunkNote(text, embedder.chunkWords);
-        const vecs = chunks.length ? await embedder.embed(chunks, 'document') : [];
+        let entry: Entry;
+        try {
+          entry = { hash, ...(await readChunks(embedder, chunkNote(text, embedder.chunkWords))) };
+          failed = 0;
+        } catch (e) {
+          // One note the model can't read used to stop every note after it. It is kept without
+          // vectors (tried again once its text changes) and the run goes on.
+          if (++failed >= MAX_FAILED_NOTES) throw e;
+          console.warn('semantic index skipped a note', path, e);
+          entry = { hash, chunks: [], vecs: [] };
+        }
         if (this.embedder !== embedder) break;
-        this.entries.set(path, { hash, chunks, vecs });
+        this.entries.set(path, entry);
         this.notify();
         // A long first run is saved as it goes; saved only at the end, closing the app started it over.
         if (Date.now() - savedAt > SAVE_EVERY_MS) { this.save(); savedAt = Date.now(); }

@@ -33,6 +33,17 @@ public class VbFolderModule: Module {
       return ["uri": url.absoluteString, "bookmark": kept]
     }
 
+    /// Keeps a folder the app can fill again (the search model, which react-native-executorch
+    /// downloads into Documents) out of iCloud backups, as Apple's storage rules ask, and out of
+    /// sight in the Files app. False when it isn't there yet.
+    Function("keepOutOfBackup") { (uri: String) -> Bool in
+      guard var url = URL(string: uri), FileManager.default.fileExists(atPath: url.path) else { return false }
+      var values = URLResourceValues()
+      values.isExcludedFromBackup = true
+      values.isHidden = true
+      return (try? url.setResourceValues(values)) != nil
+    }
+
     /// Asks iCloud to bring down files that are only in the cloud (they show as hidden
     /// `.name.icloud` placeholders until then). Returns how many it asked for.
     AsyncFunction("downloadFromCloud") { (uri: String) -> Int in

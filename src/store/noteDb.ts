@@ -1,5 +1,5 @@
 import { openDatabaseSync, type SQLiteDatabase } from 'expo-sqlite';
-import { Directory, Paths } from 'expo-file-system';
+import { cacheDir, moveIndexesToCache } from '@/utils/kv';
 import { hashText } from '@/utils/markdown';
 import { UNTAGGED, type NoteMeta, type NoteRecord, type Section, type SectionCounts } from './noteModel';
 
@@ -194,11 +194,12 @@ export class NoteDb {
   close() { this.db.closeSync(); }
 }
 
-/** Kept with the app's other private files (`.vbnotes-kv`), hidden from the Files app. */
+/** Kept in the app's caches with the meaning index: out of backups and the Files app, rebuilt if iOS clears it. */
 export function openNoteDb(vaultId: string): NoteDb {
   // No `:` from the hash in the name: Finder and devicectl read it as a folder separator.
   const name = `notes.${hashText(vaultId).replace(':', '-')}.db`;
-  const db = openDatabaseSync(name, undefined, new Directory(Paths.document, '.vbnotes-kv').uri);
+  moveIndexesToCache();
+  const db = openDatabaseSync(name, undefined, cacheDir().uri);
   db.execSync('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;');
   const version = db.getFirstSync<{ user_version: number }>('PRAGMA user_version')?.user_version;
   // An index from another version is rebuilt from the files.
