@@ -10,7 +10,7 @@ import { useUi } from '@/store/ui';
 import { formatTag, tagHue } from '@/utils/tags';
 import { tagIconOf } from '@/utils/tagIcons';
 import { dateGroup } from '@/utils/dates';
-import { NoteRow } from './NoteRow';
+import { SwipeNote, closeSwipedNote } from './SwipeNote';
 import type { IconName } from './IconButton';
 import { ActionSheet, type SheetAction } from './ActionSheet';
 import { UpdateCard } from './UpdateCard';
@@ -91,8 +91,8 @@ export function NotesList({ wide, onLibrary }: { wide: boolean; onLibrary?: () =
   ) : [];
 
   const renderItem = useCallback(({ item }: { item: NoteMeta }) => (
-    <NoteRow note={item} onPress={open} onLongPress={setSheetFor} selected={wide && selectedPath === item.path} />
-  ), [open, wide, selectedPath]);
+    <SwipeNote note={item} section={section} onPress={open} onLongPress={setSheetFor} selected={wide && selectedPath === item.path} />
+  ), [open, wide, selectedPath, section]);
 
   const insets = useSafeAreaInsets();
 
@@ -107,6 +107,7 @@ export function NotesList({ wide, onLibrary }: { wide: boolean; onLibrary?: () =
         ListHeaderComponent={<View style={{ height: insets.top }} />}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={closeSwipedNote}
         initialNumToRender={14}
         windowSize={9}
         onEndReached={more}
