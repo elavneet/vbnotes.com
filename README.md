@@ -1,4 +1,4 @@
-# VBNotes
+# VB Notes
 
 Markdown notes for iPhone and the desktop, with search that understands meaning and runs on the device.
 
@@ -15,13 +15,15 @@ Linux and Android builds. The iPhone app is built from source for now (see below
 |---|---|---|---|---|
 | ![Notes list](docs/screenshots/phone-list-light.png) | ![A note with tasks and a diagram](docs/screenshots/phone-note-light.png) | ![Library with nested tags](docs/screenshots/phone-library-light.png) | ![Search by meaning](docs/screenshots/phone-search-light.png) | ![Settings](docs/screenshots/phone-settings-light.png) |
 
-| Dark | Pictures | Tables and tasks | Tags | Search |
+| Dark | Pictures | Tables and tasks | Code and diagrams | Tags |
 |---|---|---|---|---|
-| ![Notes list, dark](docs/screenshots/phone-list-dark.png) | ![A note with a picture](docs/screenshots/phone-note-dark.png) | ![A table and a task list](docs/screenshots/phone-note-table-dark.png) | ![Library, dark](docs/screenshots/phone-library-dark.png) | ![Search, dark](docs/screenshots/phone-search-dark.png) |
+| ![Notes list, dark](docs/screenshots/phone-list-dark.png) | ![A note with a picture](docs/screenshots/phone-note-dark.png) | ![A table and a task list](docs/screenshots/phone-note-table-dark.png) | ![Code and a diagram](docs/screenshots/phone-note-code-dark.png) | ![Library, dark](docs/screenshots/phone-library-dark.png) |
 
 "what does my flatmate owe" finds *Rent split with Arjun* although the note never uses those words.
 
 ## Desktop (macOS, Windows, Linux)
+
+![Desktop: nested tags, a diagram and code](docs/screenshots/desktop-algorithms.png)
 
 ![Desktop, Paper theme](docs/screenshots/desktop-light.png)
 
@@ -91,7 +93,7 @@ cd desktop && npm install
 npm run tauri dev           # or: npm run tauri build
 ```
 
-Open a folder from the command line with `vbnotes ~/Notes` (macOS: `open -a VBNotes --args ~/Notes`).
+Open a folder from the command line with `vbnotes ~/Notes` (macOS: `open -a "VB Notes" --args ~/Notes`).
 
 ## Releases
 
