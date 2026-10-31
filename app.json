@@ -34,6 +34,7 @@
       ]
     },
     "plugins": [
+      "./plugins/withIphoneOnlyExtensions",
       "expo-router",
       "expo-font",
       [
