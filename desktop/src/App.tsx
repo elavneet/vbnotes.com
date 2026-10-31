@@ -1,14 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open } from '@tauri-apps/plugin-dialog';
-import { UNTAGGED } from '@/store/noteModel';
-import { formatTag } from '@/utils/tags';
 import { formatNoteDate } from '@/utils/dates';
+import { startNote } from './actions';
 import { api } from './api';
 import { setupHost } from './host';
 import { Icon } from './Icon';
 import { NoteEditor, openEditor } from './NoteEditor';
+import { startMeaning } from './meaning';
 import { NoteList } from './NoteList';
+import { QuickOpen, useQuickOpen } from './QuickOpen';
 import { Settings, useSettingsOpen } from './Settings';
 import { Sidebar } from './Sidebar';
 import { savedFolder, useNote, useNotes } from './store';
@@ -29,6 +30,7 @@ export function App() {
     })();
   }, []);
   useEffect(() => { if (folder) setupHost(folder); }, [folder]);
+  useEffect(() => { void startMeaning(); }, []);
 
   // Closing the window saves the open note first.
   useEffect(() => {
@@ -45,19 +47,12 @@ function Main() {
   const searchRef = useRef<HTMLInputElement>(null);
   const selected = useNotes((s) => s.selected);
 
-  const onCreate = async () => {
-    const { tag, createNote } = useNotes.getState();
-    await openEditor.flush();
-    // A note made while a tag is picked starts with that tag, as on the phone.
-    const tagLine = tag && tag !== UNTAGGED ? formatTag(tag) : '';
-    await createNote(tagLine ? `# \n\n${tagLine} ` : '');
-  };
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
       const k = e.key.toLowerCase();
-      if (k === 'n') { e.preventDefault(); void onCreate(); }
+      if (k === 'n') { e.preventDefault(); void startNote(); }
+      else if (k === 'o') { e.preventDefault(); useQuickOpen.getState().toggle(); }
       else if (k === 'f' && !e.shiftKey) { e.preventDefault(); searchRef.current?.focus(); searchRef.current?.select(); }
       else if (k === 's') { e.preventDefault(); void openEditor.flush(); }
       else if (k === ',') { e.preventDefault(); useSettingsOpen.getState().set(true); }
@@ -69,17 +64,18 @@ function Main() {
   return (
     <div className="app">
       <Sidebar />
-      <NoteList searchRef={searchRef} onCreate={() => void onCreate()} />
+      <NoteList searchRef={searchRef} onCreate={() => void startNote()} />
       <main className="editor-pane">
         {selected ? <EditorBar path={selected} /> : <div className="editor-bar" data-tauri-drag-region />}
         {selected ? <NoteEditor path={selected} /> : (
           <div className="editor-empty">
             <Icon name="notes" size={34} />
-            <p>Pick a note, or start one with ⌘N.</p>
+            <p>Pick a note, start one with ⌘N, or find one with ⌘O.</p>
           </div>
         )}
       </main>
       <Settings />
+      <QuickOpen />
     </div>
   );
 }

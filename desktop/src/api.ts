@@ -1,10 +1,21 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { NoteMeta, NoteRecord, Section, SectionCounts } from '@/store/noteModel';
+import type { MeaningMatch } from '@/search/fuse';
 
 /** A note file as a folder scan finds it. `cloud`: only in iCloud for now, not readable yet. */
 export interface Entry { path: string; mtime: number; size: number; cloud: boolean }
 export interface Stat { mtime: number; size: number }
 export interface Hit { note: NoteMeta; snippet: string }
+/** Search by meaning (`src-tauri/src/meaning.rs`): the model download, then the notes it has read. */
+export interface MeaningStatus {
+  state: 'off' | 'downloading' | 'loading' | 'ready' | 'error';
+  /** The model download, 0 to 1. */
+  progress: number;
+  /** Chunks waiting for the model. */
+  pending: number;
+  indexed: number;
+  error?: string | null;
+}
 
 /** The Rust side (`src-tauri/src/main.rs`): the notes folder and its index. Paths are relative to the folder. */
 export const api = {
@@ -23,8 +34,13 @@ export const api = {
   move: (from: string, to: string, section: Section, mtime: number) => invoke<void>('db_move', { from, to, section, mtime }),
   setPinned: (paths: string[]) => invoke<void>('db_set_pinned', { paths }),
   get: (path: string) => invoke<NoteMeta | null>('db_get', { path }),
-  list: (section: Section, tag: string, limit: number) => invoke<NoteMeta[]>('db_list', { section, tag, limit }),
+  list: (section: Section, tag: string, limit: number, hidden: string[] = []) => invoke<NoteMeta[]>('db_list', { section, tag, limit, hidden }),
   search: (q: string, section: Section, limit: number) => invoke<Hit[]>('db_search', { q, section, limit }),
-  counts: () => invoke<SectionCounts>('db_counts'),
+  counts: (hidden: string[]) => invoke<SectionCounts>('db_counts', { hidden }),
   tagCounts: () => invoke<{ tag: string; n: number }[]>('db_tag_counts'),
+  meaningEnable: (on: boolean) => invoke<void>('meaning_enable', { on }),
+  meaningStatus: () => invoke<MeaningStatus>('meaning_status'),
+  meaningStale: () => invoke<{ path: string; hash: string }[]>('meaning_stale'),
+  meaningSet: (notes: { path: string; hash: string; chunks: string[] }[]) => invoke<void>('meaning_set', { notes }),
+  meaningSearch: (q: string, section: Section, limit: number) => invoke<MeaningMatch[]>('meaning_search', { q, section, limit }),
 };

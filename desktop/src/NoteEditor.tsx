@@ -7,6 +7,7 @@ import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { MarkdownBridge } from '@/editor/markdownBridge';
 import { openableUrl } from '@/utils/links';
+import { splitTitle } from '@/utils/markdown';
 import { PlainTable } from '../../editor-web/Editor';
 import { TagPills } from '../../editor-web/tagPills';
 import { RichCodeBlock } from '../../editor-web/codeBlocks';
@@ -106,8 +107,9 @@ function Pane({ path, initial }: { path: string; initial: string }) {
     extensions: EXTENSIONS,
     content: initial,
     contentType: 'markdown',
-    // A new note starts in its title line, above a tag it may come with.
-    autofocus: fresh ? 'start' : false,
+    // A new note starts in its title line, above a tag it may come with; one made with its title
+    // (⌘O) starts on the empty line under it.
+    autofocus: fresh ? (splitTitle(initial).title ? 'end' : 'start') : false,
     shouldRerenderOnTransaction: false,
     editorProps: { attributes: { spellcheck: 'true' } },
     onUpdate: () => {

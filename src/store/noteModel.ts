@@ -42,6 +42,10 @@ export interface TagNode {
   count: number;
 }
 
+/** Names to hide from the Notes list: `#Melta`, ` melta/ ` and `melta` all name the tag `melta`; each once. */
+export const cleanHiddenTags = (names: string[]) =>
+  [...new Set(names.map((n) => n.trim().replace(/^#+/, '').replace(/^\/+|\/+$/g, '').toLowerCase()).filter(Boolean))];
+
 export function sectionOf(path: string): Section {
   const top = path.split('/')[0];
   if (top === RESERVED_FOLDERS.trash) return 'trash';

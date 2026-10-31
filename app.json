@@ -2,8 +2,18 @@
   "expo": {
     "name": "VB Notes",
     "slug": "vbnotes",
+    "owner": "ramarya",
     "scheme": "vbnotes",
     "version": "0.1.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/90bb17f8-842e-4445-a3e1-eecdb79c1b76",
+      "requestHeaders": {
+        "expo-channel-name": "production"
+      }
+    },
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -14,7 +24,8 @@
       "bundleIdentifier": "com.lavneet.vbnotes",
       "infoPlist": {
         "UIFileSharingEnabled": true,
-        "LSSupportsOpeningDocumentsInPlace": true
+        "LSSupportsOpeningDocumentsInPlace": true,
+        "ITSAppUsesNonExemptEncryption": false
       },
       "appleTeamId": "J9YMW2253U"
     },
@@ -96,6 +107,11 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "90bb17f8-842e-4445-a3e1-eecdb79c1b76"
+      }
     }
   }
 }

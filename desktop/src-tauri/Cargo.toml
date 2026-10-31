@@ -1,6 +1,6 @@
 [package]
 name = "vbnotes"
-version = "0.1.0"
+version = "0.2.0"
 description = "VBNotes for the desktop: markdown notes in a plain folder"
 authors = ["Lavneet Sharma"]
 edition = "2021"
@@ -19,6 +19,11 @@ serde_json = "1"
 # Bundled SQLite comes with FTS5, which the keyword search needs.
 rusqlite = { version = "=0.40.2", features = ["bundled"] }
 notify-debouncer-mini = "=0.7.0"
+# Search by meaning: llama.cpp runs the phone's model (LFM2.5-Embedding-350M) on the CPU, or through
+# Metal on Apple Silicon (the crate turns that on there). ureq downloads the model once; sha2 checks it.
+llama-cpp-2 = { version = "=0.1.160", default-features = false }
+ureq = { version = "=3.5.0", default-features = false, features = ["rustls"] }
+sha2 = "=0.10.9"
 
 [profile.release]
 codegen-units = 1

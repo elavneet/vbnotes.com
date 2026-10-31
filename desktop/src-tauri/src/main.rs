@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod index;
+mod meaning;
 
 use index::{Counts, Hit, Index, Known, NoteMeta, Record, TagCount};
 use notify_debouncer_mini::{
@@ -236,8 +237,8 @@ async fn db_get(open: State<'_, Open>, path: String) -> Res<Option<NoteMeta>> {
 }
 
 #[tauri::command]
-async fn db_list(open: State<'_, Open>, section: String, tag: String, limit: i64) -> Res<Vec<NoteMeta>> {
-    with(&open, |f| f.index.list(&section, &tag, limit))
+async fn db_list(open: State<'_, Open>, section: String, tag: String, limit: i64, hidden: Vec<String>) -> Res<Vec<NoteMeta>> {
+    with(&open, |f| f.index.list(&section, &tag, limit, &hidden))
 }
 
 #[tauri::command]
@@ -246,8 +247,8 @@ async fn db_search(open: State<'_, Open>, q: String, section: String, limit: i64
 }
 
 #[tauri::command]
-async fn db_counts(open: State<'_, Open>) -> Res<Counts> {
-    with(&open, |f| f.index.counts())
+async fn db_counts(open: State<'_, Open>, hidden: Vec<String>) -> Res<Counts> {
+    with(&open, |f| f.index.counts(&hidden))
 }
 
 #[tauri::command]
@@ -260,9 +261,11 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(Open::default())
+        .manage(meaning::Meaning::default())
         .invoke_handler(tauri::generate_handler![
             suggested_folder, launch_folder, open_folder, scan, read_files, write_file, move_file, remove_file, exists,
-            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_counts, db_tag_counts
+            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_counts, db_tag_counts,
+            meaning::meaning_enable, meaning::meaning_status, meaning::meaning_stale, meaning::meaning_set, meaning::meaning_search
         ])
         .run(tauri::generate_context!())
         .expect("VBNotes could not start");

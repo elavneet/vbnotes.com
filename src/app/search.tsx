@@ -10,7 +10,7 @@ import { useUi } from '@/store/ui';
 import { search, semanticIndex, type SearchResult } from '@/search';
 import { NoteRow } from '@/components/NoteRow';
 import { Segmented } from '@/components/Segmented';
-import { noteRoute } from '@/components/NotesList';
+import { noteRoute, startNote } from '@/components/NotesList';
 import { useBreakpoint } from '@/utils/useBreakpoint';
 
 type Item = { note: NoteMeta; result?: SearchResult };
@@ -46,11 +46,12 @@ export default function SearchScreen() {
     return () => { cancelled = true; clearTimeout(h); };
   }, [q, mode, scope, db, revision]);
 
-  const typing = q.trim().length > 0;
+  const title = q.trim();
+  const typing = title.length > 0;
   // Before anything is typed, the latest notes are one tap away.
   const items = useMemo<Item[]>(() => {
     if (!db) return [];
-    if (!typing) return db.recent(scope, 8).map((note) => ({ note }));
+    if (!typing) return db.recent(scope, 8, useNotes.getState().hiddenTags).map((note) => ({ note }));
     return results.flatMap((r) => { const note = db.get(r.path); return note ? [{ note, result: r }] : []; });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `revision`: the index changed, read it again.
   }, [db, typing, scope, results, revision]);
@@ -70,6 +71,27 @@ export default function SearchScreen() {
     router.back();
     if (isWide) select(path); else setTimeout(() => router.push(noteRoute(path)), 50);
   };
+  // What is typed can become a new note, titled with it.
+  const create = () => {
+    router.back();
+    setTimeout(() => void startNote(title, isWide), 50);
+  };
+
+  const createRow = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Create a note titled ${title}`}
+      onPress={create}
+      style={({ pressed }) => [styles.create, pressed && { backgroundColor: t.colors.surface }]}
+    >
+      <View style={[styles.plus, { backgroundColor: t.colors.volt }]}>
+        <Ionicons name="add" size={20} color={t.colors.onVolt} />
+      </View>
+      <Text numberOfLines={1} style={[styles.createText, { color: t.colors.text }]}>
+        Create <Text style={{ color: t.colors.accent }}>“{title}”</Text>
+      </Text>
+    </Pressable>
+  );
 
   return (
     <View style={[styles.root, { backgroundColor: t.colors.bg, paddingTop: Platform.OS === 'ios' ? 16 : insets.top + 10 }]}>
@@ -104,7 +126,7 @@ export default function SearchScreen() {
         keyExtractor={(it) => it.note.path}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        ListHeaderComponent={!typing && items.length ? <Text style={[styles.group, { color: t.colors.textMuted }]}>Recent</Text> : undefined}
+        ListHeaderComponent={typing ? createRow : items.length ? <Text style={[styles.group, { color: t.colors.textMuted }]}>Recent</Text> : undefined}
         renderItem={({ item }) => (
           <NoteRow
             note={item.note}
@@ -130,4 +152,7 @@ const styles = StyleSheet.create({
   status: { fontSize: 13, paddingHorizontal: 22, paddingTop: 10, paddingBottom: 4 },
   group: { fontSize: 12, fontWeight: '700', letterSpacing: 0.9, textTransform: 'uppercase', paddingHorizontal: 22, paddingTop: 14, paddingBottom: 4 },
   empty: { textAlign: 'center', paddingTop: 60, fontSize: 16 },
+  create: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 8, marginTop: 8, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 14 },
+  plus: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  createText: { flex: 1, fontSize: 16, fontWeight: '600' },
 });

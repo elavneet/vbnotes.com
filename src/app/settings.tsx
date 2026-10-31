@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
@@ -172,6 +172,8 @@ export default function SettingsScreen() {
             {vault?.kind === 'picked' ? <Action label="Use the folder on this device" onPress={backToDevice} disabled={switching} /> : null}
           </Section>
 
+          <HiddenTags />
+
           <Section title="Search" footer={searchFooter} footerColor={smart && downloading ? t.colors.text : undefined}>
             <PickRow label="Model" value={model.name} hint="Choose the search model" onPress={() => setModelMenu(true)} />
             <Row label="Status" value={searchStatus} />
@@ -200,6 +202,52 @@ export default function SettingsScreen() {
         }))}
       />
     </View>
+  );
+}
+
+/** Tags kept out of the main Notes list; their notes show when the tag is picked in the library. */
+function HiddenTags() {
+  const t = useTheme();
+  const hidden = useNotes((s) => s.hiddenTags);
+  const setHiddenTags = useNotes((s) => s.setHiddenTags);
+  const [draft, setDraft] = useState('');
+  const add = () => {
+    if (!draft.trim()) return;
+    void setHiddenTags([...hidden, draft]);
+    setDraft('');
+  };
+  return (
+    <Section
+      title="Hide from Notes"
+      footer="Notes with these tags stay out of Notes, at any level: melta hides #melta and #go2lister/melta. Pick the tag in the library to see them."
+    >
+      {hidden.map((name) => (
+        <View key={name} style={[styles.row, styles.stepRow]}>
+          <Text style={[styles.label, { color: t.colors.text }]}>#{name}</Text>
+          <IconButton name="close-circle" size={20} color={t.colors.textMuted} label={`Show #${name} in Notes again`} onPress={() => void setHiddenTags(hidden.filter((h) => h !== name))} />
+        </View>
+      ))}
+      <View style={styles.row}>
+        <TextInput
+          value={draft}
+          onChangeText={setDraft}
+          onSubmitEditing={add}
+          placeholder="Add a tag, like melta"
+          placeholderTextColor={t.colors.textMuted}
+          selectionColor={t.colors.accent}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="done"
+          accessibilityLabel="Tag to hide from Notes"
+          style={[styles.input, { color: t.colors.text }]}
+        />
+        {draft.trim() ? (
+          <Pressable accessibilityRole="button" onPress={add} hitSlop={8} style={({ pressed }) => pressed && styles.pressed}>
+            <Text style={[styles.label, { color: t.colors.accent, fontWeight: '600' }]}>Hide</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    </Section>
   );
 }
 
@@ -334,6 +382,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48, paddingHorizontal: 16, paddingVertical: 10, gap: 12 },
   stepRow: { paddingVertical: 2, paddingRight: 6 },
   label: { fontSize: 16 },
+  input: { flex: 1, fontSize: 16, paddingVertical: 4 },
   value: { fontSize: 16, flexShrink: 1, textAlign: 'right' },
   footer: { fontSize: 13, lineHeight: 18, paddingHorizontal: 16, paddingTop: 8 },
   pick: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
