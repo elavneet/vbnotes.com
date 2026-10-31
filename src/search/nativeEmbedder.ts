@@ -2,6 +2,7 @@ import { NativeModules, TurboModuleRegistry } from 'react-native';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { normalize, type EmbedKind, type Embedder, type EmbedderStatus } from './embedder';
 import { SEARCH_MODELS, type SearchModel } from './models';
+import { FolderAccess } from '@/vault/folderAccess';
 
 /** True when the ExecuTorch native code is linked into this binary (never in Expo Go). */
 function nativeLinked(): boolean {
@@ -76,6 +77,7 @@ export class NativeEmbedder implements Embedder {
           },
         });
         downloaded = true;
+        void keepModelsOutOfBackup();
         const model = await lib.createTextEmbedder(resolved);
         // Switched to another model while this one downloaded.
         if (this.disposed) { model.dispose?.(); return; }
@@ -113,6 +115,20 @@ export class NativeEmbedder implements Embedder {
     try { this.model?.dispose?.(); } catch { /* already gone */ }
     this.model = null;
     this.status = 'idle';
+  }
+}
+
+/**
+ * The library downloads models into Documents (so iOS never clears them), where iCloud would back
+ * up 45–235 MB the app can fetch again and the Files app would show the folder. iOS only.
+ */
+async function keepModelsOutOfBackup() {
+  try {
+    if (!FolderAccess?.keepOutOfBackup) return;
+    const { Directory, Paths } = await import('expo-file-system');
+    FolderAccess.keepOutOfBackup(new Directory(Paths.document, 'react-native-executorch').uri);
+  } catch (e) {
+    console.warn('could not keep the search model out of backups', e);
   }
 }
 
