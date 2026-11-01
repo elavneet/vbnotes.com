@@ -47,7 +47,7 @@ A code block marked \`mermaid\` becomes a drawing (tap Edit to change it):
 
 \`\`\`mermaid
 flowchart LR
-  P[Phone] -- iCloud Drive --> F[(Your notes folder)]
+  P[Phone] -- ${Platform.OS === 'ios' ? 'iCloud Drive' : 'a sync app'} --> F[(Your notes folder)]
   D[Mac or PC] -- same files --> F
 \`\`\`
 
