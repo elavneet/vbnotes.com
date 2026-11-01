@@ -13,7 +13,7 @@ import { downloadSizeMB } from '@/search/nativeEmbedder';
 import { IconButton } from '@/components/IconButton';
 import { ActionSheet, type SheetAction } from '@/components/ActionSheet';
 import { Segmented } from '@/components/Segmented';
-import { LocalVault, canUseICloud, chooseDeviceFolder, iCloudFolder, pickFolder } from '@/vault';
+import { LocalVault, SafVault, canUseICloud, chooseDeviceFolder, iCloudFolder, pickFolder } from '@/vault';
 
 export default function SettingsScreen() {
   const t = useTheme();
@@ -51,7 +51,10 @@ export default function SettingsScreen() {
   const switchTo = async (next: LocalVault, remember: () => Promise<void>, copy: boolean) => {
     setSwitching(true);
     try {
-      if (copy && vault instanceof LocalVault) vault.copyInto(next.root);
+      // A folder picked on Android takes files the Android way (`SafVault`).
+      if (copy && vault instanceof LocalVault) {
+        if (next instanceof SafVault) next.copyFrom(vault.root); else vault.copyInto(next.root);
+      }
       await remember();
       await useNotes.getState().setVault(next);
     } catch (e: any) {

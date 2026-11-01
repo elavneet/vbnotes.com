@@ -2,11 +2,13 @@ import { Platform } from 'react-native';
 import { Directory } from 'expo-file-system';
 import { kvGetSync, kvSet } from '@/utils/kv';
 import { LocalVault } from './localVault';
+import { SafVault } from './safVault';
 import { FolderAccess } from './folderAccess';
 import type { Vault } from './types';
 
 export * from './types';
 export { LocalVault } from './localVault';
+export { SafVault } from './safVault';
 
 /** Where the notes live: the app's own folder, its folder in iCloud Drive, or one picked in Files. */
 type Location = { kind: 'device' } | { kind: 'icloud'; uri: string } | { kind: 'picked'; uri: string; label: string; bookmark?: string };
@@ -18,13 +20,17 @@ export function openDefaultVault(): Vault {
   return LocalVault.default();
 }
 
-const pickedVault = (dir: Directory, label: string) => new LocalVault(dir, `picked:${dir.uri}`, label, 'picked');
+// An Android folder is a `content://` tree, whose files have addresses of their own (`SafVault`).
+const pickedVault = (dir: Directory, label: string) =>
+  new (dir.uri.startsWith('content://') ? SafVault : LocalVault)(dir, `picked:${dir.uri}`, label, 'picked');
 const iCloudVault = (dir: Directory) => new LocalVault(dir, 'icloud', ICLOUD_LABEL, 'icloud');
 
 /** "iCloud Drive · Notes", "On this device · Notes" or just the folder name. */
 function labelFor(uri: string): string {
   const parts = uri.replace(/\/+$/, '').split('/');
-  const name = decodeURIComponent(parts[parts.length - 1] || 'Notes');
+  let name = decodeURIComponent(parts[parts.length - 1] || 'Notes');
+  // An Android folder is a tree id like `primary:Documents/Notes`.
+  if (uri.startsWith('content://')) name = name.slice(name.lastIndexOf(':') + 1).split('/').pop() || 'Notes';
   if (uri.includes('/Mobile%20Documents/com~apple~CloudDocs') || uri.includes('/Mobile Documents/com~apple~CloudDocs')) return `iCloud Drive · ${name}`;
   if (uri.includes('/Containers/Data/Application/')) return `On this device · ${name}`;
   return name;
@@ -95,13 +101,13 @@ export function canUseICloud(): boolean {
 }
 
 /**
- * A first launch on an iPhone asks where notes should live before anything is written: nothing
- * chosen yet, no welcome note made, and nothing in the device folder (people from before this
- * question keep theirs without being asked).
+ * A first launch asks where notes should live before anything is written: nothing chosen yet, no
+ * welcome note made, and nothing in the device folder (people from before this question keep
+ * theirs without being asked).
  */
 export function folderNotChosen(): boolean {
   // 'welcomed' is WELCOMED_KEY in store/welcome.ts.
-  if (Platform.OS !== 'ios' || kvGetSync<Location>(LOCATION_KEY) || kvGetSync<boolean>('welcomed')) return false;
+  if (kvGetSync<Location>(LOCATION_KEY) || kvGetSync<boolean>('welcomed')) return false;
   try {
     return !LocalVault.default().root.list().some((it) => !it.name?.startsWith('.'));
   } catch {
