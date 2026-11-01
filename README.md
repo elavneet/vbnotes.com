@@ -6,6 +6,15 @@ Your notes are plain `.md` files in a folder you choose. Put that folder in iClo
 and the desktop app show the same notes. There is no account and no server: the search model runs on
 the phone, and the files stay yours to open in any editor.
 
+**New in 0.4**
+
+- **Links between notes.** Type `[[` and a few letters: pick a note from the list and the link is
+  written for you. Tap or ⌘-click it to open that note.
+- **A style bar on the desktop**, as in Bear: headings, lists, bold, highlight, links, tables and
+  pictures, with Bear's shortcuts.
+- **iCloud Drive from the first launch.** The app asks where notes live, and iCloud Drive comes first,
+  so the iPhone and the Mac show the same notes with nothing to set up.
+
 **Website:** [vbnotes.com](https://vbnotes.com), with a short guide and the blog.
 
 **Download:** see [Releases](https://github.com/elavneet/vbnotes.com/releases) for macOS, Windows,
