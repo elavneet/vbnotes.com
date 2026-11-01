@@ -305,19 +305,35 @@ async fn db_titles(open: State<'_, Open>, q: String, limit: i64) -> Res<Vec<Note
     with(&open, |f| f.index.titles(&q, limit))
 }
 
+/// Where a new file `to` goes in the folder, its parent made; never a file already there.
+fn new_file(root: &Path, to: &str) -> Res<PathBuf> {
+    let dest = inside(root, to)?;
+    if dest.exists() {
+        return Err(format!("{to} already exists"));
+    }
+    if let Some(dir) = dest.parent() {
+        fs::create_dir_all(dir).map_err(text)?;
+    }
+    Ok(dest)
+}
+
 /// Copies a file picked outside the folder (a picture for a note) to `to` in it, never over a file already there.
 #[tauri::command]
 async fn import_file(open: State<'_, Open>, from: String, to: String) -> Res<Stat> {
     with(&open, |f| {
-        let dest = inside(&f.root, &to)?;
-        if dest.exists() {
-            return Err(format!("{to} already exists"));
-        }
-        if let Some(dir) = dest.parent() {
-            fs::create_dir_all(dir).map_err(text)?;
-        }
+        let dest = new_file(&f.root, &to)?;
         fs::copy(&from, &dest).map_err(text)?;
         stat_of(&dest).ok_or_else(|| format!("{to} was not copied"))
+    })
+}
+
+/// The welcome note's picture, the phone app's own (`assets/welcome`), built into the app.
+#[tauri::command]
+async fn welcome_picture(open: State<'_, Open>, to: String) -> Res<Stat> {
+    with(&open, |f| {
+        let dest = new_file(&f.root, &to)?;
+        fs::write(&dest, include_bytes!("../../../assets/welcome/mountains.png")).map_err(text)?;
+        stat_of(&dest).ok_or_else(|| format!("{to} was not written"))
     })
 }
 
@@ -339,7 +355,7 @@ fn main() {
         .manage(meaning::Meaning::default())
         .invoke_handler(tauri::generate_handler![
             folder_places, make_place, launch_folder, open_folder, scan, read_files, write_file, move_file, copy_folder, remove_file, exists,
-            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file,
+            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, welcome_picture,
             meaning::meaning_enable, meaning::meaning_status, meaning::meaning_stale, meaning::meaning_set, meaning::meaning_search
         ])
         .run(tauri::generate_context!())

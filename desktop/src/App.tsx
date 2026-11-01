@@ -15,6 +15,7 @@ import { Sidebar } from './Sidebar';
 import { useStyleBar } from './StyleBar';
 import { savedFolder, useNote, useNotes } from './store';
 import { useApplyTheme, useTheme } from './theme';
+import { welcomeOnce } from './welcome';
 
 export function App() {
   const theme = useTheme();
@@ -134,13 +135,17 @@ function Welcome({ error }: { error?: string }) {
   const [places, setPlaces] = useState<{ icloud: string | null; here: string } | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const openFolder = useNotes((s) => s.openFolder);
+  const start = async (path: string) => {
+    await openFolder(path);
+    await welcomeOnce().catch((e) => console.warn('welcome note not written', e));
+  };
   useEffect(() => { void api.folderPlaces().then(setPlaces, (e) => setProblem(String(e))); }, []);
   const choose = async () => {
     const picked = await open({ directory: true, title: 'Choose your notes folder' });
-    if (typeof picked === 'string') await openFolder(picked);
+    if (typeof picked === 'string') await start(picked);
   };
   const use = (place: 'icloud' | 'here') => async () => {
-    try { await openFolder(await api.makePlace(place)); } catch (e) { setProblem(String(e)); }
+    try { await start(await api.makePlace(place)); } catch (e) { setProblem(String(e)); }
   };
   const option = (onClick: () => void, icon: IconName, title: string, text: string, first = false) => (
     <button className={`place${first ? ' first' : ''}`} onClick={onClick}>

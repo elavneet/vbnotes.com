@@ -41,6 +41,7 @@ export const api = {
   search: (q: string, section: Section, limit: number) => invoke<Hit[]>('db_search', { q, section, limit }),
   titles: (q: string, limit: number) => invoke<NoteMeta[]>('db_titles', { q, limit }),
   importFile: (from: string, to: string) => invoke<Stat>('import_file', { from, to }),
+  welcomePicture: (to: string) => invoke<Stat>('welcome_picture', { to }),
   counts: (hidden: string[]) => invoke<SectionCounts>('db_counts', { hidden }),
   tagCounts: () => invoke<{ tag: string; n: number }[]>('db_tag_counts'),
   meaningEnable: (on: boolean) => invoke<void>('meaning_enable', { on }),
