@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { listen } from '@tauri-apps/api/event';
-import { ALL_CHARS, EACH_CHARS, FOUND, NOTE_CHARS, SYSTEM, noteBlock, relevantNotes, type ChatMessage, type Scope, type Source, type Turn } from '@/ai/prompt';
+import { ALL_CHARS, EACH_CHARS, NOTE_CHARS, SYSTEM, historyOf, noteBlock, passages, relevantNotes, type Scope, type Source, type Turn } from '@/ai/prompt';
 import { addSpend, type Spend } from '@/ai/spend';
 import { api, type AiSettings, type AiView } from './api';
 import { findNotes, useNotes } from './store';
@@ -82,12 +82,13 @@ export const useChat = create<{
       // A follow-up ("and the second one?") still finds the notes the conversation is about.
       const last = [...turns].reverse().find((t) => t.role === 'user')?.content ?? '';
       const query = `${last} ${question}`.trim();
-      const found = await relevantNotes(query, (await findNotes(query, 'notes', FOUND)).notes, async (w) => (await api.search(w, 'notes', 12)).map((h) => h.note));
+      const found = await relevantNotes(query, (await findNotes(query, 'notes', 30)).notes, async (w) => (await api.search(w, 'notes', 30)).map((h) => h.note), notes.hiddenTags);
       let room = ALL_CHARS;
       for (const n of found) {
         if (room <= 0) break;
         const text = await notes.readText(n.path).catch(() => '');
-        const piece = noteBlock(n.title || 'Untitled', text, Math.min(EACH_CHARS, room));
+        const max = Math.min(EACH_CHARS, room);
+        const piece = noteBlock(n.title || 'Untitled', passages(text, query, max), max);
         room -= piece.length;
         context += `${piece}\n\n`;
         sources.push({ path: n.path, title: n.title || 'Untitled' });
@@ -95,7 +96,7 @@ export const useChat = create<{
       if (!sources.length) context = '(No notes matched this question.)';
     }
     const id = crypto.randomUUID();
-    const history: ChatMessage[] = turns.filter((t) => !t.error && t.content).map((t) => ({ role: t.role, content: t.content }));
+    const history = historyOf(turns);
     set((s) => ({ busy: id, turns: [...s.turns, { role: 'user', content: question }, { role: 'assistant', content: '', id, sources }] }));
     try {
       await api.aiChat(id, `${SYSTEM}\n\n${context}`, [...history, { role: 'user', content: question }]);

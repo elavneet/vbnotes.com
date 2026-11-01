@@ -46,6 +46,9 @@ export function App() {
     return () => { void off.then((f) => f()); };
   }, [folder]);
   useEffect(() => { void startMeaning(); }, []);
+  // The window starts hidden; it shows once the theme's colours are on (`useApplyTheme` runs first),
+  // and takes the theme's background each time it changes.
+  useEffect(() => { void api.windowReady(theme.colors.bg); }, [theme.colors.bg]);
 
   // The close button saves the open note first; it hides the window instead with the tray on.
   useWindowClose();
