@@ -11,6 +11,7 @@ import { themesOf, useThemePrefs, type ThemePref } from './theme';
 import { TRAY_OFFERED, useTray } from './windowClose';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { PROVIDERS, chatModels, preferredModel, providerOf, useAi } from './ai';
+import { CONSENT_TEXT, CONSENT_TITLE } from '@/ai/prompt';
 
 export const useSettingsOpen = create<{ open: boolean; set: (open: boolean) => void }>((set) => ({ open: false, set: (open) => set({ open }) }));
 
@@ -156,6 +157,8 @@ function AiSetting() {
   const [models, setModels] = useState<string[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Turning it on first asks for permission to send notes to a provider.
+  const [asking, setAsking] = useState(false);
   useEffect(() => { if (!view) void load(); }, [view, load]);
   const fetchModels = async (pick: boolean) => {
     setBusy(true);
@@ -183,8 +186,17 @@ function AiSetting() {
     <>
       <label className="row-setting">
         <span>Chat with AI</span>
-        <input type="checkbox" className="switch" checked={view.enabled} onChange={(e) => void save({ enabled: e.target.checked })} />
+        <input type="checkbox" className="switch" checked={view.enabled || asking} onChange={(e) => (e.target.checked ? setAsking(true) : void save({ enabled: false }))} />
       </label>
+      {asking ? (
+        <div className="folder-choice">
+          <p><b>{CONSENT_TITLE}</b> {CONSENT_TEXT}</p>
+          <div className="folder-choice-buttons">
+            <button className="secondary" onClick={() => setAsking(false)}>Not now</button>
+            <button className="primary" onClick={() => { setAsking(false); void save({ enabled: true }); }}>Turn on</button>
+          </div>
+        </div>
+      ) : null}
       <p className="hint">
         {view.enabled
           ? 'Ask about the open note or all your notes, from the sparkle button over a note or ⇧⌘J. Only what you ask about is sent, and only when you ask.'

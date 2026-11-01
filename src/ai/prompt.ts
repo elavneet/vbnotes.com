@@ -5,6 +5,11 @@ export interface Source { path: string; title: string }
 export interface ChatMessage { role: 'user' | 'assistant'; content: string }
 export interface Turn { role: 'user' | 'assistant'; content: string; id?: string; sources?: Source[]; error?: string }
 
+/** What turning the chat on asks the person to agree to, on the phone and the desktop. */
+export const CONSENT_TITLE = 'Turn on chat with AI?';
+export const CONSENT_TEXT =
+  'When you ask a question, VB Notes sends it to the AI provider you choose, with the note you are asking about or, when you ask about all notes, the notes that match it. The provider handles them under its own terms, with your own account. Nothing is sent until you ask, and you can turn this off at any time.';
+
 /** What the model is told, ahead of the notes it may use. */
 export const SYSTEM = `You are the assistant in VB Notes, a markdown notes app. Answer the person's questions using their notes, given below between <note> tags. Mention a note by its title when you use it. If the notes don't cover the question, say so, then help from general knowledge and make clear which part is which. Reply in markdown, and keep it short unless asked for more.`;
 

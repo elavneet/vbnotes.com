@@ -16,6 +16,7 @@ import { Segmented } from '@/components/Segmented';
 import { LocalVault, SafVault, canUseICloud, chooseDeviceFolder, iCloudFolder, pickFolder } from '@/vault';
 import { providerModels, useAi } from '@/ai/chat';
 import { PROVIDERS, chatModels, destinationOf, preferredModel, providerOf } from '@/ai/providers';
+import { CONSENT_TEXT, CONSENT_TITLE } from '@/ai/prompt';
 import { ModelPicker } from '@/components/ModelPicker';
 
 export default function SettingsScreen() {
@@ -270,6 +271,12 @@ function AiSection() {
   useEffect(() => { if (canList) void load(); }, [canList, ai.provider, ai.hasKey, ai.baseUrl]);
   const list = canList ? models : null;
   const saveKey = async (k: string) => { setKey(''); await ai.setKey(k); };
+  // Explicit permission before any note can go to an AI provider (App Review 5.1.2).
+  const askToTurnOn = () =>
+    Alert.alert(CONSENT_TITLE, CONSENT_TEXT, [
+      { text: 'Not now', style: 'cancel' },
+      { text: 'Turn on', onPress: () => ai.save({ enabled: true }) },
+    ]);
   const footer = !ai.enabled
     ? 'Off: nothing is ever sent. Switched on, you can ask an AI about one note or all of them, with your own account at OpenRouter, OpenAI, Anthropic, Google and others.'
     : problem ?? `Ask about a note from its ⋮ menu, or about all notes from Search. Only what you ask about is sent, to ${destinationOf(ai.provider)}, and only when you ask.`;
@@ -278,7 +285,7 @@ function AiSection() {
       <Section title="AI chat" footer={footer} footerColor={ai.enabled && problem ? t.colors.danger : undefined}>
         <View style={styles.row}>
           <Text style={[styles.label, { color: t.colors.text }]}>Chat with AI</Text>
-          <Switch value={ai.enabled} onValueChange={(enabled) => ai.save({ enabled })} trackColor={{ true: t.colors.volt, false: t.colors.surface2 }} thumbColor="#fff" accessibilityLabel="Chat with AI" />
+          <Switch value={ai.enabled} onValueChange={(enabled) => (enabled ? askToTurnOn() : ai.save({ enabled: false }))} trackColor={{ true: t.colors.volt, false: t.colors.surface2 }} thumbColor="#fff" accessibilityLabel="Chat with AI" />
         </View>
         {ai.enabled ? <PickRow label="Provider" value={p.name} hint="Choose the AI provider" onPress={() => setProviderMenu(true)} /> : null}
         {ai.enabled && p.address !== undefined ? (
