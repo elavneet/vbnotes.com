@@ -1,11 +1,10 @@
 import { Platform } from 'react-native';
 import { Asset } from 'expo-asset';
 import { kvGetSync, kvSet } from '@/utils/kv';
-import type { Vault } from '@/vault/types';
+import type { Vault, VaultMeta } from '@/vault/types';
+import { WELCOME_NOTE, WELCOME_PICTURE, welcomePlan } from './welcomeNote';
 
 const WELCOMED_KEY = 'welcomed';
-const NOTE = 'Welcome to VB Notes.md';
-const PICTURE = 'attachments/welcome-mountains.png';
 
 /** What VB Notes does, shown by doing it: markdown, checklists, tags, a link, a picture, a diagram, code, a table. */
 const TEXT = `# Welcome to VB Notes
@@ -79,19 +78,24 @@ ${Platform.OS === 'ios'
 `;
 
 /**
- * The first launch, with an empty notes folder, gets one note that shows what the app does.
- * Once only: a deleted welcome note stays deleted, and people who already have notes never get it.
+ * The first launch on this phone, once the notes folder is chosen (an empty one or one that already
+ * has notes), shows what the app does in one note. An older copy of it is replaced, its old text
+ * moved to Trash (`trashPath`); the current one is left as it is. Resolves with whether it wrote.
  */
-export async function welcomeOnce(vault: Vault, notes: number): Promise<boolean> {
+export async function welcomeOnce(vault: Vault, meta: VaultMeta, trashPath: () => Promise<string>): Promise<boolean> {
   if (kvGetSync<boolean>(WELCOMED_KEY)) return false;
   await kvSet(WELCOMED_KEY, true);
-  if (notes > 0) return false;
-  try {
-    const [picture] = await Asset.loadAsync(require('../../assets/welcome/mountains.png'));
-    if (picture.localUri) await vault.importFile(picture.localUri, PICTURE);
-  } catch (e) {
-    console.warn('welcome picture not copied', e); // the note reads fine without it
+  const plan = welcomePlan((await vault.list()).find((e) => e.path === WELCOME_NOTE && !e.isDir), meta);
+  if (plan === 'keep') return false;
+  if (plan === 'replace') await vault.move(WELCOME_NOTE, await trashPath());
+  if (!(await vault.exists(WELCOME_PICTURE))) {
+    try {
+      const [picture] = await Asset.loadAsync(require('../../assets/welcome/mountains.png'));
+      if (picture.localUri) await vault.importFile(picture.localUri, WELCOME_PICTURE);
+    } catch (e) {
+      console.warn('welcome picture not copied', e); // the note reads fine without it
+    }
   }
-  await vault.write(NOTE, TEXT);
+  await vault.write(WELCOME_NOTE, TEXT);
   return true;
 }

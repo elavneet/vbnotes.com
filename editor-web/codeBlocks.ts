@@ -23,10 +23,10 @@ function colour(doc: PMNode): DecorationSet {
 
 // Diagrams: a ```mermaid block shows its drawing, and its code only while the caret is inside it
 // (Edit puts it there). Mermaid is fetched once from jsDelivr (pinned, checked against its hash),
-// the same build getmelta.app uses, then lives in the WebView's cache. Offline, or with code that
-// doesn't parse, the block stays plain code.
-const MERMAID_URL = 'https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js';
-const MERMAID_SRI = 'sha384-rbtjAdnIQE/aQJGEgXrVUlMibdfTSa4PQju4HDhN3sR2PmaKFzhEafuePsl9H/9I';
+// then lives in the WebView's cache; 11.4.1 cut long subgraph titles short. Offline, or with code
+// that doesn't parse, the block stays plain code.
+const MERMAID_URL = 'https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js';
+const MERMAID_SRI = 'sha384-EOXBFmc3gx5mb+vn0vPvvGqACToJD24hhacX5Yx+8NUUQrHIle/Qi5Bg9o3zKwW2';
 type Mermaid = { initialize: (o: object) => void; render: (id: string, code: string) => Promise<{ svg: string }> };
 let mermaidLoad: Promise<Mermaid> | null = null;
 

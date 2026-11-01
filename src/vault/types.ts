@@ -62,6 +62,8 @@ export interface VaultMeta {
    * `#go2lister/melta`); they still show under their tag. Shared with the desktop app.
    */
   hiddenTags?: string[];
+  /** The version of the welcome note in the folder (`WELCOME_VERSION`). */
+  welcome?: number;
 }
 
 export function dirname(p: string): string {

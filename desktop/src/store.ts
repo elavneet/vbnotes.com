@@ -48,6 +48,8 @@ interface NotesState {
   deleteForever: (path: string) => Promise<void>;
   togglePin: (path: string) => Promise<void>;
   setHiddenTags: (names: string[]) => Promise<void>;
+  /** Writes `patch` into the folder's `.vbnotes/meta.json`, keeping the rest. */
+  saveMeta: (patch: Partial<VaultMeta>) => Promise<void>;
   show: (section: Section, tag?: string) => void;
   select: (path: string | null) => void;
 }
@@ -67,7 +69,7 @@ export const knownText = (path: string) => contents.get(path);
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-function parseMeta(text: string | null | undefined): VaultMeta {
+export function parseMeta(text: string | null | undefined): VaultMeta {
   try {
     if (text) return { pinned: [], tagIcons: {}, hiddenTags: [], ...JSON.parse(text) };
   } catch {}
@@ -291,6 +293,8 @@ export const useNotes = create<NotesState>((set, get) => {
       const sum = await summary(hiddenTags);
       set((s) => ({ ...sum, revision: s.revision + 1 }));
     },
+
+    saveMeta: (patch) => writeMeta(patch),
 
     show: (section, tag = '') => set({ section, tag, selected: null }),
     select: (path) => set({ selected: path, fresh: null }),
