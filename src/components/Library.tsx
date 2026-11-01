@@ -204,7 +204,7 @@ const GRID_PAD = 18;
 
 const styles = StyleSheet.create({
   list: { flex: 1 },
-  top: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingBottom: 10 },
+  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 10 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 46, paddingRight: 12, marginHorizontal: 8, borderRadius: 12 },
   label: { flex: 1, fontSize: 16 },
   count: { fontSize: 14, fontVariant: ['tabular-nums'] },
