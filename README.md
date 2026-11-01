@@ -1,10 +1,12 @@
 # VB Notes
 
-Markdown notes for iPhone and the desktop, with search that understands meaning and runs on the device.
+Markdown notes for iPhone, Android, Mac, Windows and Linux, with search that understands meaning and
+runs on the device.
 
-Your notes are plain `.md` files in a folder you choose. Put that folder in iCloud Drive and the phone
-and the desktop app show the same notes. There is no account and no server: the search model runs on
-the phone, and the files stay yours to open in any editor.
+Your notes are plain `.md` files in a folder you choose. Put that folder in iCloud Drive, or let a sync
+app such as Syncthing or FolderSync keep it in step, and the phone and the desktop app show the same
+notes. There is no account and no server: the search model runs on your phone or computer, and the
+files stay yours to open in any editor.
 
 **New in 0.4**
 
@@ -13,7 +15,8 @@ the phone, and the files stay yours to open in any editor.
 - **A style bar on the desktop**, as in Bear: headings, lists, bold, highlight, links, tables and
   pictures, with Bear's shortcuts.
 - **iCloud Drive from the first launch.** The app asks where notes live, and iCloud Drive comes first,
-  so the iPhone and the Mac show the same notes with nothing to set up.
+  so the iPhone and the Mac show the same notes with nothing to set up. On Android it offers a sync
+  app with short steps and a [guide with pictures](https://vbnotes.com/docs/android-sync).
 
 **Website:** [vbnotes.com](https://vbnotes.com), with a short guide and the blog.
 
