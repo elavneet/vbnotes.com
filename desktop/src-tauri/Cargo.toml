@@ -1,6 +1,6 @@
 [package]
 name = "vbnotes"
-version = "0.4.3"
+version = "0.4.4"
 description = "VBNotes for the desktop: markdown notes in a plain folder"
 authors = ["Lavneet Sharma"]
 edition = "2021"
