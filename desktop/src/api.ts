@@ -45,6 +45,8 @@ export const api = {
   /** Paths dropped on the window: a folder, a file, or null when it can't be read. */
   pathKinds: (paths: string[]) => invoke<('dir' | 'file' | null)[]>('path_kinds', { paths }),
   importFolder: (from: string, to: string) => invoke<number>('import_folder', { from, to }),
+  /** Notes opened from Finder or Explorer since the last call ("Open with › VB Notes"). */
+  openedFiles: () => invoke<string[]>('opened_files'),
   counts: (hidden: string[]) => invoke<SectionCounts>('db_counts', { hidden }),
   tagCounts: () => invoke<{ tag: string; n: number }[]>('db_tag_counts'),
   meaningEnable: (on: boolean) => invoke<void>('meaning_enable', { on }),

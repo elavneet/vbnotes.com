@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "fileAssociations": [
+      { "ext": ["md", "markdown"], "name": "Markdown", "role": "Editor", "rank": "Alternate", "contentTypes": ["net.daringfireball.markdown"] },
+      { "ext": ["txt"], "name": "Plain text", "role": "Editor", "rank": "Alternate", "contentTypes": ["public.plain-text"] }
+    ]
+  }
+}

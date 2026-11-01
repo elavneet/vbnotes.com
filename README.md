@@ -77,6 +77,9 @@ Linux and Android builds. The iPhone app is built from source for now (see below
 - **Drag files in (desktop).** Drop files on the notes list: `.md` and `.txt` files come in as notes,
   a picture or a sound file gets a note of its own, and a folder (an export from Bear, Obsidian or
   another app) comes in with its notes and pictures. Nothing in your folder is overwritten.
+- **Open with › VB Notes (desktop).** Right-click a `.md` or `.txt` file in Finder or Explorer and open
+  it with VB Notes: it comes into your notes and opens. VB Notes is only added to the Open with list;
+  it doesn't become the default app for those files.
 - **Find or create (desktop, ⌘O / Ctrl+O).** A Spotlight-style finder: type a few words to jump to a
   note, or press Return on the first row to start a note with that title.
 - **Fast with thousands of notes.** The list, tags and keyword search come from a SQLite index

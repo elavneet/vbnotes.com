@@ -18,11 +18,12 @@ const nameOf = (p: string) => slashes(p).split('/').filter(Boolean).pop() ?? '';
 const stemOf = (name: string) => name.replace(/\.[^.]+$/, '');
 
 /**
- * Files dropped on the notes list, as in Bear: a markdown or text file comes in as a note, a
- * picture or a sound gets a note of its own titled after the file, and a folder (an export from
- * another notes app) comes in whole with its notes and pictures. Nothing is ever overwritten.
+ * Files dropped on the notes list or opened with VB Notes, as in Bear: a markdown or text file
+ * comes in as a note, a picture or a sound gets a note of its own titled after the file, and a
+ * folder (an export from another notes app) comes in whole with its notes and pictures. A note
+ * already in the notes folder just opens. Nothing is ever overwritten.
  */
-export async function addDropped(paths: string[]) {
+export async function addFiles(paths: string[]) {
   const { folder, tag } = useNotes.getState();
   if (!folder) return;
   await openEditor.flush();
@@ -32,15 +33,23 @@ export async function addDropped(paths: string[]) {
   let last: string | null = null;
   for (const [i, from] of paths.entries()) {
     const name = nameOf(from);
-    // Already in the notes folder (dragged from Finder's view of it): nothing to add.
-    if (!name || slashes(from).startsWith(inFolder)) continue;
+    if (!name) continue;
+    if (slashes(from).startsWith(inFolder)) {
+      if (isMarkdown(name)) last = slashes(from).slice(inFolder.length);
+      continue;
+    }
     if (kinds[i] === 'dir') {
       // A folder named Archive or Trash would become that section.
       const reserved = (Object.values(RESERVED_FOLDERS) as string[]).includes(name);
       await api.importFolder(from, await uniquePath('', reserved ? `${name} 2` : name, ''));
     } else if (kinds[i] === 'file' && isMarkdown(name)) {
-      last = await uniquePath('', stemOf(name), name.slice(stemOf(name).length));
-      await api.importFile(from, last);
+      // Under its own name, unless a different note has that name.
+      const [stem, ext] = [stemOf(name), name.slice(stemOf(name).length)];
+      last = await api.importFile(from, name).then(() => name, async () => {
+        const free = await uniquePath('', stem, ext);
+        await api.importFile(from, free);
+        return free;
+      });
     } else if (kinds[i] === 'file' && MEDIA.test(name)) {
       const media = attachmentName(name.split('.').pop() ?? '');
       await api.importFile(from, media);
@@ -52,7 +61,7 @@ export async function addDropped(paths: string[]) {
   if (last) await openNote(last);
 }
 
-/** Whether files are being dragged over `target`; dropping them there adds them (`addDropped`). */
+/** Whether files are being dragged over `target`; dropping them there adds them (`addFiles`). */
 export function useFileDrop(target: RefObject<HTMLElement | null>) {
   const [over, setOver] = useState(false);
   useEffect(() => {
@@ -65,7 +74,7 @@ export function useFileDrop(target: RefObject<HTMLElement | null>) {
     const off = getCurrentWebview().onDragDropEvent(({ payload: e }) => {
       if (e.type === 'leave') return setOver(false);
       setOver(e.type !== 'drop' && hit(e.position));
-      if (e.type === 'drop' && hit(e.position)) void addDropped(e.paths).catch((err) => console.warn('adding dropped files failed', err));
+      if (e.type === 'drop' && hit(e.position)) void addFiles(e.paths).catch((err) => console.warn('adding dropped files failed', err));
     });
     return () => { void off.then((f) => f()); };
   }, [target]);

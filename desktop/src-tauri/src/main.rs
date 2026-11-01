@@ -158,6 +158,40 @@ fn launch_folder() -> Option<String> {
     std::env::args().skip(1).find(|a| Path::new(a).is_dir())
 }
 
+/// Notes opened from Finder or Explorer ("Open with › VB Notes"), kept until the page takes them:
+/// they can arrive before it has loaded, or before a notes folder is chosen.
+#[derive(Default)]
+struct Opened(Mutex<Vec<String>>);
+
+/// The notes among command-line arguments: Windows and Linux pass opened files that way.
+fn note_args(args: impl Iterator<Item = String>, cwd: &Path) -> Vec<String> {
+    args.filter(|a| is_markdown(a))
+        .map(|a| cwd.join(a))
+        .filter(|p| p.is_file())
+        .map(|p| p.to_string_lossy().into_owned())
+        .collect()
+}
+
+/// Keeps opened notes for the page, tells it they are there, and brings the window forward.
+fn hand_over(app: &AppHandle, paths: Vec<String>) {
+    if paths.is_empty() {
+        return;
+    }
+    if let Ok(mut opened) = app.state::<Opened>().0.lock() {
+        opened.extend(paths);
+    }
+    let _ = app.emit("files-opened", ());
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
+
+#[tauri::command]
+fn opened_files(opened: State<'_, Opened>) -> Vec<String> {
+    opened.0.lock().map(|mut o| std::mem::take(&mut *o)).unwrap_or_default()
+}
+
 #[tauri::command]
 fn open_folder(app: AppHandle, open: State<'_, Open>, path: String) -> Res<()> {
     let root = PathBuf::from(&path);
@@ -362,10 +396,15 @@ fn new_file(root: &Path, to: &str) -> Res<PathBuf> {
     Ok(dest)
 }
 
-/// Copies a file picked outside the folder (a picture for a note) to `to` in it, never over a file already there.
+/// Copies a file picked outside the folder (a picture for a note) to `to` in it, never over a file
+/// already there. The same file again (a note opened twice from Finder) is already there: no copy.
 #[tauri::command]
 async fn import_file(open: State<'_, Open>, from: String, to: String) -> Res<Stat> {
     with(&open, |f| {
+        let there = inside(&f.root, &to)?;
+        if there.is_file() && fs::read(&there).ok() == fs::read(&from).ok() {
+            return stat_of(&there).ok_or_else(|| format!("{to} can't be read"));
+        }
         let dest = new_file(&f.root, &to)?;
         fs::copy(&from, &dest).map_err(text)?;
         stat_of(&dest).ok_or_else(|| format!("{to} was not copied"))
@@ -394,15 +433,33 @@ async fn db_tag_counts(open: State<'_, Open>) -> Res<Vec<TagCount>> {
 
 fn main() {
     tauri::Builder::default()
+        // First, so a second copy hands over its files before it sets anything up.
+        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+            hand_over(app, note_args(args.into_iter().skip(1), Path::new(&cwd)));
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(Open::default())
+        .manage(Opened::default())
+        .setup(|app| {
+            let cwd = std::env::current_dir().unwrap_or_default();
+            hand_over(app.handle(), note_args(std::env::args().skip(1), &cwd));
+            Ok(())
+        })
         .manage(meaning::Meaning::default())
         .invoke_handler(tauri::generate_handler![
             folder_places, make_place, launch_folder, open_folder, scan, read_files, write_file, move_file, copy_folder, remove_file, exists,
-            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, welcome_picture, path_kinds, import_folder,
+            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, welcome_picture, path_kinds, import_folder, opened_files,
             meaning::meaning_enable, meaning::meaning_status, meaning::meaning_stale, meaning::meaning_set, meaning::meaning_search
         ])
-        .run(tauri::generate_context!())
-        .expect("VBNotes could not start");
+        .build(tauri::generate_context!())
+        .expect("VBNotes could not start")
+        .run(|_app, _event| {
+            // macOS sends opened files as an event, whether the app was running or not.
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = _event {
+                let paths = urls.iter().filter_map(|u| u.to_file_path().ok()).map(|p| p.to_string_lossy().into_owned());
+                hand_over(_app, paths.filter(|p| is_markdown(p)).collect());
+            }
+        });
 }

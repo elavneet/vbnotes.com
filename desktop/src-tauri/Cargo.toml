@@ -14,6 +14,9 @@ tauri-build = { version = "=2.7.3", features = [] }
 tauri = { version = "=2.12.4", features = ["protocol-asset"] }
 tauri-plugin-dialog = "=2.8.3"
 tauri-plugin-opener = "=2.7.2"
+# "Open with › VB Notes" while the app runs: Windows and Linux start a second copy, which hands
+# its files to the first and quits.
+tauri-plugin-single-instance = "=2.5.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # Bundled SQLite comes with FTS5, which the keyword search needs.
