@@ -10,6 +10,13 @@ files stay yours to open in any editor.
 
 **New in 0.4**
 
+- **Chat with AI about your notes (desktop).** Ask about the open note, or about all of them: VB Notes
+  finds the notes that fit each question, sends only those, and lists them under the answer. Off until
+  you turn it on, with your own key for OpenRouter, OpenAI, Anthropic, Google Gemini, Groq, Mistral,
+  DeepSeek or xAI, or a model on your own computer through Ollama.
+
+  ![Desktop: the chat beside a note, answering from the note Trip to Ladakh](docs/screenshots/desktop-ai-chat.png)
+
 - **Links between notes.** Type `[[` and a few letters: pick a note from the list and the link is
   written for you. Tap or ⌘-click it to open that note.
 - **A style bar on the desktop**, as in Bear: headings, lists, bold, highlight, links, tables and

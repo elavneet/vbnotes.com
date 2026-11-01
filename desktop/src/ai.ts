@@ -83,7 +83,9 @@ async function relevantNotes(query: string) {
       score.set(hit.note.path, { note: hit.note, n: (had?.n ?? 0) + 1 });
     }
   }
-  const more = [...score.values()].sort((a, b) => b.n - a.n).map((s) => s.note);
+  // Next to notes the search found, only ones with at least half the words; else any with one.
+  const need = found.length ? Math.ceil(words.length / 2) : 1;
+  const more = [...score.values()].filter((s) => s.n >= need).sort((a, b) => b.n - a.n).map((s) => s.note);
   const seen = new Set(found.map((n) => n.path));
   return [...found, ...more.filter((n) => !seen.has(n.path))].slice(0, FOUND);
 }
