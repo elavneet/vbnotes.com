@@ -9,6 +9,7 @@ import {
 } from '@/vault';
 import { openNoteDb, type NoteDb } from './noteDb';
 import { welcomeOnce } from './welcome';
+import { WELCOME_TITLE, WELCOME_VERSION } from './welcomeNote';
 import { buildTags, cleanHiddenTags, recordFrom, sectionOf, type NoteMeta, type NoteRecord, type Section, type SectionCounts, type TagNode } from './noteModel';
 
 export { UNTAGGED, sectionOf, type NoteMeta, type Section, type SectionCounts, type TagNode } from './noteModel';
@@ -143,7 +144,9 @@ export const useNotes = create<NotesState>((set, get) => {
   const writeMeta = async (vault: Vault, patch: Partial<VaultMeta>) => {
     wrote();
     const { pinned, tagIcons, hiddenTags } = get();
-    await vault.write(META_PATH, JSON.stringify({ pinned, tagIcons, hiddenTags, ...patch }, null, 2));
+    // What the app doesn't hold (the welcome note's version, fields from a newer app) stays.
+    const kept = await readMeta(vault);
+    await vault.write(META_PATH, JSON.stringify({ ...kept, pinned, tagIcons, hiddenTags, ...patch }, null, 2));
   };
 
   const open = () => {
@@ -194,11 +197,10 @@ export const useNotes = create<NotesState>((set, get) => {
       try {
         void kvDel(OLD_CACHE_KEY);
         await get().refresh();
-        const c = get().db?.counts();
-        let notes = c ? c.notes + c.archive + c.trash : 0;
-        // Notes in iCloud that haven't come down to this phone yet count too: no welcome note among them.
-        if (!notes && vault.kind !== 'local') notes = (await vault.list()).filter((e) => !e.isDir).length;
-        if (c && (await welcomeOnce(vault, notes))) await get().refresh();
+        if (await welcomeOnce(vault, await readMeta(vault), () => uniquePath(vault, RESERVED_FOLDERS.trash, WELCOME_TITLE))) {
+          await writeMeta(vault, { welcome: WELCOME_VERSION });
+          await get().refresh();
+        }
         startWatching(vault);
         // Files may have changed through iCloud/Drive while the app slept.
         AppState.addEventListener('change', (s) => { if (s === 'active') void get().refresh(); });
