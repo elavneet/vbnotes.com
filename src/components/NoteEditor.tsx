@@ -89,6 +89,20 @@ function themedPage(t: Theme, ty: Typography) {
   return html;
 }
 
+const MEDIA_LINK = /!\[[^\]]*\]\(([^)\s]+)/g;
+
+/** The pictures and sounds a note links to, as paths in the notes folder. */
+function mediaPaths(md: string): string[] {
+  const out: string[] = [];
+  for (const [, src] of md.matchAll(MEDIA_LINK)) {
+    if (/^[a-z][a-z0-9+.-]*:/i.test(src)) continue;
+    let path = src;
+    try { path = decodeURIComponent(src); } catch {}
+    out.push(path.replace(/^\.?\//, ''));
+  }
+  return out;
+}
+
 /** Re-renders only when readiness or focus flips, not on every keystroke's state update. */
 function useEditorFlags(editor: EditorBridge) {
   const pick = (s: any) => ({ isReady: !!s?.isReady, isFocused: !!s?.isFocused });
@@ -121,8 +135,12 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
   const { isKeyboardUp } = useKeyboard();
 
   const bridges = useMemo(() => [...TenTapStartKit, PlaceholderBridge.configureExtension({ placeholder: 'Start writing…' }), MarkdownBridge, MediaBridge, LinkOpenBridge, EditBridge, WikiBridge], []);
-  // Fixed for the life of this editor; later theme changes go through injectCSS.
-  const [page] = useState(() => ({ html: themedPage(t, ty), key: pageKey(t, ty) }));
+  // Fixed for the life of this editor; later theme changes go through injectCSS. A folder picked on
+  // Android first puts the note's pictures where the page can load them (`prepareMedia`).
+  const [page] = useState(() => {
+    useNotes.getState().vault?.prepareMedia?.(mediaPaths(initial));
+    return { html: themedPage(t, ty), key: pageKey(t, ty) };
+  });
   // The newest markdown the page sent (see `markdownListeners`), saved 1 s after typing stops.
   const latest = useRef({ path, dirty: false, md: initial });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);

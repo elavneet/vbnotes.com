@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { Asset } from 'expo-asset';
 import { kvGetSync, kvSet } from '@/utils/kv';
 import type { Vault } from '@/vault/types';
@@ -72,7 +73,9 @@ Ask in your own words, like "that lentil recipe", and VB Notes finds notes by wh
 
 ## Your notes everywhere
 
-Keep your notes in iCloud Drive (**Settings › Notes folder › Use iCloud Drive**) and they stay in step on your iPhone and Mac. The desktop app for Mac, Windows and Linux opens the same folder, and has a style bar with Bear's shortcuts: https://vbnotes.com
+${Platform.OS === 'ios'
+  ? 'Keep your notes in iCloud Drive (**Settings › Notes folder › Use iCloud Drive**) and they stay in step on your iPhone and Mac.'
+  : 'Keep your notes in a folder that a sync app such as Syncthing or FolderSync keeps in step (**Settings › Notes folder**), and open the same folder on your computer.'} The desktop app for Mac, Windows and Linux opens the same folder, and has a style bar with Bear's shortcuts: https://vbnotes.com
 `;
 
 /**

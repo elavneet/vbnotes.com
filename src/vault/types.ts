@@ -35,6 +35,11 @@ export interface Vault {
   importFile(source: string, path: string): Promise<void>;
   /** `file://` URL of the vault folder, ending in `/`; note links like `attachments/x.jpg` resolve against it. */
   readonly baseUrl: string;
+  /**
+   * Makes the pictures and sounds at `paths` reachable from `baseUrl`, for a folder whose files a
+   * relative link can't reach (one picked on Android). Undefined where links already reach them.
+   */
+  prepareMedia?(paths: string[]): void;
   /** Date (ms) and size of a file as a listing reports them; null if it is not there. */
   stat?(path: string): { mtime: number; size: number } | null;
   /** When the file was created (ms), if the file system knows. */
