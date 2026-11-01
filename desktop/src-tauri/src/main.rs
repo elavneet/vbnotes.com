@@ -73,6 +73,12 @@ fn is_markdown(name: &str) -> bool {
     l.ends_with(".md") || l.ends_with(".markdown") || l.ends_with(".txt")
 }
 
+/// What a folder dropped on the list brings along besides notes: the pictures, sound and documents they link to.
+fn is_media(name: &str) -> bool {
+    const MEDIA: [&str; 13] = ["png", "jpg", "jpeg", "gif", "webp", "heic", "avif", "svg", "m4a", "mp3", "wav", "aac", "pdf"];
+    name.rsplit_once('.').is_some_and(|(_, ext)| MEDIA.contains(&ext.to_lowercase().as_str()))
+}
+
 fn join(rel: &str, name: &str) -> String {
     if rel.is_empty() { name.to_string() } else { format!("{rel}/{name}") }
 }
@@ -250,6 +256,45 @@ async fn copy_folder(open: State<'_, Open>, to: String) -> Res<i64> {
     Ok(copied)
 }
 
+/// What each path dropped on the window is: `dir`, `file`, or none when it can't be read.
+#[tauri::command]
+fn path_kinds(paths: Vec<String>) -> Vec<Option<&'static str>> {
+    paths.iter().map(|p| fs::metadata(p).ok().map(|m| if m.is_dir() { "dir" } else { "file" })).collect()
+}
+
+/// Copies a folder dropped on the list (an export from another notes app) into the notes folder
+/// as `to`: its notes and the pictures and sound they link to. Hidden files and links stay behind,
+/// and nothing is copied over a file already there. Returns how many files were copied.
+#[tauri::command]
+async fn import_folder(open: State<'_, Open>, from: String, to: String) -> Res<i64> {
+    fn walk(from: &Path, to: &Path, copied: &mut i64) -> Res<()> {
+        for item in fs::read_dir(from).map_err(text)?.flatten() {
+            let name = item.file_name().to_string_lossy().into_owned();
+            if name.starts_with('.') {
+                continue;
+            }
+            let (src, dest) = (item.path(), to.join(&name));
+            let kind = item.file_type().map_err(text)?;
+            if kind.is_dir() {
+                walk(&src, &dest, copied)?;
+            } else if kind.is_file() && (is_markdown(&name) || is_media(&name)) && !dest.exists() {
+                fs::create_dir_all(to).map_err(text)?;
+                fs::copy(&src, &dest).map_err(text)?;
+                *copied += 1;
+            }
+        }
+        Ok(())
+    }
+    let (root, dest) = with(&open, |f| Ok((f.root.clone(), inside(&f.root, &to)?)))?;
+    let src = PathBuf::from(&from);
+    if src.starts_with(&root) || root.starts_with(&src) {
+        return Err("That folder is already part of your notes".into());
+    }
+    let mut copied = 0;
+    walk(&src, &dest, &mut copied)?;
+    Ok(copied)
+}
+
 #[tauri::command]
 async fn remove_file(open: State<'_, Open>, path: String) -> Res<()> {
     with(&open, |f| fs::remove_file(inside(&f.root, &path)?).map_err(text))
@@ -355,7 +400,7 @@ fn main() {
         .manage(meaning::Meaning::default())
         .invoke_handler(tauri::generate_handler![
             folder_places, make_place, launch_folder, open_folder, scan, read_files, write_file, move_file, copy_folder, remove_file, exists,
-            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, welcome_picture,
+            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, welcome_picture, path_kinds, import_folder,
             meaning::meaning_enable, meaning::meaning_status, meaning::meaning_stale, meaning::meaning_set, meaning::meaning_search
         ])
         .run(tauri::generate_context!())

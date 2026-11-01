@@ -42,6 +42,9 @@ export const api = {
   titles: (q: string, limit: number) => invoke<NoteMeta[]>('db_titles', { q, limit }),
   importFile: (from: string, to: string) => invoke<Stat>('import_file', { from, to }),
   welcomePicture: (to: string) => invoke<Stat>('welcome_picture', { to }),
+  /** Paths dropped on the window: a folder, a file, or null when it can't be read. */
+  pathKinds: (paths: string[]) => invoke<('dir' | 'file' | null)[]>('path_kinds', { paths }),
+  importFolder: (from: string, to: string) => invoke<number>('import_folder', { from, to }),
   counts: (hidden: string[]) => invoke<SectionCounts>('db_counts', { hidden }),
   tagCounts: () => invoke<{ tag: string; n: number }[]>('db_tag_counts'),
   meaningEnable: (on: boolean) => invoke<void>('meaning_enable', { on }),
