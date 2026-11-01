@@ -12,6 +12,7 @@ const PATHS = {
   search: 'M11 4a7 7 0 1 1 0 14 7 7 0 0 1 0-14zM20 20l-4-4',
   chevron: 'M9 6l6 6-6 6',
   back: 'M15 6l-6 6 6 6',
+  send: 'M12 19V5M6 11l6-6 6 6',
   sidebar: 'M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM9 5v14',
   restore: 'M4 10h11a5 5 0 0 1 0 10h-3M4 10l4-4M4 10l4 4',
   settings: 'M4 7h10M18 7h2M4 17h4M12 17h8M14 4v6M8 14v6',

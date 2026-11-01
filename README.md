@@ -80,6 +80,10 @@ Linux and Android builds. The iPhone app is built from source for now (see below
 - **Open with › VB Notes (desktop).** Right-click a `.md` or `.txt` file in Finder or Explorer and open
   it with VB Notes: it comes into your notes and opens. VB Notes is only added to the Open with list;
   it doesn't become the default app for those files.
+- **Chat with AI (desktop, off until you switch it on).** Ask about the open note or about all your
+  notes, with your own key for OpenRouter, OpenAI, Anthropic, Google Gemini, Groq, Mistral, DeepSeek
+  or xAI, or a model on your computer through Ollama. Only the notes that fit the question are sent,
+  and only when you ask; the key stays on your computer, never in the notes folder.
 - **Find or create (desktop, ⌘O / Ctrl+O).** A Spotlight-style finder: type a few words to jump to a
   note, or press Return on the first row to start a note with that title.
 - **Fast with thousands of notes.** The list, tags and keyword search come from a SQLite index

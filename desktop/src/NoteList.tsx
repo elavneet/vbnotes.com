@@ -58,12 +58,18 @@ export function NoteList({ searchRef, onCreate }: { searchRef: React.RefObject<H
     if (el.scrollTop + el.clientHeight > el.scrollHeight - 1200 && notes.length >= limit) setPage({ filter, limit: limit + PAGE });
   };
 
-  // ↑ and ↓ walk the list.
+  // ↑ and ↓ walk the list; ⌘⌫ (Ctrl+Backspace) moves the selected note to Trash, as in Bear.
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-    e.preventDefault();
     const flat = groups.flatMap((g) => g.notes);
     const i = flat.findIndex((n) => n.path === selected);
+    if (e.key === 'Backspace' && (e.metaKey || e.ctrlKey) && selected && section !== 'trash') {
+      e.preventDefault();
+      const next = flat[i + 1] ?? flat[i - 1];
+      void openEditor.flush().then(() => useNotes.getState().trash(selected)).then(() => select(next && next.path !== selected ? next.path : null));
+      return;
+    }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
     const next = flat[Math.max(0, Math.min(flat.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))];
     if (next) select(next.path);
   };

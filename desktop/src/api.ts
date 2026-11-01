@@ -17,6 +17,11 @@ export interface MeaningStatus {
   error?: string | null;
 }
 
+/** AI chat settings as Rust keeps them (`src-tauri/src/ai.rs`); the API key itself never comes back. */
+export interface AiSettings { enabled: boolean; provider: string; model: string; baseUrl: string }
+export interface AiView extends AiSettings { hasKey: boolean; needsKey: boolean }
+export interface ChatMessage { role: 'user' | 'assistant'; content: string }
+
 /** The Rust side (`src-tauri/src/main.rs`): the notes folder and its index. Paths are relative to the folder. */
 export const api = {
   /** The first launch's choices: VB Notes in iCloud Drive (none without it), and Documents › VBNotes. */
@@ -50,6 +55,13 @@ export const api = {
   /** The tray icon behind "Keep running in the tray" (Windows). */
   setTray: (on: boolean) => invoke<void>('set_tray', { on }),
   quit: () => invoke<void>('quit'),
+  aiSettings: () => invoke<AiView>('ai_settings'),
+  /** `key`: a new key for the chosen provider, '' to remove it, undefined to keep it. */
+  aiSave: (settings: AiSettings, key?: string) => invoke<AiView>('ai_save', { settings, key: key ?? null }),
+  aiModels: () => invoke<string[]>('ai_models'),
+  /** The reply streams back as `ai-delta` events ({ id, text }) and ends with `ai-done` ({ id, error }). */
+  aiChat: (id: string, system: string, messages: ChatMessage[]) => invoke<void>('ai_chat', { id, system, messages }),
+  aiCancel: (id: string) => invoke<void>('ai_cancel', { id }),
   counts: (hidden: string[]) => invoke<SectionCounts>('db_counts', { hidden }),
   tagCounts: () => invoke<{ tag: string; n: number }[]>('db_tag_counts'),
   meaningEnable: (on: boolean) => invoke<void>('meaning_enable', { on }),

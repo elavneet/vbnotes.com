@@ -1,6 +1,7 @@
 // No console window behind the app on Windows release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod ai;
 mod index;
 mod meaning;
 
@@ -500,6 +501,7 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .manage(Open::default())
         .manage(Opened::default())
+        .manage(ai::Chats::default())
         .setup(|app| {
             let cwd = std::env::current_dir().unwrap_or_default();
             hand_over(app.handle(), note_args(std::env::args().skip(1), &cwd));
@@ -509,6 +511,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             folder_places, make_place, launch_folder, open_folder, scan, read_files, write_file, move_file, copy_folder, remove_file, exists,
             db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, welcome_picture, path_kinds, import_folder, opened_files, set_tray, quit,
+            ai::ai_settings, ai::ai_save, ai::ai_models, ai::ai_chat, ai::ai_cancel,
             meaning::meaning_enable, meaning::meaning_status, meaning::meaning_stale, meaning::meaning_set, meaning::meaning_search
         ])
         .build(tauri::generate_context!())
