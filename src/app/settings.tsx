@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
@@ -14,6 +14,9 @@ import { IconButton } from '@/components/IconButton';
 import { ActionSheet, type SheetAction } from '@/components/ActionSheet';
 import { Segmented } from '@/components/Segmented';
 import { LocalVault, SafVault, canUseICloud, chooseDeviceFolder, iCloudFolder, pickFolder } from '@/vault';
+import { providerModels, useAi } from '@/ai/chat';
+import { PROVIDERS, chatModels, destinationOf, preferredModel, providerOf } from '@/ai/providers';
+import { ModelPicker } from '@/components/ModelPicker';
 
 export default function SettingsScreen() {
   const t = useTheme();
@@ -205,6 +208,8 @@ export default function SettingsScreen() {
             <Row label="Status" value={searchStatus} />
           </Section>
 
+          <AiSection />
+
           <Section title="About">
             <Row label="Version" value={Constants.expoConfig?.version ?? '–'} />
           </Section>
@@ -228,6 +233,123 @@ export default function SettingsScreen() {
         }))}
       />
     </View>
+  );
+}
+
+/**
+ * Chat with AI (off until switched on): the provider, its API key (kept in the Keychain or the
+ * Android keystore, never in the notes folder) and the model, picked from the provider's own list.
+ */
+function AiSection() {
+  const t = useTheme();
+  const ai = useAi();
+  const [providerMenu, setProviderMenu] = useState(false);
+  const [modelMenu, setModelMenu] = useState(false);
+  const [models, setModels] = useState<string[] | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [key, setKey] = useState('');
+  const p = providerOf(ai.provider);
+  const canList = ai.enabled && (ai.hasKey || !p.needsKey) && !!(ai.baseUrl || p.base);
+  const load = async () => {
+    setLoading(true);
+    setProblem(null);
+    try {
+      const ids = chatModels(await providerModels());
+      setModels(ids);
+      const now = useAi.getState();
+      if (ids.length && (!now.model || !ids.includes(now.model))) now.save({ model: preferredModel(now.provider, ids) });
+    } catch (e) {
+      setModels(null);
+      setProblem(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+  // The list again whenever what it depends on changes.
+  useEffect(() => { if (canList) void load(); }, [canList, ai.provider, ai.hasKey, ai.baseUrl]);
+  const list = canList ? models : null;
+  const saveKey = async (k: string) => { setKey(''); await ai.setKey(k); };
+  const footer = !ai.enabled
+    ? 'Off: nothing is ever sent. Switched on, you can ask an AI about one note or all of them, with your own account at OpenRouter, OpenAI, Anthropic, Google and others.'
+    : problem ?? `Ask about a note from its ⋮ menu, or about all notes from Search. Only what you ask about is sent, to ${destinationOf(ai.provider)}, and only when you ask.`;
+  return (
+    <>
+      <Section title="AI chat" footer={footer} footerColor={ai.enabled && problem ? t.colors.danger : undefined}>
+        <View style={styles.row}>
+          <Text style={[styles.label, { color: t.colors.text }]}>Chat with AI</Text>
+          <Switch value={ai.enabled} onValueChange={(enabled) => ai.save({ enabled })} trackColor={{ true: t.colors.volt, false: t.colors.surface2 }} thumbColor="#fff" accessibilityLabel="Chat with AI" />
+        </View>
+        {ai.enabled ? <PickRow label="Provider" value={p.name} hint="Choose the AI provider" onPress={() => setProviderMenu(true)} /> : null}
+        {ai.enabled && p.address !== undefined ? (
+          <View style={styles.row}>
+            <Text style={[styles.label, { color: t.colors.text }]}>Address</Text>
+            <TextInput
+              key={ai.provider}
+              defaultValue={ai.baseUrl}
+              placeholder="https://…/v1"
+              placeholderTextColor={t.colors.textMuted}
+              selectionColor={t.colors.accent}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              onEndEditing={(e) => { const v = e.nativeEvent.text.trim(); if (v !== ai.baseUrl) ai.save({ baseUrl: v }); }}
+              style={[styles.input, styles.right, { color: t.colors.text }]}
+              accessibilityLabel="Server address"
+            />
+          </View>
+        ) : null}
+        {ai.enabled ? (
+          <View style={styles.row}>
+            <Text style={[styles.label, { color: t.colors.text }]}>API key</Text>
+            <TextInput
+              value={key}
+              onChangeText={setKey}
+              onSubmitEditing={() => { if (key.trim()) void saveKey(key); }}
+              placeholder={ai.hasKey ? 'Saved' : 'Paste your key'}
+              placeholderTextColor={t.colors.textMuted}
+              selectionColor={t.colors.accent}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="done"
+              style={[styles.input, styles.right, { color: t.colors.text }]}
+              accessibilityLabel="API key"
+            />
+            {key.trim() ? (
+              <Pressable accessibilityRole="button" onPress={() => void saveKey(key)} hitSlop={8}>
+                <Text style={[styles.label, { color: t.colors.accent, fontWeight: '600' }]}>Save</Text>
+              </Pressable>
+            ) : ai.hasKey ? (
+              <Pressable accessibilityRole="button" onPress={() => void saveKey('')} hitSlop={8}>
+                <Text style={[styles.label, { color: t.colors.danger }]}>Remove</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+        {ai.enabled ? (
+          <PickRow
+            label="Model"
+            value={loading ? 'Loading…' : ai.model || (canList ? 'Choose' : p.needsKey && !ai.hasKey ? 'Add a key first' : 'Add the address first')}
+            hint="Choose the model"
+            disabled={!canList}
+            onPress={() => (list?.length ? setModelMenu(true) : void load())}
+          />
+        ) : null}
+        {ai.enabled && p.keyUrl ? <Action label={`Get a key from ${p.name}`} onPress={() => void Linking.openURL(p.keyUrl!)} /> : null}
+      </Section>
+      <ActionSheet
+        visible={providerMenu}
+        onClose={() => setProviderMenu(false)}
+        title="AI provider"
+        actions={PROVIDERS.filter((x) => !x.desktopOnly).map((x) => ({
+          label: x.name,
+          selected: x.id === p.id,
+          onPress: () => { setModels(null); ai.save({ provider: x.id, model: '', baseUrl: x.address ?? '' }); },
+        }))}
+      />
+      <ModelPicker visible={modelMenu} models={list ?? []} value={ai.model} onPick={(model) => ai.save({ model })} onClose={() => setModelMenu(false)} />
+    </>
   );
 }
 
@@ -409,6 +531,7 @@ const styles = StyleSheet.create({
   stepRow: { paddingVertical: 2, paddingRight: 6 },
   label: { fontSize: 16 },
   input: { flex: 1, fontSize: 16, paddingVertical: 4 },
+  right: { textAlign: 'right' },
   value: { fontSize: 16, flexShrink: 1, textAlign: 'right' },
   footer: { fontSize: 13, lineHeight: 18, paddingHorizontal: 16, paddingTop: 8 },
   pick: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },

@@ -2,9 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { namedSources } from '@/ai/prompt';
+import { destinationOf } from '@/ai/providers';
 import { openableUrl } from '@/utils/links';
 import { openNote } from './actions';
-import { aiReady, providerOf, useAi, useChat, type Turn } from './ai';
+import { aiReady, useAi, useChat, type Turn } from './ai';
 import { Icon } from './Icon';
 import { useSettingsOpen } from './Settings';
 import { useNote, useNotes } from './store';
@@ -28,9 +30,7 @@ function Reply({ text }: { text: string }) {
 function TurnView({ turn, busy }: { turn: Turn; busy: boolean }) {
   const [copied, setCopied] = useState(false);
   if (turn.role === 'user') return <div className="turn user">{turn.content}</div>;
-  // The notes the answer names, when it names any; else every note that was sent.
-  const named = turn.sources?.filter((s) => turn.content.includes(s.title)) ?? [];
-  const sources = named.length ? named : turn.sources ?? [];
+  const sources = namedSources(turn);
   const copy = () => { void navigator.clipboard.writeText(turn.content).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200); }); };
   return (
     <div className="turn assistant">
@@ -66,7 +66,7 @@ export function ChatPanel() {
 
   if (!chat.open) return null;
   const ready = aiReady(view);
-  const provider = view?.provider === 'custom' ? 'your server' : view?.provider === 'ollama' ? 'Ollama, on this computer' : providerOf(view?.provider ?? '').name;
+  const provider = destinationOf(view?.provider ?? '');
   const send = () => {
     const q = draft.trim();
     if (!q || chat.busy || !ready) return;

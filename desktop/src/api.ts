@@ -17,10 +17,11 @@ export interface MeaningStatus {
   error?: string | null;
 }
 
+import type { ChatMessage } from '@/ai/prompt';
+
 /** AI chat settings as Rust keeps them (`src-tauri/src/ai.rs`); the API key itself never comes back. */
 export interface AiSettings { enabled: boolean; provider: string; model: string; baseUrl: string }
 export interface AiView extends AiSettings { hasKey: boolean; needsKey: boolean }
-export interface ChatMessage { role: 'user' | 'assistant'; content: string }
 
 /** The Rust side (`src-tauri/src/main.rs`): the notes folder and its index. Paths are relative to the folder. */
 export const api = {

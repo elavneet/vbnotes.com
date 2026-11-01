@@ -9,6 +9,7 @@ import { IconButton } from '@/components/IconButton';
 import { NoteEditor } from '@/components/NoteEditor';
 import type { SheetAction } from '@/components/ActionSheet';
 import { MenuPopover } from '@/components/MenuPopover';
+import { useAi } from '@/ai/chat';
 import { NoteInfoSheet } from '@/components/NoteInfoSheet';
 
 export default function NoteScreen() {
@@ -22,6 +23,7 @@ export default function NoteScreen() {
   const editor = useRef<EditorBridge | null>(null);
   const { togglePin, archive, trash, restore, deleteForever, getText, loadText } = useNotes.getState();
   const section = sectionOf(path);
+  const aiOn = useAi((s) => s.enabled);
 
   const back = () => { if (router.canGoBack()) router.back(); else router.replace('/'); };
   // The sheet counts what is on screen, including typing not saved yet.
@@ -36,7 +38,10 @@ export default function NoteScreen() {
       { label: 'Search', icon: 'search-outline', onPress: () => router.push('/search') },
       { label: 'Typography', icon: 'text-outline', onPress: () => router.push('/settings') },
     ],
-    [{ label: 'Share', icon: 'share-outline', onPress: () => void loadText(path).then((message) => Share.share({ message, title: note?.title })).catch(() => {}) }],
+    [
+      ...(aiOn ? [{ label: 'Chat with AI', icon: 'sparkles-outline' as const, onPress: () => router.push({ pathname: '/chat', params: { path } }) }] : []),
+      { label: 'Share', icon: 'share-outline', onPress: () => void loadText(path).then((message) => Share.share({ message, title: note?.title })).catch(() => {}) },
+    ],
     [
       ...(section === 'notes' ? [{ label: note?.pinned ? 'Unpin' : 'Pin to top', icon: 'pin-outline' as const, onPress: () => void togglePin(path) }] : []),
       section === 'notes'
