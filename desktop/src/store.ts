@@ -79,7 +79,7 @@ const summary = async (hidden = useNotes.getState().hiddenTags) => {
   return { counts, tags: buildTags(rows) };
 };
 
-async function uniquePath(folder: string, base: string, ext = '.md'): Promise<string> {
+export async function uniquePath(folder: string, base: string, ext = '.md'): Promise<string> {
   let candidate = joinPath(folder, base + ext);
   let n = 2;
   while (await api.exists(candidate)) candidate = joinPath(folder, `${base} ${n++}${ext}`);

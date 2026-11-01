@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open } from '@tauri-apps/plugin-dialog';
 import { formatNoteDate } from '@/utils/dates';
 import { startNote } from './actions';
 import { api } from './api';
+import { addFiles } from './fileDrop';
 import { setupHost } from './host';
 import { Icon, type IconName } from './Icon';
 import { NoteEditor, openEditor } from './NoteEditor';
@@ -32,6 +34,15 @@ export function App() {
     })();
   }, []);
   useEffect(() => { if (folder) setupHost(folder); }, [folder]);
+
+  // Notes opened with VB Notes from Finder or Explorer wait for a notes folder, then come in.
+  useEffect(() => {
+    if (!folder) return;
+    const take = () => void api.openedFiles().then((paths) => (paths.length ? addFiles(paths) : undefined)).catch((e) => console.warn('opening files failed', e));
+    take();
+    const off = listen('files-opened', take);
+    return () => { void off.then((f) => f()); };
+  }, [folder]);
   useEffect(() => { void startMeaning(); }, []);
 
   // Closing the window saves the open note first.

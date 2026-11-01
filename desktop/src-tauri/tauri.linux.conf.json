@@ -1,0 +1,12 @@
+{
+  "bundle": {
+    "fileAssociations": [
+      { "ext": ["md", "markdown"], "name": "Markdown", "role": "Editor", "mimeType": "text/markdown" },
+      { "ext": ["txt"], "name": "Plain text", "role": "Editor", "mimeType": "text/plain" }
+    ],
+    "linux": {
+      "deb": { "desktopTemplate": "linux/vbnotes.desktop" },
+      "rpm": { "desktopTemplate": "linux/vbnotes.desktop" }
+    }
+  }
+}

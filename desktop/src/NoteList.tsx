@@ -4,6 +4,7 @@ import { dateGroup, formatNoteDate } from '@/utils/dates';
 import { tagHue } from '@/utils/tags';
 import { Icon } from './Icon';
 import { openEditor } from './NoteEditor';
+import { useFileDrop } from './fileDrop';
 import { useMeaning } from './meaning';
 import { useNoteList, useNotes } from './store';
 
@@ -45,6 +46,8 @@ export function NoteList({ searchRef, onCreate }: { searchRef: React.RefObject<H
   const groups = useMemo(() => (search.trim() ? [{ title: `${notes.length} found`, notes }] : groupNotes(notes)), [notes, search]);
   const [menu, setMenu] = useState<Menu | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const paneRef = useRef<HTMLElement>(null);
+  const dropping = useFileDrop(paneRef);
 
   // A new filter starts at the top.
   useEffect(() => { listRef.current?.scrollTo({ top: 0 }); }, [section, tag]);
@@ -68,7 +71,7 @@ export function NoteList({ searchRef, onCreate }: { searchRef: React.RefObject<H
   const empty = !scanned ? 'Opening your notes…' : query ? 'No notes match.' : tag === UNTAGGED ? 'Every note has a tag.' : tag ? `Nothing tagged #${tag} yet.` : section === 'notes' ? 'A blank page. Write the first note (⌘N).' : `${TITLES[section]} is empty.`;
 
   return (
-    <section className="list-pane">
+    <section className={`list-pane${dropping ? ' dropping' : ''}`} ref={paneRef}>
       <header className="list-head" data-tauri-drag-region>
         <h2 data-tauri-drag-region>{title}</h2>
         {section === 'notes' ? (
@@ -94,6 +97,13 @@ export function NoteList({ searchRef, onCreate }: { searchRef: React.RefObject<H
         ))}
       </div>
       {menu ? <RowMenu menu={menu} onClose={() => setMenu(null)} /> : null}
+      {dropping ? (
+        <div className="drop-hint">
+          <Icon name="plus" size={26} />
+          <strong>Drop to add to your notes</strong>
+          <span>Notes, pictures, sound or a whole folder</span>
+        </div>
+      ) : null}
     </section>
   );
 }
