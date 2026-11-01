@@ -83,7 +83,7 @@ export function Settings() {
           <Step label="Line height" value={ty.line} min={1.3} max={2} step={0.05} show={(v) => v.toFixed(2)} onChange={(line) => setTy({ line })} />
           <Step label="Paragraph spacing" value={ty.para} min={0} max={1.5} step={0.25} show={(v) => v.toFixed(2)} onChange={(para) => setTy({ para })} />
 
-          <h3>Search</h3>
+          <h3>Local search</h3>
           <MeaningSetting />
 
           <h3>AI chat</h3>

@@ -176,7 +176,7 @@ export default function SettingsScreen() {
     : downloading ? 'Keep VB Notes open until the download finishes. If you leave, it carries on from there when you come back.'
     : `Runs on this phone; your notes never leave it. One download of about ${sizeOf(model)} MB.`;
 
-  const titles: Record<Page, string> = { main: 'Settings', appearance: 'Appearance', typography: 'Typography', folder: 'Notes folder', hidden: 'Hide from Notes', search: 'Search', ai: 'AI chat' };
+  const titles: Record<Page, string> = { main: 'Settings', appearance: 'Appearance', typography: 'Typography', folder: 'Notes folder', hidden: 'Hide from Notes', search: 'Local search', ai: 'AI chat' };
   const modeLabel = settings.theme === 'system' ? 'System' : settings.theme === 'dark' ? 'Dark' : 'Light';
   return (
     <View style={[styles.root, { backgroundColor: t.colors.bg, paddingTop: Platform.OS === 'ios' ? 0 : insets.top }]}>
@@ -205,7 +205,7 @@ export default function SettingsScreen() {
               <PickRow label="Hide from Notes" value={hiddenTags.length ? hiddenTags.map((h) => `#${h}`).join(', ') : 'None'} hint="Tags kept out of the Notes list" onPress={() => setPage('hidden')} />
             </Section>
             <Section>
-              <PickRow label="Search" value={smart ? (status === 'ready' && !semanticIndex.pending ? 'By meaning' : searchStatus) : 'Exact words'} hint="Search by meaning" onPress={() => setPage('search')} />
+              <PickRow label="Local search" value={smart ? (status === 'ready' && !semanticIndex.pending ? 'By meaning' : searchStatus) : 'Exact words'} hint="Search by meaning" onPress={() => setPage('search')} />
               <PickRow label="AI chat" value={aiOn ? providerOf(aiProvider).name : 'Off'} hint="Chat with AI about your notes" onPress={() => setPage('ai')} />
             </Section>
             <Section title="About">
