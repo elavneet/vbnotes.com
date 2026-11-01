@@ -56,6 +56,8 @@ export const api = {
   /** The tray icon behind "Keep running in the tray" (Windows). */
   setTray: (on: boolean) => invoke<void>('set_tray', { on }),
   quit: () => invoke<void>('quit'),
+  /** The page is drawn in its theme: the hidden window takes `background` and shows. */
+  windowReady: (background: string) => invoke<void>('window_ready', { background }),
   aiSettings: () => invoke<AiView>('ai_settings'),
   /** `key`: a new key for the chosen provider, '' to remove it, undefined to keep it. */
   aiSave: (settings: AiSettings, key?: string) => invoke<AiView>('ai_save', { settings, key: key ?? null }),

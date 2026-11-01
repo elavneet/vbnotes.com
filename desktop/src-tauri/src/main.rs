@@ -14,6 +14,7 @@ use notify_debouncer_mini::{
 use serde::Serialize;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -185,8 +186,40 @@ fn hand_over(app: &AppHandle, paths: Vec<String>) {
     show_main(app);
 }
 
-/// Brings the window back: from the tray, or when the app is started again while it runs.
+/// The window starts hidden (`visible: false` in tauri.conf.json) and first shows once the page
+/// has its theme on (`window_ready`), so a launch never flashes white. Set once it has shown.
+#[derive(Default)]
+struct Shown(AtomicBool);
+
+/// The page is drawn in its theme: the window takes its background (Windows paints it before the
+/// page; macOS keeps its own) and shows.
+#[tauri::command]
+fn window_ready(app: AppHandle, background: String) {
+    if let (Some(window), Some(color)) = (app.get_webview_window("main"), hex_color(&background)) {
+        let _ = window.set_background_color(Some(color));
+    }
+    first_show(&app);
+}
+
+fn first_show(app: &AppHandle) {
+    if !app.state::<Shown>().0.swap(true, Ordering::SeqCst) {
+        show_main(app);
+    }
+}
+
+/// `#rrggbb` as a colour.
+fn hex_color(hex: &str) -> Option<tauri::window::Color> {
+    let h = hex.strip_prefix('#').filter(|h| h.len() == 6)?;
+    let byte = |i: usize| u8::from_str_radix(h.get(i..i + 2)?, 16).ok();
+    Some(tauri::window::Color(byte(0)?, byte(2)?, byte(4)?, 255))
+}
+
+/// Brings the window back: from the tray, or when the app is started again while it runs. Before
+/// the page is ready it waits for `window_ready`.
 fn show_main(app: &AppHandle) {
+    if !app.state::<Shown>().0.load(Ordering::SeqCst) {
+        return;
+    }
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
         let _ = window.unminimize();
@@ -501,16 +534,23 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .manage(Open::default())
         .manage(Opened::default())
+        .manage(Shown::default())
         .manage(ai::Chats::default())
         .setup(|app| {
             let cwd = std::env::current_dir().unwrap_or_default();
             hand_over(app.handle(), note_args(std::env::args().skip(1), &cwd));
+            // If the page never says it is ready, the window still shows.
+            let app = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(Duration::from_secs(4));
+                first_show(&app);
+            });
             Ok(())
         })
         .manage(meaning::Meaning::default())
         .invoke_handler(tauri::generate_handler![
             folder_places, make_place, launch_folder, open_folder, scan, read_files, write_file, move_file, copy_folder, remove_file, exists,
-            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, welcome_picture, path_kinds, import_folder, opened_files, set_tray, quit,
+            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, welcome_picture, path_kinds, import_folder, opened_files, set_tray, quit, window_ready,
             ai::ai_settings, ai::ai_save, ai::ai_models, ai::ai_chat, ai::ai_cancel, ai::ai_key_usage,
             meaning::meaning_enable, meaning::meaning_status, meaning::meaning_stale, meaning::meaning_set, meaning::meaning_search
         ])
