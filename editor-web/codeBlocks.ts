@@ -27,39 +27,54 @@ function colour(doc: PMNode): DecorationSet {
 // that doesn't parse, the block stays plain code.
 const MERMAID_URL = 'https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js';
 const MERMAID_SRI = 'sha384-EOXBFmc3gx5mb+vn0vPvvGqACToJD24hhacX5Yx+8NUUQrHIle/Qi5Bg9o3zKwW2';
-type Mermaid = { initialize: (o: object) => void; render: (id: string, code: string) => Promise<{ svg: string }> };
+export type Mermaid = { initialize: (o: object) => void; render: (id: string, code: string) => Promise<{ svg: string }> };
 let mermaidLoad: Promise<Mermaid> | null = null;
+let ownMermaid: (() => Promise<Mermaid>) | null = null;
 
-function loadMermaid(): Promise<Mermaid> {
+/** The desktop app ships its own copy of Mermaid (`desktop/src/NoteEditor.tsx`): no network, no CDN to be blocked. */
+export function mermaidFrom(load: () => Promise<Mermaid>) {
+  ownMermaid = load;
+}
+
+function fromCdn(): Promise<Mermaid> {
   const w = window as unknown as { mermaid?: Mermaid };
   if (w.mermaid) return Promise.resolve(w.mermaid);
-  mermaidLoad ??= new Promise<Mermaid>((resolve, reject) => {
+  return new Promise<Mermaid>((resolve, reject) => {
     const s = document.createElement('script');
     s.src = MERMAID_URL;
     s.integrity = MERMAID_SRI;
     s.crossOrigin = 'anonymous';
-    s.onload = () => {
-      if (!w.mermaid) return reject(new Error('mermaid did not load'));
+    s.onload = () => (w.mermaid ? resolve(w.mermaid) : reject(new Error('mermaid did not load')));
+    s.onerror = () => reject(new Error('mermaid did not load'));
+    document.head.appendChild(s);
+  });
+}
+
+function loadMermaid(): Promise<Mermaid> {
+  mermaidLoad ??= (ownMermaid ? ownMermaid() : fromCdn()).then(
+    (m) => {
       const dark = getComputedStyle(document.documentElement).colorScheme.includes('dark');
-      w.mermaid.initialize({
+      m.initialize({
         startOnLoad: false,
         securityLevel: 'strict',
         suppressErrorRendering: true,
         theme: dark ? 'dark' : 'default',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       });
-      resolve(w.mermaid);
-    };
-    s.onerror = () => {
+      return m;
+    },
+    (e) => {
       mermaidLoad = null; // offline now; the next diagram tries again
-      reject(new Error('mermaid did not load'));
-    };
-    document.head.appendChild(s);
-  });
+      throw e;
+    },
+  );
   return mermaidLoad;
 }
 
-/** Pinch to zoom a drawing (up to 5x), double-tap for 2.5x and back; zoomed, the box scrolls both ways. */
+/**
+ * Pinch to zoom a drawing (up to 5x), double-tap (or double-click on a computer) for 2.5x and back;
+ * zoomed, the box scrolls both ways.
+ */
 function zoomable(box: HTMLElement, art: HTMLElement) {
   let scale = 1;
   let startDist = 0;
@@ -82,6 +97,11 @@ function zoomable(box: HTMLElement, art: HTMLElement) {
   };
   const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
   box.addEventListener('redrawn', () => { scale = 1; apply(); });
+  box.addEventListener('dblclick', (e) => {
+    if ((e.target as Element).closest?.('button')) return;
+    scale = scale > 1 ? 1 : 2.5;
+    apply();
+  });
   box.addEventListener('touchstart', (e) => {
     if ((e.target as Element).closest?.('button')) return;
     if (e.touches.length === 2) {

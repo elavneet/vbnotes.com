@@ -47,6 +47,9 @@ export const api = {
   importFolder: (from: string, to: string) => invoke<number>('import_folder', { from, to }),
   /** Notes opened from Finder or Explorer since the last call ("Open with › VB Notes"). */
   openedFiles: () => invoke<string[]>('opened_files'),
+  /** The tray icon behind "Keep running in the tray" (Windows). */
+  setTray: (on: boolean) => invoke<void>('set_tray', { on }),
+  quit: () => invoke<void>('quit'),
   counts: (hidden: string[]) => invoke<SectionCounts>('db_counts', { hidden }),
   tagCounts: () => invoke<{ tag: string; n: number }[]>('db_tag_counts'),
   meaningEnable: (on: boolean) => invoke<void>('meaning_enable', { on }),

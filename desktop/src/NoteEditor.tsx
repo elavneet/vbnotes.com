@@ -10,7 +10,7 @@ import { openableUrl } from '@/utils/links';
 import { splitTitle } from '@/utils/markdown';
 import { PlainTable } from '../../editor-web/Editor';
 import { TagPills } from '../../editor-web/tagPills';
-import { RichCodeBlock } from '../../editor-web/codeBlocks';
+import { RichCodeBlock, mermaidFrom, type Mermaid } from '../../editor-web/codeBlocks';
 import { MediaViews } from '../../editor-web/media';
 import { LinkTaps, withPlainLinks } from '../../editor-web/links';
 import { CodePaste } from '../../editor-web/codePaste';
@@ -18,6 +18,10 @@ import { MergeFormats } from '../../editor-web/mergeFormats';
 import { WikiLinks, wikiSource } from '../../editor-web/wikiLinks';
 import { onContentsChanged, useNotes } from './store';
 import { StyleBar, StyleKeys } from './StyleBar';
+
+// Diagrams use the app's own Mermaid, loaded the first time a note has one: it works offline and
+// where jsDelivr is blocked.
+mermaidFrom(() => import('mermaid').then((m) => m.default as unknown as Mermaid));
 
 /** ⌘-click (Ctrl-click) on a link opens it in the browser, on a `[[link]]` its note; a plain click puts the caret in it to edit. */
 const LinkClicks = Extension.create({

@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
+import { create } from 'zustand';
 import { UNTAGGED, type Section, type TagNode } from '@/store/noteModel';
 import { tagHue } from '@/utils/tags';
 import { Icon, type IconName } from './Icon';
 import { useSettingsOpen } from './Settings';
 import { useNotes } from './store';
 
+/** In a narrow window (half the screen, a snap group) the library slides over the list instead. */
+export const useDrawer = create<{ open: boolean; set: (open: boolean) => void }>((set) => ({ open: false, set: (open) => set({ open }) }));
+
 /** The library, in the phone's order: Notes, Untagged, the tag tree, Archive, Trash. */
 export function Sidebar() {
-  const { section, tag, counts, tags, show } = useNotes();
+  const { section, tag, counts, tags } = useNotes();
+  const show = (s: Section, t?: string) => { useNotes.getState().show(s, t); useDrawer.getState().set(false); };
   const openSettings = useSettingsOpen((s) => s.set);
   const at = (s: Section, t = '') => section === s && tag === t;
   return (
@@ -22,7 +27,7 @@ export function Sidebar() {
       <div className="side-bottom">
         <Item icon="archive" label="Archive" count={counts.archive} active={at('archive')} onClick={() => show('archive')} />
         <Item icon="trash" label="Trash" count={counts.trash} active={at('trash')} onClick={() => show('trash')} />
-        <button className="item" onClick={() => openSettings(true)} title="Settings (⌘,)">
+        <button className="item" onClick={() => { useDrawer.getState().set(false); openSettings(true); }} title="Settings (⌘,)">
           <Icon name="settings" />
           <span className="item-label">Settings</span>
         </button>

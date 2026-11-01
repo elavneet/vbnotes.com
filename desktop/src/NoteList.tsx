@@ -5,6 +5,7 @@ import { tagHue } from '@/utils/tags';
 import { Icon } from './Icon';
 import { openEditor } from './NoteEditor';
 import { useFileDrop } from './fileDrop';
+import { useDrawer } from './Sidebar';
 import { useMeaning } from './meaning';
 import { useNoteList, useNotes } from './store';
 
@@ -73,6 +74,7 @@ export function NoteList({ searchRef, onCreate }: { searchRef: React.RefObject<H
   return (
     <section className={`list-pane${dropping ? ' dropping' : ''}`} ref={paneRef}>
       <header className="list-head" data-tauri-drag-region>
+        <button className="icon-btn narrow-only" onClick={() => useDrawer.getState().set(true)} title="Show the library" aria-label="Show the library"><Icon name="sidebar" /></button>
         <h2 data-tauri-drag-region>{title}</h2>
         {section === 'notes' ? (
           <button className="icon-btn volt" onClick={onCreate} title="New note (⌘N)" aria-label="New note"><Icon name="plus" /></button>
