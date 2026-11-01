@@ -14,6 +14,7 @@ import { useUi } from '@/store/ui';
 import { formatTag, tagHue } from '@/utils/tags';
 import { TAG_ICONS, tagIconOf } from '@/utils/tagIcons';
 import { IconButton, type IconName } from './IconButton';
+import { useAi } from '@/ai/chat';
 
 /** Everything you can browse: all notes, your tags (nested ones fold), then Archive and Trash. */
 function LibraryList({ onNavigate }: { onNavigate?: () => void }) {
@@ -25,6 +26,7 @@ function LibraryList({ onNavigate }: { onNavigate?: () => void }) {
   const iconsPicked = useNotes((s) => Object.keys(s.tagIcons).length > 0);
   const { section, tag, setSection, setTag } = useUi();
   const [iconFor, setIconFor] = useState<string | null>(null);
+  const aiOn = useAi((s) => s.enabled);
 
   const go = (s: Section) => { setSection(s); onNavigate?.(); };
   const goTag = (name: string) => { setTag(name); onNavigate?.(); };
@@ -33,6 +35,7 @@ function LibraryList({ onNavigate }: { onNavigate?: () => void }) {
     <View style={styles.list}>
       <View style={[styles.top, { paddingTop: insets.top + 8 }]}>
         <IconButton name="settings-outline" filled color={t.colors.text} label="Settings" onPress={() => { onNavigate?.(); router.push('/settings'); }} />
+        {aiOn ? <IconButton name="sparkles-outline" filled color={t.colors.text} label="Chat with AI about all notes" onPress={() => { onNavigate?.(); router.push('/chat'); }} /> : null}
       </View>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]}>
         <Row icon="documents-outline" label="Notes" count={counts.notes} active={section === 'notes' && !tag} onPress={() => go('notes')} />
@@ -201,7 +204,7 @@ const GRID_PAD = 18;
 
 const styles = StyleSheet.create({
   list: { flex: 1 },
-  top: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 10 },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingBottom: 10 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 46, paddingRight: 12, marginHorizontal: 8, borderRadius: 12 },
   label: { flex: 1, fontSize: 16 },
   count: { fontSize: 14, fontVariant: ['tabular-nums'] },

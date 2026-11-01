@@ -14,6 +14,7 @@ import { SwipeNote, closeSwipedNote } from './SwipeNote';
 import type { IconName } from './IconButton';
 import { ActionSheet, type SheetAction } from './ActionSheet';
 import { UpdateCard } from './UpdateCard';
+import { appReady } from '@/utils/splash';
 
 export const SECTION_TITLES = { notes: 'Notes', archive: 'Archive', trash: 'Trash' } as const;
 
@@ -97,7 +98,7 @@ export function NotesList({ wide, onLibrary }: { wide: boolean; onLibrary?: () =
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.root, { backgroundColor: t.colors.bg }]}>
+    <View style={[styles.root, { backgroundColor: t.colors.bg }]} onLayout={appReady}>
       <SectionList
         sections={groups}
         keyExtractor={(n) => n.path}

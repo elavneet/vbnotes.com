@@ -39,7 +39,6 @@ export default function NoteScreen() {
       { label: 'Typography', icon: 'text-outline', onPress: () => router.push('/settings') },
     ],
     [
-      ...(aiOn ? [{ label: 'Chat with AI', icon: 'sparkles-outline' as const, onPress: () => router.push({ pathname: '/chat', params: { path } }) }] : []),
       { label: 'Share', icon: 'share-outline', onPress: () => void loadText(path).then((message) => Share.share({ message, title: note?.title })).catch(() => {}) },
     ],
     [
@@ -61,6 +60,7 @@ export default function NoteScreen() {
         left={<IconButton name="chevron-back" size={24} filled color={t.colors.text} onPress={back} label="Back" />}
         right={
           <View style={[styles.pill, { backgroundColor: t.colors.surface }]}>
+            {aiOn ? <IconButton name="sparkles-outline" size={21} color={t.colors.text} onPress={() => router.push({ pathname: '/chat', params: { path } })} label="Chat with AI about this note" /> : null}
             <IconButton name="information-circle-outline" size={24} color={t.colors.text} onPress={() => void openInfo()} label="Note info" />
             <IconButton name="ellipsis-vertical" size={20} color={t.colors.text} onPress={() => setMenu(true)} label="More" />
           </View>

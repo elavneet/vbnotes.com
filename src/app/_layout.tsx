@@ -12,6 +12,7 @@ import { WebViewWarmup } from '@/editor/WebViewWarmup';
 import { useSharedIn } from '@/media/useSharedIn';
 import { useUpdateCheck } from '@/store/appUpdate';
 import { FolderChoice } from '@/components/FolderChoice';
+import '@/utils/splash';
 
 export const unstable_settings = { anchor: 'index' };
 

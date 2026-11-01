@@ -3,7 +3,8 @@
 export type Scope = 'note' | 'all';
 export interface Source { path: string; title: string }
 export interface ChatMessage { role: 'user' | 'assistant'; content: string }
-export interface Turn { role: 'user' | 'assistant'; content: string; id?: string; sources?: Source[]; error?: string }
+/** `cost`: what the reply cost in dollars, where the provider says (OpenRouter). */
+export interface Turn { role: 'user' | 'assistant'; content: string; id?: string; sources?: Source[]; error?: string; cost?: number }
 
 /** What turning the chat on asks the person to agree to, on the phone and the desktop. */
 export const CONSENT_TITLE = 'Turn on chat with AI?';

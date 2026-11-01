@@ -4,7 +4,7 @@
     "slug": "vbnotes",
     "owner": "ramarya",
     "scheme": "vbnotes",
-    "version": "0.4.2",
+    "version": "0.4.5",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -126,7 +126,13 @@
         }
       ],
       "expo-sqlite",
-      ["expo-secure-store", { "faceIDPermission": false }]
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
+      ["expo-splash-screen", { "image": "./assets/splash-icon.png", "imageWidth": 120, "resizeMode": "contain", "backgroundColor": "#FBFAF7", "dark": { "image": "./assets/splash-icon.png", "backgroundColor": "#0C0D10" } }]
     ],
     "experiments": {
       "typedRoutes": true
