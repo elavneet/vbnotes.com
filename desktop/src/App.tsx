@@ -5,6 +5,8 @@ import { formatNoteDate } from '@/utils/dates';
 import { startNote } from './actions';
 import { api } from './api';
 import { addFiles } from './fileDrop';
+import { useAi, useChat } from './ai';
+import { ChatPanel } from './ChatPanel';
 import { setupHost } from './host';
 import { Icon, type IconName } from './Icon';
 import { NoteEditor, openEditor } from './NoteEditor';
@@ -57,6 +59,9 @@ function Main() {
   const searchRef = useRef<HTMLInputElement>(null);
   const selected = useNotes((s) => s.selected);
   const drawer = useDrawer();
+  const chatOpen = useChat((s) => s.open);
+  const aiOn = useAi((s) => !!s.view?.enabled);
+  useEffect(() => { void useAi.getState().load(); }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -68,13 +73,18 @@ function Main() {
       else if (k === 's') { e.preventDefault(); void openEditor.flush(); }
       else if (k === ',') { e.preventDefault(); useSettingsOpen.getState().set(true); }
       else if (k === 'y' && e.shiftKey) { e.preventDefault(); useStyleBar.getState().toggle(); }
+      else if (k === 'j' && e.shiftKey && useAi.getState().view?.enabled) {
+        e.preventDefault();
+        const chat = useChat.getState();
+        if (chat.open) chat.hide(); else chat.show();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   return (
-    <div className={`app${selected ? ' reading' : ''}${drawer.open ? ' drawer' : ''}`}>
+    <div className={`app${selected ? ' reading' : ''}${drawer.open ? ' drawer' : ''}${chatOpen && aiOn ? ' chatting' : ''}`}>
       <Sidebar />
       {drawer.open ? <div className="drawer-scrim" onMouseDown={() => drawer.set(false)} /> : null}
       <NoteList searchRef={searchRef} onCreate={() => void startNote()} />
@@ -84,9 +94,11 @@ function Main() {
           <div className="editor-empty">
             <Icon name="notes" size={34} />
             <p>Pick a note, start one with ⌘N, or find one with ⌘O.</p>
+            {aiOn ? <button className="text-btn" onClick={() => useChat.getState().show('all')}>Ask your notes</button> : null}
           </div>
         )}
       </main>
+      {aiOn ? <ChatPanel /> : null}
       <Settings />
       <QuickOpen />
     </div>
@@ -104,10 +116,17 @@ function EditorBar({ path }: { path: string }) {
   const { section, togglePin, archive, trash, restore, deleteForever } = useNotes.getState();
   const act = (fn: (p: string) => Promise<unknown>) => async () => { await openEditor.flush(); await fn(path); };
   const styles = useStyleBar();
+  const aiOn = useAi((s) => !!s.view?.enabled);
+  const chatOpen = useChat((s) => s.open);
   return (
     <div className="editor-bar" data-tauri-drag-region>
       <button className="icon-btn single-only" onClick={act(async () => useNotes.getState().select(null))} title="Back to the notes" aria-label="Back to the notes"><Icon name="back" /></button>
       <span className="edited" data-tauri-drag-region>{note ? `Edited ${edited(note.mtime)}` : ''}</span>
+      {aiOn && section !== 'trash' ? (
+        <button className={`icon-btn${chatOpen ? ' on' : ''}`} onClick={() => (chatOpen ? useChat.getState().hide() : useChat.getState().show('note'))} title="Chat with AI about this note (⇧⌘J)" aria-label="Chat with AI">
+          <Icon name="sparkle" />
+        </button>
+      ) : null}
       {section === 'trash' ? null : (
         <button className={`icon-btn biu${styles.shown ? ' on' : ''}`} onClick={styles.toggle} title={`${styles.shown ? 'Hide' : 'Show'} the style bar (${/Mac/.test(navigator.platform) ? '⇧⌘Y' : 'Ctrl+Shift+Y'})`} aria-pressed={styles.shown}>
           <b>B</b><i>I</i><u>U</u>

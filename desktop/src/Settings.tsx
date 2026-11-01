@@ -9,6 +9,8 @@ import { useMeaning } from './meaning';
 import { useNotes } from './store';
 import { themesOf, useThemePrefs, type ThemePref } from './theme';
 import { TRAY_OFFERED, useTray } from './windowClose';
+import { openUrl } from '@tauri-apps/plugin-opener';
+import { PROVIDERS, chatModels, preferredModel, providerOf, useAi } from './ai';
 
 export const useSettingsOpen = create<{ open: boolean; set: (open: boolean) => void }>((set) => ({ open: false, set: (open) => set({ open }) }));
 
@@ -82,6 +84,9 @@ export function Settings() {
           <h3>Search</h3>
           <MeaningSetting />
 
+          <h3>AI chat</h3>
+          <AiSetting />
+
           <h3>Hide from Notes</h3>
           <HiddenTags />
 
@@ -137,6 +142,97 @@ function MeaningSetting() {
         <input type="checkbox" className="switch" checked={on} onChange={(e) => setOn(e.target.checked)} />
       </label>
       <p className="hint">{line}</p>
+    </>
+  );
+}
+
+/**
+ * Chat with AI (off until switched on): the provider, its API key (kept by the Rust side on this
+ * computer, never in the notes folder) and the model, picked from the provider's own list.
+ */
+function AiSetting() {
+  const { view, load, save } = useAi();
+  const [key, setKey] = useState('');
+  const [models, setModels] = useState<string[] | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { if (!view) void load(); }, [view, load]);
+  const fetchModels = async (pick: boolean) => {
+    setBusy(true);
+    setProblem(null);
+    try {
+      const ids = chatModels(await api.aiModels());
+      setModels(ids);
+      const now = useAi.getState().view;
+      if (now && (pick || !now.model) && ids.length) await save({ model: now.model && ids.includes(now.model) ? now.model : preferredModel(now.provider, ids) });
+    } catch (e) {
+      setModels(null);
+      setProblem(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  // The model list once the provider can be asked: a key saved, or none needed.
+  const canList = !!view?.enabled && (view.hasKey || !view.needsKey);
+  const listKey = `${view?.provider}:${view?.hasKey}:${view?.baseUrl}`;
+  useEffect(() => { if (canList) void fetchModels(false); else setModels(null); }, [canList, listKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!view) return null;
+  const p = providerOf(view.provider);
+  const saveKey = async (k: string) => { setKey(''); await save({}, k); };
+  return (
+    <>
+      <label className="row-setting">
+        <span>Chat with AI</span>
+        <input type="checkbox" className="switch" checked={view.enabled} onChange={(e) => void save({ enabled: e.target.checked })} />
+      </label>
+      <p className="hint">
+        {view.enabled
+          ? 'Ask about the open note or all your notes, from the sparkle button over a note or ⇧⌘J. Only what you ask about is sent, and only when you ask.'
+          : 'Off: nothing is ever sent. Switched on, you can ask an AI about one note or all of them, with your own account at OpenRouter, OpenAI, Anthropic, Google and others.'}
+      </p>
+      {view.enabled ? (
+        <>
+          <div className="row-setting">
+            <span>Provider</span>
+            <select value={view.provider} onChange={(e) => { setModels(null); void save({ provider: e.target.value, model: '', baseUrl: providerOf(e.target.value).address ?? '' }); }}>
+              {PROVIDERS.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+            </select>
+          </div>
+          {p.address !== undefined ? (
+            <div className="row-setting">
+              <span>Address</span>
+              <input className="text-input right" defaultValue={view.baseUrl} key={view.provider} placeholder={p.address || 'https://…/v1'} spellCheck={false}
+                onBlur={(e) => { if (e.target.value.trim() !== view.baseUrl) void save({ baseUrl: e.target.value.trim() }); }} />
+            </div>
+          ) : null}
+          {view.needsKey || p.id === 'custom' ? (
+            <div className="row-setting">
+              <span>API key</span>
+              <input className="text-input right" type="password" value={key} placeholder={view.hasKey ? 'Saved. Paste a new one to replace it' : 'Paste your key'} spellCheck={false} autoComplete="off"
+                onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && key.trim()) void saveKey(key); }} />
+              {key.trim() ? <button className="text-btn" onClick={() => void saveKey(key)}>Save</button>
+                : view.hasKey ? <button className="text-btn" onClick={() => void saveKey('')}>Remove</button> : null}
+            </div>
+          ) : null}
+          {p.keyUrl ? (
+            <p className="hint">Get a key at <a href={p.keyUrl} onClick={(e) => { e.preventDefault(); void openUrl(p.keyUrl!); }}>{p.keyUrl.replace(/^https:\/\//, '')}</a>. It stays on this computer, out of your notes folder.</p>
+          ) : null}
+          <div className="row-setting">
+            <span>Model</span>
+            {models?.length ? (
+              <select value={view.model} onChange={(e) => void save({ model: e.target.value })}>
+                {view.model && !models.includes(view.model) ? <option value={view.model}>{view.model}</option> : null}
+                {models.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            ) : (
+              <input className="text-input right" defaultValue={view.model} key={`${view.provider}-${view.model}`} placeholder={canList ? (busy ? 'Loading…' : 'Model name') : 'Add a key first'} spellCheck={false}
+                onBlur={(e) => { if (e.target.value.trim() !== view.model) void save({ model: e.target.value.trim() }); }} />
+            )}
+            {canList ? <button className="text-btn" disabled={busy} onClick={() => void fetchModels(false)}>{busy ? 'Loading…' : 'Refresh'}</button> : null}
+          </div>
+          {problem ? <p className="hint error">{problem}</p> : null}
+        </>
+      ) : null}
     </>
   );
 }
