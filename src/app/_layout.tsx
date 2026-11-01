@@ -39,6 +39,7 @@ function Shell() {
           <Stack.Screen name="note/[id]" options={{ animation: Platform.OS === 'ios' ? 'default' : 'slide_from_right' }} />
           <Stack.Screen name="search" options={{ presentation: 'modal', animation: 'fade' }} />
           <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="chat" options={{ animation: Platform.OS === 'ios' ? 'default' : 'slide_from_right' }} />
         </Stack>
       </NavigationTheme>
       <WebViewWarmup />

@@ -4,7 +4,7 @@
     "slug": "vbnotes",
     "owner": "ramarya",
     "scheme": "vbnotes",
-    "version": "0.4.1",
+    "version": "0.4.2",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -35,9 +35,15 @@
         }
       },
       "entitlements": {
-        "com.apple.developer.icloud-container-identifiers": ["iCloud.com.lavneet.vbnotes"],
-        "com.apple.developer.icloud-services": ["CloudDocuments"],
-        "com.apple.developer.ubiquity-container-identifiers": ["iCloud.com.lavneet.vbnotes"]
+        "com.apple.developer.icloud-container-identifiers": [
+          "iCloud.com.lavneet.vbnotes"
+        ],
+        "com.apple.developer.icloud-services": [
+          "CloudDocuments"
+        ],
+        "com.apple.developer.ubiquity-container-identifiers": [
+          "iCloud.com.lavneet.vbnotes"
+        ]
       },
       "appleTeamId": "J9YMW2253U"
     },
@@ -119,7 +125,8 @@
           ]
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      ["expo-secure-store", { "faceIDPermission": false }]
     ],
     "experiments": {
       "typedRoutes": true

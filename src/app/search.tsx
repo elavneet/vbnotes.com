@@ -12,12 +12,14 @@ import { NoteRow } from '@/components/NoteRow';
 import { Segmented } from '@/components/Segmented';
 import { noteRoute, startNote } from '@/components/NotesList';
 import { useBreakpoint } from '@/utils/useBreakpoint';
+import { useAi } from '@/ai/chat';
 
 type Item = { note: NoteMeta; result?: SearchResult };
 
 export default function SearchScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const aiOn = useAi((s) => s.enabled);
   const { isWide } = useBreakpoint();
   const db = useNotes((s) => s.db);
   const revision = useNotes((s) => s.revision);
@@ -77,6 +79,27 @@ export default function SearchScreen() {
     setTimeout(() => void startNote(title, isWide), 50);
   };
 
+  // With AI chat on, what is typed can also be asked of all notes.
+  const ask = () => {
+    router.back();
+    setTimeout(() => router.push({ pathname: '/chat', params: { q: title } }), 50);
+  };
+  const askRow = aiOn ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Ask AI about your notes: ${title}`}
+      onPress={ask}
+      style={({ pressed }) => [styles.create, pressed && { backgroundColor: t.colors.surface }]}
+    >
+      <View style={[styles.plus, { backgroundColor: t.colors.surface2 }]}>
+        <Ionicons name="sparkles" size={17} color={t.colors.accent} />
+      </View>
+      <Text numberOfLines={1} style={[styles.createText, { color: t.colors.text }]}>
+        Ask AI <Text style={{ color: t.colors.accent }}>“{title}”</Text>
+      </Text>
+    </Pressable>
+  ) : null;
+
   const createRow = (
     <Pressable
       accessibilityRole="button"
@@ -126,7 +149,7 @@ export default function SearchScreen() {
         keyExtractor={(it) => it.note.path}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        ListHeaderComponent={typing ? createRow : items.length ? <Text style={[styles.group, { color: t.colors.textMuted }]}>Recent</Text> : undefined}
+        ListHeaderComponent={typing ? <>{createRow}{askRow}</> : items.length ? <Text style={[styles.group, { color: t.colors.textMuted }]}>Recent</Text> : undefined}
         renderItem={({ item }) => (
           <NoteRow
             note={item.note}
