@@ -11,7 +11,8 @@ resolver = "3"
 tauri-build = { version = "=2.7.3", features = [] }
 
 [dependencies]
-tauri = { version = "=2.12.4", features = ["protocol-asset"] }
+# tray-icon: "Keep running in the tray" on Windows (Settings).
+tauri = { version = "=2.12.4", features = ["protocol-asset", "tray-icon"] }
 tauri-plugin-dialog = "=2.8.3"
 tauri-plugin-opener = "=2.7.2"
 # "Open with › VB Notes" while the app runs: Windows and Linux start a second copy, which hands

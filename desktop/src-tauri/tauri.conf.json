@@ -16,14 +16,14 @@
         "title": "VB Notes",
         "width": 1280,
         "height": 820,
-        "minWidth": 760,
+        "minWidth": 480,
         "minHeight": 480,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true
       }
     ],
     "security": {
-      "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data: blob: https:; media-src 'self' asset: http://asset.localhost; font-src 'self' data:; connect-src ipc: http://ipc.localhost",
+      "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data: blob: https:; media-src 'self' asset: http://asset.localhost; font-src 'self' data:; connect-src ipc: http://ipc.localhost",
       "assetProtocol": { "enable": true, "scope": [] }
     }
   },

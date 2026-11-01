@@ -8,6 +8,7 @@ import { api } from './api';
 import { useMeaning } from './meaning';
 import { useNotes } from './store';
 import { themesOf, useThemePrefs, type ThemePref } from './theme';
+import { TRAY_OFFERED, useTray } from './windowClose';
 
 export const useSettingsOpen = create<{ open: boolean; set: (open: boolean) => void }>((set) => ({ open: false, set: (open) => set({ open }) }));
 
@@ -102,6 +103,13 @@ export function Settings() {
           ) : null}
           <p className="hint">Notes are plain .md files. Use the folder your phone uses (iCloud Drive › VBNotes) to see the same notes on both.</p>
 
+          {TRAY_OFFERED ? (
+            <>
+              <h3>Window</h3>
+              <TraySetting />
+            </>
+          ) : null}
+
           <h3>About</h3>
           <div className="row-setting"><span>Version</span><span className="value">{version}</span></div>
         </div>
@@ -129,6 +137,20 @@ function MeaningSetting() {
         <input type="checkbox" className="switch" checked={on} onChange={(e) => setOn(e.target.checked)} />
       </label>
       <p className="hint">{line}</p>
+    </>
+  );
+}
+
+/** Windows: closing the window can leave the app in the system tray. */
+function TraySetting() {
+  const { on, set } = useTray();
+  return (
+    <>
+      <label className="row-setting">
+        <span>Keep running in the tray</span>
+        <input type="checkbox" className="switch" checked={on} onChange={(e) => set(e.target.checked)} />
+      </label>
+      <p className="hint">{on ? 'Closing the window leaves VB Notes in the system tray, by the clock. Click its icon to open it again; right-click it to quit.' : 'Closing the window quits VB Notes.'}</p>
     </>
   );
 }

@@ -213,3 +213,26 @@ input, select { font: inherit; color: inherit; }
 .sb-link input { flex: 1; min-width: 0; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); outline: none; user-select: text; -webkit-user-select: text; }
 .sb-link input:focus { border-color: var(--accent); }
 .sb-link button { height: 32px; padding: 0 14px; border-radius: 8px; background: var(--volt); color: var(--onVolt); font-weight: 600; }
+
+/* A narrow window (half the screen, a Windows snap group): the library slides over the list from
+   a button, and below 720px the list and the open note take turns. */
+.narrow-only, .single-only { display: none; }
+.drawer-scrim { position: fixed; inset: 0; z-index: 29; background: rgba(0, 0, 0, 0.25); }
+@media (max-width: 1080px) {
+  .app { grid-template-columns: 300px 1fr; }
+  .sidebar { position: fixed; z-index: 30; top: 0; bottom: 0; left: 0; width: 260px; transform: translateX(-100%); transition: transform 0.18s ease; box-shadow: 0 0 40px rgba(0, 0, 0, 0.3); visibility: hidden; }
+  .app.drawer .sidebar { transform: none; visibility: visible; }
+  .narrow-only { display: inline-flex; }
+  .list-head { justify-content: flex-start; gap: 6px; padding-left: 10px; }
+  .list-head h2 { flex: 1; min-width: 0; }
+  /* The window buttons sit at the top left on a Mac. */
+  .mac .list-head { padding-left: 80px; }
+}
+@media (max-width: 720px) {
+  .app { grid-template-columns: 1fr; }
+  .app.reading .list-pane, .app:not(.reading) .editor-pane { display: none; }
+  .list-pane { border-right: 0; }
+  .single-only { display: inline-flex; }
+  .mac .app.reading .editor-bar { padding-left: 80px; }
+}
+

@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open } from '@tauri-apps/plugin-dialog';
 import { formatNoteDate } from '@/utils/dates';
 import { startNote } from './actions';
@@ -13,10 +12,11 @@ import { startMeaning } from './meaning';
 import { NoteList } from './NoteList';
 import { QuickOpen, useQuickOpen } from './QuickOpen';
 import { Settings, useSettingsOpen } from './Settings';
-import { Sidebar } from './Sidebar';
+import { Sidebar, useDrawer } from './Sidebar';
 import { useStyleBar } from './StyleBar';
 import { savedFolder, useNote, useNotes } from './store';
 import { useApplyTheme, useTheme } from './theme';
+import { useWindowClose } from './windowClose';
 import { welcomeOnce } from './welcome';
 
 export function App() {
@@ -45,11 +45,8 @@ export function App() {
   }, [folder]);
   useEffect(() => { void startMeaning(); }, []);
 
-  // Closing the window saves the open note first.
-  useEffect(() => {
-    const off = getCurrentWindow().onCloseRequested(async () => { await openEditor.flush(); });
-    return () => { void off.then((f) => f()); };
-  }, []);
+  // The close button saves the open note first; it hides the window instead with the tray on.
+  useWindowClose();
 
   if (!booted) return <div className="app" />;
   if (!folder) return <Welcome error={error} />;
@@ -59,6 +56,7 @@ export function App() {
 function Main() {
   const searchRef = useRef<HTMLInputElement>(null);
   const selected = useNotes((s) => s.selected);
+  const drawer = useDrawer();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -76,8 +74,9 @@ function Main() {
   }, []);
 
   return (
-    <div className="app">
+    <div className={`app${selected ? ' reading' : ''}${drawer.open ? ' drawer' : ''}`}>
       <Sidebar />
+      {drawer.open ? <div className="drawer-scrim" onMouseDown={() => drawer.set(false)} /> : null}
       <NoteList searchRef={searchRef} onCreate={() => void startNote()} />
       <main className="editor-pane">
         {selected ? <EditorBar path={selected} /> : <div className="editor-bar" data-tauri-drag-region />}
@@ -107,6 +106,7 @@ function EditorBar({ path }: { path: string }) {
   const styles = useStyleBar();
   return (
     <div className="editor-bar" data-tauri-drag-region>
+      <button className="icon-btn single-only" onClick={act(async () => useNotes.getState().select(null))} title="Back to the notes" aria-label="Back to the notes"><Icon name="back" /></button>
       <span className="edited" data-tauri-drag-region>{note ? `Edited ${edited(note.mtime)}` : ''}</span>
       {section === 'trash' ? null : (
         <button className={`icon-btn biu${styles.shown ? ' on' : ''}`} onClick={styles.toggle} title={`${styles.shown ? 'Hide' : 'Show'} the style bar (${/Mac/.test(navigator.platform) ? '⇧⌘Y' : 'Ctrl+Shift+Y'})`} aria-pressed={styles.shown}>

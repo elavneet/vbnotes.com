@@ -181,10 +181,68 @@ fn hand_over(app: &AppHandle, paths: Vec<String>) {
         opened.extend(paths);
     }
     let _ = app.emit("files-opened", ());
+    show_main(app);
+}
+
+/// Brings the window back: from the tray, or when the app is started again while it runs.
+fn show_main(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
     }
+}
+
+/// "Keep running in the tray" (Settings, Windows): closing the window hides it (the page does
+/// that), and this icon brings it back or quits.
+#[tauri::command]
+fn set_tray(app: AppHandle, on: bool) -> Res<()> {
+    use tauri::menu::{Menu, MenuItem};
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+    if !on {
+        app.remove_tray_by_id("main");
+        return Ok(());
+    }
+    if app.tray_by_id("main").is_some() {
+        return Ok(());
+    }
+    let show = MenuItem::with_id(&app, "show", "Open VB Notes", true, None::<&str>).map_err(text)?;
+    let quit = MenuItem::with_id(&app, "quit", "Quit VB Notes", true, None::<&str>).map_err(text)?;
+    let menu = Menu::with_items(&app, &[&show, &quit]).map_err(text)?;
+    let mut tray = TrayIconBuilder::with_id("main")
+        .tooltip("VB Notes")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            "show" => show_main(app),
+            "quit" => quit_soon(app),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                show_main(tray.app_handle());
+            }
+        });
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone());
+    }
+    tray.build(&app).map_err(text)?;
+    Ok(())
+}
+
+/// Quit from the tray: the page saves the open note and calls `quit`; if it can't, the app goes anyway.
+fn quit_soon(app: &AppHandle) {
+    let _ = app.emit("quit-requested", ());
+    let app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_secs(3));
+        app.exit(0);
+    });
+}
+
+#[tauri::command]
+fn quit(app: AppHandle) {
+    app.exit(0);
 }
 
 #[tauri::command]
@@ -435,6 +493,7 @@ fn main() {
     tauri::Builder::default()
         // First, so a second copy hands over its files before it sets anything up.
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+            show_main(app);
             hand_over(app, note_args(args.into_iter().skip(1), Path::new(&cwd)));
         }))
         .plugin(tauri_plugin_dialog::init())
@@ -449,7 +508,7 @@ fn main() {
         .manage(meaning::Meaning::default())
         .invoke_handler(tauri::generate_handler![
             folder_places, make_place, launch_folder, open_folder, scan, read_files, write_file, move_file, copy_folder, remove_file, exists,
-            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, welcome_picture, path_kinds, import_folder, opened_files,
+            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, welcome_picture, path_kinds, import_folder, opened_files, set_tray, quit,
             meaning::meaning_enable, meaning::meaning_status, meaning::meaning_stale, meaning::meaning_set, meaning::meaning_search
         ])
         .build(tauri::generate_context!())
