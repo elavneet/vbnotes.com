@@ -5,13 +5,14 @@ import { formatNoteDate } from '@/utils/dates';
 import { startNote } from './actions';
 import { api } from './api';
 import { setupHost } from './host';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 import { NoteEditor, openEditor } from './NoteEditor';
 import { startMeaning } from './meaning';
 import { NoteList } from './NoteList';
 import { QuickOpen, useQuickOpen } from './QuickOpen';
 import { Settings, useSettingsOpen } from './Settings';
 import { Sidebar } from './Sidebar';
+import { useStyleBar } from './StyleBar';
 import { savedFolder, useNote, useNotes } from './store';
 import { useApplyTheme, useTheme } from './theme';
 
@@ -56,6 +57,7 @@ function Main() {
       else if (k === 'f' && !e.shiftKey) { e.preventDefault(); searchRef.current?.focus(); searchRef.current?.select(); }
       else if (k === 's') { e.preventDefault(); void openEditor.flush(); }
       else if (k === ',') { e.preventDefault(); useSettingsOpen.getState().set(true); }
+      else if (k === 'y' && e.shiftKey) { e.preventDefault(); useStyleBar.getState().toggle(); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -90,9 +92,15 @@ function EditorBar({ path }: { path: string }) {
   const note = useNote(path);
   const { section, togglePin, archive, trash, restore, deleteForever } = useNotes.getState();
   const act = (fn: (p: string) => Promise<unknown>) => async () => { await openEditor.flush(); await fn(path); };
+  const styles = useStyleBar();
   return (
     <div className="editor-bar" data-tauri-drag-region>
       <span className="edited" data-tauri-drag-region>{note ? `Edited ${edited(note.mtime)}` : ''}</span>
+      {section === 'trash' ? null : (
+        <button className={`icon-btn biu${styles.shown ? ' on' : ''}`} onClick={styles.toggle} title={`${styles.shown ? 'Hide' : 'Show'} the style bar (${/Mac/.test(navigator.platform) ? '⇧⌘Y' : 'Ctrl+Shift+Y'})`} aria-pressed={styles.shown}>
+          <b>B</b><i>I</i><u>U</u>
+        </button>
+      )}
       {section === 'trash' ? (
         <>
           <button className="icon-btn" onClick={act(restore)} title="Restore"><Icon name="restore" /></button>
@@ -111,24 +119,48 @@ function EditorBar({ path }: { path: string }) {
   );
 }
 
-/** First launch: where the notes live. The same folder as the phone's (iCloud Drive › VBNotes) keeps both in step. */
+/** "iCloud Drive › VB Notes" for a folder in iCloud Drive, else its last two parts. */
+function placeName(path: string) {
+  if (path.includes('/iCloud~com~lavneet~vbnotes/')) return 'iCloud Drive › VB Notes';
+  const parts = path.split(/[\\/]/).filter(Boolean);
+  return path.includes('/com~apple~CloudDocs/') ? `iCloud Drive › ${parts[parts.length - 1]}` : parts.slice(-2).join(' › ');
+}
+
+/**
+ * First launch: where the notes live, as on the iPhone. iCloud Drive comes first on a Mac: the
+ * iPhone app's own folder there once a phone has made it, so both show the same notes.
+ */
 function Welcome({ error }: { error?: string }) {
-  const [suggested, setSuggested] = useState('');
+  const [places, setPlaces] = useState<{ icloud: string | null; here: string } | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
   const openFolder = useNotes((s) => s.openFolder);
-  useEffect(() => { void api.suggestedFolder(false).then(setSuggested); }, []);
+  useEffect(() => { void api.folderPlaces().then(setPlaces, (e) => setProblem(String(e))); }, []);
   const choose = async () => {
     const picked = await open({ directory: true, title: 'Choose your notes folder' });
     if (typeof picked === 'string') await openFolder(picked);
   };
-  const useSuggested = async () => openFolder(await api.suggestedFolder(true));
+  const use = (place: 'icloud' | 'here') => async () => {
+    try { await openFolder(await api.makePlace(place)); } catch (e) { setProblem(String(e)); }
+  };
+  const option = (onClick: () => void, icon: IconName, title: string, text: string, first = false) => (
+    <button className={`place${first ? ' first' : ''}`} onClick={onClick}>
+      <span className="place-icon"><Icon name={icon} size={20} /></span>
+      <span className="place-text">
+        <span className="place-title">{title}{first ? <span className="place-tag">Recommended</span> : null}</span>
+        <span className="place-sub">{text}</span>
+      </span>
+      <Icon name="chevron" size={16} className="place-go" />
+    </button>
+  );
   return (
     <div className="welcome" data-tauri-drag-region>
       <div className="welcome-card">
-        <h1>VB Notes</h1>
-        <p>Your notes are plain markdown files in a folder. Pick the same folder as on your phone (iCloud Drive › VBNotes) and both stay in step.</p>
-        {error ? <p className="error">{error}</p> : null}
-        <button className="primary" onClick={() => void useSuggested()}>Use {suggested.split(/[\\/]/).slice(-2).join(' › ') || 'VBNotes'}</button>
-        <button className="secondary" onClick={() => void choose()}>Choose another folder…</button>
+        <h1>Where should your notes live?</h1>
+        <p>Every note is a plain .md file in a folder. You can change this later in Settings.</p>
+        {error || problem ? <p className="error">{error ?? problem}</p> : null}
+        {places?.icloud ? option(() => void use('icloud')(), 'cloud', 'iCloud Drive', `${placeName(places.icloud)}. Notes stay in step with VB Notes on your iPhone.`, true) : null}
+        {option(() => void choose(), 'folder', 'Choose a folder…', 'One you already have: iCloud Drive, Dropbox, Syncthing or any other.')}
+        {places ? option(() => void use('here')(), 'computer', 'On this computer', `${placeName(places.here)}, on this computer only.`) : null}
       </div>
     </div>
   );

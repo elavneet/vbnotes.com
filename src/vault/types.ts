@@ -13,7 +13,8 @@ export interface VaultEntry {
   cloud?: boolean;
 }
 
-export type VaultKind = 'local' | 'picked';
+/** `icloud`: the app's own folder in iCloud Drive. `picked`: one chosen in Files. */
+export type VaultKind = 'local' | 'picked' | 'icloud';
 
 export interface Vault {
   id: string;

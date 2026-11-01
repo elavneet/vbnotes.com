@@ -6,7 +6,7 @@ const WELCOMED_KEY = 'welcomed';
 const NOTE = 'Welcome to VB Notes.md';
 const PICTURE = 'attachments/welcome-mountains.png';
 
-/** What VB Notes does, shown by doing it: markdown, checklists, tags, a picture, a diagram, code, a table. */
+/** What VB Notes does, shown by doing it: markdown, checklists, tags, a link, a picture, a diagram, code, a table. */
 const TEXT = `# Welcome to VB Notes
 
 Your notes are plain **markdown files** in a folder you choose, so they stay yours: any app can open them. Try things out in this note, and delete it when you're done.
@@ -30,6 +30,10 @@ Your notes are plain **markdown files** in a folder you choose, so they stay you
 ## Tags instead of folders
 
 Put a hash in front of a word anywhere in a note, like \`#ideas\`, and nest tags with a slash, like \`#work/clients\`. This note is tagged #vbnotes/welcome: tap ☰ at the bottom left to find it in the library. Hold a tag there to give it an icon.
+
+## Links between notes
+
+Type two square brackets and the start of a title: a list of your notes comes up, and picking one writes a link like [[My first note]]. Tap a link to open its note. This one points to a note that doesn't exist yet, so tapping it makes it.
 
 ## Pictures and voice notes
 
@@ -58,6 +62,7 @@ const greet = (name) => \`Hello, \${name}!\`;
 | To | Do this |
 |---|---|
 | Find a note | Tap Search or ask |
+| Link to a note | Type [[ and pick one |
 | Pin or delete a note | Swipe it to the left |
 | See a note's outline | Tap ⓘ in the note |
 
@@ -67,7 +72,7 @@ Ask in your own words, like "that lentil recipe", and VB Notes finds notes by wh
 
 ## Your notes everywhere
 
-In **Settings › Notes folder**, pick a folder in iCloud Drive. The desktop app for Mac, Windows and Linux opens the same folder: https://github.com/elavneet/vbnotes.com/releases
+Keep your notes in iCloud Drive (**Settings › Notes folder › Use iCloud Drive**) and they stay in step on your iPhone and Mac. The desktop app for Mac, Windows and Linux opens the same folder, and has a style bar with Bear's shortcuts: https://vbnotes.com
 `;
 
 /**

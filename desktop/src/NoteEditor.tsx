@@ -15,9 +15,11 @@ import { MediaViews } from '../../editor-web/media';
 import { LinkTaps, withPlainLinks } from '../../editor-web/links';
 import { CodePaste } from '../../editor-web/codePaste';
 import { MergeFormats } from '../../editor-web/mergeFormats';
+import { WikiLinks, wikiSource } from '../../editor-web/wikiLinks';
 import { onContentsChanged, useNotes } from './store';
+import { StyleBar, StyleKeys } from './StyleBar';
 
-/** ⌘-click (Ctrl-click) on a link opens it in the browser; a plain click puts the caret in it to edit. */
+/** ⌘-click (Ctrl-click) on a link opens it in the browser, on a `[[link]]` its note; a plain click puts the caret in it to edit. */
 const LinkClicks = Extension.create({
   name: 'vbLinkClicks',
   addProseMirrorPlugins() {
@@ -27,6 +29,8 @@ const LinkClicks = Extension.create({
         props: {
           handleClick: (_view, _pos, e) => {
             if (!(e.metaKey || e.ctrlKey)) return false;
+            const wiki = (e.target as Element | null)?.closest?.('[data-wiki]');
+            if (wiki) { wikiSource.open(wiki.getAttribute('data-wiki') ?? ''); return true; }
             const a = (e.target as Element | null)?.closest?.('a[href]');
             const url = a ? openableUrl(a.getAttribute('href')) : null;
             if (!url) return false;
@@ -56,7 +60,7 @@ const EXTENSIONS: AnyExtension[] = (() => {
     const { config, extendConfig } = b as unknown as { config?: unknown; extendConfig?: unknown };
     b.configureTiptapExtensionsOnRunTime(config, extendConfig).forEach(add);
   }
-  [TagPills, LinkTaps, LinkClicks, CodePaste, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell].forEach(add);
+  [TagPills, WikiLinks, LinkTaps, LinkClicks, StyleKeys, CodePaste, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell].forEach(add);
   return out;
 })();
 
@@ -131,8 +135,11 @@ function Pane({ path, initial }: { path: string; initial: string }) {
   }), [editor, path]);
 
   return (
-    <div className="editor-scroll">
-      <EditorContent editor={editor} className="editor" />
-    </div>
+    <>
+      <div className="editor-scroll">
+        <EditorContent editor={editor} className="editor" />
+      </div>
+      <StyleBar editor={editor} />
+    </>
   );
 }

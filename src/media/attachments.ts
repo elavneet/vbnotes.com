@@ -2,23 +2,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { getDocumentAsync } from 'expo-document-picker';
 import { useNotes } from '@/store/notes';
+import { attachmentName } from './attachmentName';
 
-/**
- * Photos and recordings live next to the notes in `attachments/`, linked from the note as
- * `![](attachments/name.jpg)`: plain markdown that Obsidian and other editors show too.
- * Links are relative to the vault root, so they keep working when a note moves to Archive.
- */
-export const ATTACH_DIR = 'attachments';
+export { ATTACH_DIR } from './attachmentName';
 
 /** Phone photos are 12+ MP; this keeps them sharp on screen without making notes slow to open. */
 const MAX_EDGE = 2048;
-
-function newName(ext: string) {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, '0');
-  const rand = Math.random().toString(36).slice(2, 6);
-  return `${ATTACH_DIR}/${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}-${rand}.${ext}`;
-}
 
 function vault() {
   const v = useNotes.getState().vault;
@@ -28,7 +17,7 @@ function vault() {
 
 /** Copies a file into `attachments/` and returns its link path. */
 export async function saveFile(uri: string, ext: string): Promise<string> {
-  const path = newName(ext.replace(/^\./, '').toLowerCase());
+  const path = attachmentName(ext);
   await vault().importFile(uri, path);
   return path;
 }

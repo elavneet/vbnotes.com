@@ -168,6 +168,19 @@ export class NoteDb {
     }
   }
 
+  /**
+   * Notes to link to from `[[`, Notes before Archive: titles holding `q`, an exact title first, then
+   * titles starting with it, newest first. An empty `q` gives the newest notes.
+   */
+  titles(q: string, limit: number): NoteMeta[] {
+    const needle = q.trim().toLowerCase();
+    return this.db.getAllSync<Row>(
+      `SELECT ${COLS} FROM notes n WHERE n.section != 'trash' AND n.title != '' AND instr(lower(n.title), ?) > 0
+       ORDER BY lower(n.title) = ? DESC, instr(lower(n.title), ?) = 1 DESC, n.section = 'notes' DESC, n.mtime DESC LIMIT ?`,
+      needle, needle, needle, limit,
+    ).map((r) => this.meta(r));
+  }
+
   /** Notes per section; Notes counts what its list shows, without the notes of `hidden` tags. */
   counts(hidden: readonly string[] = []): SectionCounts {
     const c: SectionCounts = { notes: 0, archive: 0, trash: 0, untagged: 0 };

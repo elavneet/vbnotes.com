@@ -6,6 +6,8 @@ Your notes are plain `.md` files in a folder you choose. Put that folder in iClo
 and the desktop app show the same notes. There is no account and no server: the search model runs on
 the phone, and the files stay yours to open in any editor.
 
+**Website:** [vbnotes.com](https://vbnotes.com), with a short guide and the blog.
+
 **Download:** see [Releases](https://github.com/elavneet/vbnotes.com/releases) for macOS, Windows,
 Linux and Android builds. The iPhone app is built from source for now (see below).
 
@@ -24,6 +26,8 @@ Linux and Android builds. The iPhone app is built from source for now (see below
 ## Desktop (macOS, Windows, Linux)
 
 ![Desktop: nested tags, a diagram and code](docs/screenshots/desktop-algorithms.png)
+
+![Desktop: linking to another note with [[, and the style bar](docs/screenshots/desktop-links.png)
 
 ![Desktop, Paper theme](docs/screenshots/desktop-light.png)
 
@@ -46,6 +50,14 @@ Linux and Android builds. The iPhone app is built from source for now (see below
   covers `#melta` and `#projects/melta`) out of the main list; they still show under their tag.
 - **A rich editor that writes markdown.** Headings, lists, task lists, quotes, tables, code blocks
   coloured by language, Mermaid diagrams, pictures and audio. What you type is saved the way you typed it.
+- **Links between notes.** Type `[[` and a few letters of a title: a list of matching notes comes up
+  (↑ ↓ and Return, a click or a tap), and picking one writes `[[Note title]]` with the closing brackets.
+  ⌘-click a link on the desktop or tap it on the phone to open that note; a link to a title that
+  doesn't exist yet makes the note. The file keeps plain `[[Note title]]`, as Obsidian and Bear write it.
+- **Style bar (desktop).** The BIU button over a note (or ⇧⌘Y) shows a bar under it, as in Bear:
+  headings, todo, lists and quotes, bold, italic, highlight, link, table, pictures, and a menu with
+  underline, strikethrough and code. Every item shows its shortcut, and the shortcuts are Bear's
+  (⌘1–⌘6 for headings, ⌘L for a list, ⌘T for a todo, ⌘K for a link; Ctrl on Windows and Linux).
 - **Search by meaning.** Each note is embedded on the device with LFM2.5-Embedding-350M and
   searched by meaning, mixed with keyword matches. The phone downloads it once (about 190 MB; two
   smaller models are offered, one of them multilingual); the desktop app runs the same model through

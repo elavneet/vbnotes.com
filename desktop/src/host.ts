@@ -4,6 +4,9 @@ import { LinkAction } from '@/editor/linkBridge';
 import { MEDIA_STATUS_EVENT, MediaAction } from '@/editor/mediaBridge';
 import type { PlayStatus } from '@/media/player';
 import { mediaSrc } from '../../editor-web/media';
+import { wikiSource } from '../../editor-web/wikiLinks';
+import { openNote, startNote } from './actions';
+import { api } from './api';
 import { openableUrl } from '@/utils/links';
 
 /**
@@ -66,11 +69,22 @@ function onMessage(raw: string) {
   }
 }
 
+/** `[[` lists notes by title; a `[[link]]` opens its note, or makes one with that title, as in Bear. */
+const findLinkable = async (q: string) => (await api.titles(q, 8).catch(() => [])).map((n) => ({ title: n.title, path: n.path }));
+
+async function openLinked(title: string) {
+  const found = (await api.titles(title, 5).catch(() => [])).find((n) => n.title.toLowerCase() === title.toLowerCase());
+  if (found) await openNote(found.path);
+  else await startNote(title);
+}
+
 /** Points pictures and sounds at `folder` and starts listening to the editor extensions. */
 export function setupHost(folder: string) {
   root = folder.replace(/[\\/]+$/, '');
   players.forEach((a) => a.pause());
   players.clear();
   mediaSrc.resolve = fileUrl;
+  wikiSource.find = findLinkable;
+  wikiSource.open = (title) => void openLinked(title);
   (window as unknown as { ReactNativeWebView: { postMessage: (m: string) => void } }).ReactNativeWebView = { postMessage: onMessage };
 }

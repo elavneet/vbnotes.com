@@ -4,7 +4,7 @@
     "slug": "vbnotes",
     "owner": "ramarya",
     "scheme": "vbnotes",
-    "version": "0.2.0",
+    "version": "0.4.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -25,7 +25,19 @@
       "infoPlist": {
         "UIFileSharingEnabled": true,
         "LSSupportsOpeningDocumentsInPlace": true,
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSUbiquitousContainers": {
+          "iCloud.com.lavneet.vbnotes": {
+            "NSUbiquitousContainerIsDocumentScopePublic": true,
+            "NSUbiquitousContainerName": "VB Notes",
+            "NSUbiquitousContainerSupportedFolderLevels": "Any"
+          }
+        }
+      },
+      "entitlements": {
+        "com.apple.developer.icloud-container-identifiers": ["iCloud.com.lavneet.vbnotes"],
+        "com.apple.developer.icloud-services": ["CloudDocuments"],
+        "com.apple.developer.ubiquity-container-identifiers": ["iCloud.com.lavneet.vbnotes"]
       },
       "appleTeamId": "J9YMW2253U"
     },
