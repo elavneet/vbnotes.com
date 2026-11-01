@@ -19,7 +19,7 @@ use std::io::{Read, Write};
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -61,6 +61,8 @@ pub struct Meaning {
     started: AtomicBool,
     status: Mutex<Status>,
     engine: Mutex<Option<Sender<Job>>>,
+    /// Signalled by the model's thread once it has let go of the model (`shutdown`).
+    stopped: Mutex<Option<Receiver<()>>>,
     wake: Mutex<Option<Sender<()>>>,
 }
 
@@ -71,6 +73,7 @@ impl Default for Meaning {
             started: AtomicBool::new(false),
             status: Mutex::new(Status { state: "off", progress: 0.0, pending: 0, indexed: 0, error: None }),
             engine: Mutex::new(None),
+            stopped: Mutex::new(None),
             wake: Mutex::new(None),
         }
     }
@@ -96,6 +99,17 @@ impl Meaning {
                 let _ = w.send(());
             }
         }
+    }
+
+    /// Before the app quits: lets the model go and waits (a few seconds at most) for its thread to
+    /// free it. Left to the process's exit, llama.cpp's Metal backend was torn down while the model
+    /// still held GPU memory, and it aborted: "VB Notes quit unexpectedly" on every quit on a Mac.
+    /// False if the thread didn't finish in time.
+    pub fn shutdown(&self) -> bool {
+        self.on.store(false, Ordering::Relaxed);
+        let Some(stopped) = self.stopped.lock().ok().and_then(|mut s| s.take()) else { return true };
+        drop(self.engine.lock().ok().and_then(|mut e| e.take()));
+        !matches!(stopped.recv_timeout(Duration::from_secs(3)), Err(RecvTimeoutError::Timeout))
     }
 
     /// Vectors for `texts`, from the model's thread.
@@ -177,20 +191,24 @@ fn download(file: &Path, progress: impl Fn(f64)) -> Res<()> {
     fs::rename(&part, file).map_err(text)
 }
 
-/// Starts llama.cpp on a thread of its own (a context can't be shared) and returns where to send texts.
-fn start_engine(file: PathBuf) -> Res<Sender<Job>> {
+/// Starts llama.cpp on a thread of its own (a context can't be shared). Returns where to send texts,
+/// and what says the thread has freed the model once the sender is dropped.
+fn start_engine(file: PathBuf) -> Res<(Sender<Job>, Receiver<()>)> {
     let (tx, jobs) = channel::<Job>();
     let (ready_tx, ready) = channel::<Res<()>>();
+    let (stopped_tx, stopped) = channel::<()>();
     thread::Builder::new()
         .name("meaning-model".into())
         .spawn(move || {
             if let Err(e) = run_engine(&file, jobs, &ready_tx) {
                 let _ = ready_tx.send(Err(e));
             }
+            // The context, the model and the backend are dropped by now.
+            let _ = stopped_tx.send(());
         })
         .map_err(text)?;
     ready.recv().map_err(text)??;
-    Ok(tx)
+    Ok((tx, stopped))
 }
 
 fn run_engine(file: &Path, jobs: Receiver<Job>, ready: &Sender<Res<()>>) -> Res<()> {
@@ -289,7 +307,9 @@ fn work(app: &AppHandle, meaning: &Meaning, wake: &Receiver<()>) -> Res<()> {
             s.progress = 1.0;
             s.error = None;
         });
-        *meaning.engine.lock().map_err(text)? = Some(start_engine(file)?);
+        let (engine, stopped) = start_engine(file)?;
+        *meaning.engine.lock().map_err(text)? = Some(engine);
+        *meaning.stopped.lock().map_err(text)? = Some(stopped);
     }
     meaning.update(app, |s| s.state = "ready");
     let open = app.state::<Open>();
@@ -392,7 +412,7 @@ mod tests {
         let file = std::env::var("HOME").map(PathBuf::from).unwrap()
             .join("Library/Application Support/com.lavneet.vbnotes.desktop/models")
             .join(MODEL_FILE);
-        let engine = start_engine(file).unwrap();
+        let (engine, _stopped) = start_engine(file).unwrap();
         let embed = |texts: Vec<String>| {
             let (tx, rx) = channel();
             engine.send((texts, tx)).unwrap();

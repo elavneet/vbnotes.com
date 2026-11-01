@@ -516,12 +516,23 @@ fn main() {
         ])
         .build(tauri::generate_context!())
         .expect("VBNotes could not start")
-        .run(|_app, _event| {
+        .run(|app, event| match event {
             // macOS sends opened files as an event, whether the app was running or not.
             #[cfg(target_os = "macos")]
-            if let tauri::RunEvent::Opened { urls } = _event {
+            tauri::RunEvent::Opened { urls } => {
                 let paths = urls.iter().filter_map(|u| u.to_file_path().ok()).map(|p| p.to_string_lossy().into_owned());
-                hand_over(_app, paths.filter(|p| is_markdown(p)).collect());
+                hand_over(app, paths.filter(|p| is_markdown(p)).collect());
             }
+            // The search model is freed before the process exits (see `Meaning::shutdown`). If it
+            // can't be in time, the exit skips the C++ teardown that would abort.
+            tauri::RunEvent::Exit => {
+                if !app.state::<meaning::Meaning>().shutdown() {
+                    extern "C" {
+                        fn _exit(code: i32) -> !;
+                    }
+                    unsafe { _exit(0) }
+                }
+            }
+            _ => {}
         });
 }
