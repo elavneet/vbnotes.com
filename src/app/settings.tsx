@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, BackHandler, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
@@ -14,10 +14,13 @@ import { IconButton } from '@/components/IconButton';
 import { ActionSheet, type SheetAction } from '@/components/ActionSheet';
 import { Segmented } from '@/components/Segmented';
 import { LocalVault, SafVault, canUseICloud, chooseDeviceFolder, iCloudFolder, pickFolder } from '@/vault';
-import { providerModels, useAi } from '@/ai/chat';
+import { openRouterUsage, providerModels, useAi, useSpend } from '@/ai/chat';
+import { formatCost, showsSpend, spentThisMonth, type KeyUsage } from '@/ai/spend';
 import { PROVIDERS, chatModels, destinationOf, preferredModel, providerOf } from '@/ai/providers';
 import { CONSENT_TEXT, CONSENT_TITLE } from '@/ai/prompt';
 import { ModelPicker } from '@/components/ModelPicker';
+
+type Page = 'main' | 'appearance' | 'typography' | 'folder' | 'hidden' | 'search' | 'ai';
 
 export default function SettingsScreen() {
   const t = useTheme();
@@ -27,6 +30,16 @@ export default function SettingsScreen() {
   const vaultProblem = useNotes((s) => s.vaultProblem);
   const noteCount = useNotes((s) => s.counts.notes + s.counts.archive + s.counts.trash);
   const [switching, setSwitching] = useState(false);
+  // A short list on top; each part of Settings opens on its own page.
+  const [page, setPage] = useState<Page>('main');
+  useEffect(() => {
+    if (page === 'main') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setPage('main'); return true; });
+    return () => sub.remove();
+  }, [page]);
+  const hiddenTags = useNotes((s) => s.hiddenTags);
+  const aiOn = useAi((s) => s.enabled);
+  const aiProvider = useAi((s) => s.provider);
   const [, bump] = useState(0);
   useEffect(() => semanticIndex.subscribe(() => bump((n) => n + 1)), []);
 
@@ -163,25 +176,56 @@ export default function SettingsScreen() {
     : downloading ? 'Keep VB Notes open until the download finishes. If you leave, it carries on from there when you come back.'
     : `Runs on this phone; your notes never leave it. One download of about ${sizeOf(model)} MB.`;
 
+  const titles: Record<Page, string> = { main: 'Settings', appearance: 'Appearance', typography: 'Typography', folder: 'Notes folder', hidden: 'Hide from Notes', search: 'Search', ai: 'AI chat' };
+  const modeLabel = settings.theme === 'system' ? 'System' : settings.theme === 'dark' ? 'Dark' : 'Light';
   return (
     <View style={[styles.root, { backgroundColor: t.colors.bg, paddingTop: Platform.OS === 'ios' ? 0 : insets.top }]}>
       <View style={styles.top}>
-        <Text style={[styles.title, { color: t.colors.text }]}>Settings</Text>
+        {page !== 'main' ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Back to Settings" onPress={() => setPage('main')} hitSlop={10} style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
+            <Ionicons name="chevron-back" size={22} color={t.colors.accent} />
+            <Text style={[styles.doneText, { color: t.colors.accent, fontWeight: '400' }]}>Settings</Text>
+          </Pressable>
+        ) : null}
+        <Text style={[styles.title, { color: t.colors.text }]}>{titles[page]}</Text>
         <Pressable accessibilityRole="button" onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [styles.done, pressed && styles.pressed]}>
           <Text style={[styles.doneText, { color: t.colors.accent }]}>Done</Text>
         </Pressable>
       </View>
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
-        <>
-          <Section title="Appearance" footer="System follows the phone: the light theme in light mode, the dark theme in dark mode.">
+      <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'android' ? 'padding' : undefined}>
+      <ScrollView key={page} automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+        {page === 'main' ? (
+          <>
+            <Section>
+              <PickRow label="Appearance" value={modeLabel} hint="Light and dark themes" onPress={() => setPage('appearance')} />
+              <PickRow label="Typography" value={`${textFont(ty.text).label}, ${ty.size} pt`} hint="Fonts and spacing" onPress={() => setPage('typography')} />
+            </Section>
+            <Section>
+              <PickRow label="Notes folder" value={switching ? 'Switching…' : vault?.label ?? '…'} hint="Where your notes are kept" onPress={() => setPage('folder')} />
+              <PickRow label="Hide from Notes" value={hiddenTags.length ? hiddenTags.map((h) => `#${h}`).join(', ') : 'None'} hint="Tags kept out of the Notes list" onPress={() => setPage('hidden')} />
+            </Section>
+            <Section>
+              <PickRow label="Search" value={smart ? (status === 'ready' && !semanticIndex.pending ? 'By meaning' : searchStatus) : 'Exact words'} hint="Search by meaning" onPress={() => setPage('search')} />
+              <PickRow label="AI chat" value={aiOn ? providerOf(aiProvider).name : 'Off'} hint="Chat with AI about your notes" onPress={() => setPage('ai')} />
+            </Section>
+            <Section title="About">
+              <Row label="Version" value={Constants.expoConfig?.version ?? '–'} />
+            </Section>
+          </>
+        ) : null}
+
+        {page === 'appearance' ? (
+          <Section title="Mode" footer="System follows the phone: the light theme in light mode, the dark theme in dark mode.">
             <View style={styles.cell}>
               <Segmented<ThemePref> value={settings.theme} onChange={settings.setTheme} options={[['system', 'System'], ['dark', 'Dark'], ['light', 'Light']]} />
             </View>
             <ThemeRow name="light" />
             <ThemeRow name="dark" />
           </Section>
+        ) : null}
 
-          <Section title="Typography">
+        {page === 'typography' ? (
+          <Section title="Fonts and spacing">
             <PickRow label="Text" value={textFont(ty.text).label} hint="Choose the font for text" onPress={() => setFontMenu('text')} />
             <PickRow label="Headings" value={textFont(ty.head).label} hint="Choose the font for headings" onPress={() => setFontMenu('head')} />
             <PickRow label="Code" value={codeFont(ty.code).label} hint="Choose the font for code" onPress={() => setFontMenu('code')} />
@@ -189,33 +233,34 @@ export default function SettingsScreen() {
             <StepRow label="Line height" value={ty.line} min={1.3} max={2} step={0.05} digits={2} onChange={(line) => settings.setTypography({ line })} />
             <StepRow label="Paragraph spacing" value={ty.para} min={0} max={1.5} step={0.25} digits={2} onChange={(para) => settings.setTypography({ para })} />
           </Section>
+        ) : null}
 
+        {page === 'folder' ? (
           <Section
-            title="Notes folder"
+            title="Location"
             footer={vaultProblem ?? (Platform.OS === 'ios'
               ? 'Notes in iCloud Drive are on all your devices and in the Mac app. They stay plain .md files.'
               : 'Pick a folder a sync app keeps up to date. Notes stay plain .md files.')}
             footerColor={vaultProblem ? t.colors.danger : undefined}
           >
-            <PickRow label="Location" value={switching ? 'Switching…' : vault?.label ?? '…'} hint="Choose the folder for your notes" disabled={switching} onPress={() => void chooseFolder()} />
+            <PickRow label="Folder" value={switching ? 'Switching…' : vault?.label ?? '…'} hint="Choose the folder for your notes" disabled={switching} onPress={() => void chooseFolder()} />
             {vault?.kind !== 'icloud' && canUseICloud() ? <Action label="Use iCloud Drive" onPress={() => void chooseICloud()} disabled={switching} /> : null}
             {vault && vault.kind !== 'local' ? <Action label="Use the folder on this device" onPress={backToDevice} disabled={switching} /> : null}
           </Section>
+        ) : null}
 
-          <HiddenTags />
+        {page === 'hidden' ? <HiddenTags /> : null}
 
-          <Section title="Search" footer={searchFooter} footerColor={smart && downloading ? t.colors.text : undefined}>
+        {page === 'search' ? (
+          <Section title="Search by meaning" footer={searchFooter} footerColor={smart && downloading ? t.colors.text : undefined}>
             <PickRow label="Model" value={model.name} hint="Choose the search model" onPress={() => setModelMenu(true)} />
             <Row label="Status" value={searchStatus} />
           </Section>
+        ) : null}
 
-          <AiSection />
-
-          <Section title="About">
-            <Row label="Version" value={Constants.expoConfig?.version ?? '–'} />
-          </Section>
-        </>
+        {page === 'ai' ? <AiSection /> : null}
       </ScrollView>
+      </KeyboardAvoidingView>
       <ActionSheet
         visible={!!fontMenu}
         onClose={() => setFontMenu(null)}
@@ -268,7 +313,11 @@ function AiSection() {
     }
   };
   // The list again whenever what it depends on changes.
-  useEffect(() => { if (canList) void load(); }, [canList, ai.provider, ai.hasKey, ai.baseUrl]);
+  useEffect(() => {
+    if (!canList) return;
+    const t = setTimeout(() => void load(), 0);
+    return () => clearTimeout(t);
+  }, [canList, ai.provider, ai.hasKey, ai.baseUrl]);
   const list = canList ? models : null;
   const saveKey = async (k: string) => { setKey(''); await ai.setKey(k); };
   // Explicit permission before any note can go to an AI provider (App Review 5.1.2).
@@ -282,7 +331,7 @@ function AiSection() {
     : problem ?? `Ask about a note from its ⋮ menu, or about all notes from Search. Only what you ask about is sent, to ${destinationOf(ai.provider)}, and only when you ask.`;
   return (
     <>
-      <Section title="AI chat" footer={footer} footerColor={ai.enabled && problem ? t.colors.danger : undefined}>
+      <Section footer={footer} footerColor={ai.enabled && problem ? t.colors.danger : undefined}>
         <View style={styles.row}>
           <Text style={[styles.label, { color: t.colors.text }]}>Chat with AI</Text>
           <Switch value={ai.enabled} onValueChange={(enabled) => (enabled ? askToTurnOn() : ai.save({ enabled: false }))} trackColor={{ true: t.colors.volt, false: t.colors.surface2 }} thumbColor="#fff" accessibilityLabel="Chat with AI" />
@@ -345,6 +394,7 @@ function AiSection() {
         ) : null}
         {ai.enabled && p.keyUrl ? <Action label={`Get a key from ${p.name}`} onPress={() => void Linking.openURL(p.keyUrl!)} /> : null}
       </Section>
+      {ai.enabled && showsSpend(ai.provider) && ai.hasKey ? <SpendSection /> : null}
       <ActionSheet
         visible={providerMenu}
         onClose={() => setProviderMenu(false)}
@@ -357,6 +407,26 @@ function AiSection() {
       />
       <ModelPicker visible={modelMenu} models={list ?? []} value={ai.model} onPick={(model) => ai.save({ model })} onClose={() => setModelMenu(false)} />
     </>
+  );
+}
+
+/** What OpenRouter answers have cost: this phone this month (exact, from each reply), and the key's own totals. */
+function SpendSection() {
+  const spend = useSpend((s) => s.spend);
+  const [usage, setUsage] = useState<KeyUsage | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    openRouterUsage().then((u) => { if (live) setUsage(u); }, (e) => { if (live) setProblem(e instanceof Error ? e.message : String(e)); });
+    return () => { live = false; };
+  }, []);
+  return (
+    <Section title="Spending" footer={problem ?? "OpenRouter reports what each answer costs. The key's totals include any other apps that use the same key."}>
+      <Row label="In VB Notes this month" value={formatCost(spentThisMonth(spend))} />
+      <Row label="Key this month" value={usage ? formatCost(usage.month) : '…'} />
+      <Row label="Key in total" value={usage ? formatCost(usage.total) : '…'} />
+      {usage?.left !== null && usage?.left !== undefined ? <Row label="Left on the key" value={formatCost(usage.left)} /> : null}
+    </Section>
   );
 }
 
@@ -373,7 +443,7 @@ function HiddenTags() {
   };
   return (
     <Section
-      title="Hide from Notes"
+      title="Tags"
       footer="Notes with these tags stay out of Notes, at any level: melta hides #melta and #go2lister/melta. Pick the tag in the library to see them."
     >
       {hidden.map((name) => (
@@ -407,12 +477,12 @@ function HiddenTags() {
 }
 
 /** An inset group of rows with hairlines between them, and an optional note under it. */
-function Section({ title, footer, footerColor, children }: { title: string; footer?: string; footerColor?: string; children: React.ReactNode }) {
+function Section({ title, footer, footerColor, children }: { title?: string; footer?: string; footerColor?: string; children: React.ReactNode }) {
   const t = useTheme();
   const rows = React.Children.toArray(children);
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: t.colors.textMuted }]}>{title}</Text>
+      {title ? <Text style={[styles.sectionTitle, { color: t.colors.textMuted }]}>{title}</Text> : null}
       <View style={[styles.card, { backgroundColor: t.colors.surface }]}>
         {rows.map((row, i) => (
           <React.Fragment key={i}>
@@ -528,6 +598,7 @@ const styles = StyleSheet.create({
   top: { height: 56, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 17, fontWeight: '600' },
   done: { position: 'absolute', right: 16, height: 44, justifyContent: 'center' },
+  back: { position: 'absolute', left: 8, height: 44, flexDirection: 'row', alignItems: 'center' },
   doneText: { fontSize: 17, fontWeight: '600' },
   section: { paddingHorizontal: 16, paddingTop: 22 },
   sectionTitle: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6, marginLeft: 16, marginBottom: 7 },

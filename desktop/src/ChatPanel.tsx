@@ -4,6 +4,7 @@ import { marked } from 'marked';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { namedSources } from '@/ai/prompt';
 import { destinationOf } from '@/ai/providers';
+import { formatCost } from '@/ai/spend';
 import { openableUrl } from '@/utils/links';
 import { openNote } from './actions';
 import { aiReady, useAi, useChat, type Turn } from './ai';
@@ -36,6 +37,7 @@ function TurnView({ turn, busy }: { turn: Turn; busy: boolean }) {
     <div className="turn assistant">
       {turn.content ? <Reply text={turn.content} /> : busy ? <span className="thinking">Thinking…</span> : null}
       {turn.error ? <p className="turn-error">{turn.error}</p> : null}
+      {turn.cost !== undefined && !busy ? <p className="turn-cost">{formatCost(turn.cost)}</p> : null}
       {sources.length && (turn.content || turn.error) ? (
         <div className="sources">
           {sources.map((s) => <button key={s.path} className="source" onClick={() => void openNote(s.path)} title={s.path}>{s.title}</button>)}

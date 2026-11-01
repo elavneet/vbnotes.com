@@ -60,9 +60,11 @@ export const api = {
   /** `key`: a new key for the chosen provider, '' to remove it, undefined to keep it. */
   aiSave: (settings: AiSettings, key?: string) => invoke<AiView>('ai_save', { settings, key: key ?? null }),
   aiModels: () => invoke<string[]>('ai_models'),
-  /** The reply streams back as `ai-delta` events ({ id, text }) and ends with `ai-done` ({ id, error }). */
+  /** The reply streams back as `ai-delta` events ({ id, text }) and ends with `ai-done` ({ id, error, cost }). */
   aiChat: (id: string, system: string, messages: ChatMessage[]) => invoke<void>('ai_chat', { id, system, messages }),
   aiCancel: (id: string) => invoke<void>('ai_cancel', { id }),
+  /** OpenRouter only: what the key has used and has left (`keyUsageFrom` reads it). */
+  aiKeyUsage: () => invoke<unknown>('ai_key_usage'),
   counts: (hidden: string[]) => invoke<SectionCounts>('db_counts', { hidden }),
   tagCounts: () => invoke<{ tag: string; n: number }[]>('db_tag_counts'),
   meaningEnable: (on: boolean) => invoke<void>('meaning_enable', { on }),

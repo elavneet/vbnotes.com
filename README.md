@@ -13,8 +13,9 @@ files stay yours to open in any editor.
 - **Chat with AI about your notes.** Ask about the open note, or about all of them: VB Notes
   finds the notes that fit each question, sends only those, and lists them under the answer. Off until
   you turn it on, with your own key for OpenRouter, OpenAI, Anthropic, Google Gemini, Groq, Mistral,
-  DeepSeek or xAI, or a model on your own computer through Ollama. On the phone it is in a note's ⋮
-  menu and in Search (from version 0.4.2), and the key is kept in the Keychain or Android keystore.
+  DeepSeek or xAI, or a model on your own computer through Ollama. On the phone, the sparkle beside a
+  note's ⓘ asks about that note and the one beside Settings in the library asks all notes; the key is
+  kept in the Keychain or Android keystore.
 
   ![Desktop: the chat beside a note, answering from the note Trip to Ladakh](docs/screenshots/desktop-ai-chat.png)
 

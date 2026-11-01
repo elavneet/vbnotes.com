@@ -228,6 +228,7 @@ input, select { font: inherit; color: inherit; }
 .turn.assistant { line-height: 1.55; }
 .thinking { color: var(--textMuted); }
 .turn-error { margin: 4px 0; color: var(--danger); font-size: 13px; }
+.turn-cost { margin: 4px 0 0; color: var(--textMuted); font-size: 12px; }
 .ai-md { font-size: 14px; overflow-wrap: anywhere; }
 .ai-md > :first-child { margin-top: 0; }
 .ai-md > :last-child { margin-bottom: 0; }

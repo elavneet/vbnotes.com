@@ -10,7 +10,8 @@ import { useNotes } from './store';
 import { themesOf, useThemePrefs, type ThemePref } from './theme';
 import { TRAY_OFFERED, useTray } from './windowClose';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { PROVIDERS, chatModels, preferredModel, providerOf, useAi } from './ai';
+import { PROVIDERS, chatModels, preferredModel, providerOf, useAi, useSpend } from './ai';
+import { formatCost, keyUsageFrom, showsSpend, spentThisMonth, type KeyUsage } from '@/ai/spend';
 import { CONSENT_TEXT, CONSENT_TITLE } from '@/ai/prompt';
 
 export const useSettingsOpen = create<{ open: boolean; set: (open: boolean) => void }>((set) => ({ open: false, set: (open) => set({ open }) }));
@@ -243,8 +244,29 @@ function AiSetting() {
             {canList ? <button className="text-btn" disabled={busy} onClick={() => void fetchModels(false)}>{busy ? 'Loading…' : 'Refresh'}</button> : null}
           </div>
           {problem ? <p className="hint error">{problem}</p> : null}
+          {showsSpend(view.provider) && view.hasKey ? <SpendRows /> : null}
         </>
       ) : null}
+    </>
+  );
+}
+
+/** What OpenRouter answers have cost: this computer this month (exact, from each reply), and the key's own totals. */
+function SpendRows() {
+  const spend = useSpend((s) => s.spend);
+  const [usage, setUsage] = useState<KeyUsage | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    api.aiKeyUsage().then((v) => { if (live) setUsage(keyUsageFrom(v as never)); }, (e) => { if (live) setProblem(String(e)); });
+    return () => { live = false; };
+  }, []);
+  return (
+    <>
+      <div className="row-setting"><span>Spent in VB Notes this month</span><span className="value">{formatCost(spentThisMonth(spend))}</span></div>
+      <div className="row-setting"><span>Key: this month / in total</span><span className="value">{usage ? `${formatCost(usage.month)} / ${formatCost(usage.total)}` : '…'}</span></div>
+      {usage && usage.left !== null ? <div className="row-setting"><span>Left on the key</span><span className="value">{formatCost(usage.left)}</span></div> : null}
+      <p className="hint">{problem ?? "OpenRouter reports what each answer costs. The key's totals include any other apps that use the same key."}</p>
     </>
   );
 }

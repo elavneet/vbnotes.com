@@ -60,10 +60,10 @@ export default function SearchScreen() {
 
   const emb = semanticIndex.embedderInfo;
   const status = semanticIndex.status;
-  // Only said when meaning search is not fully there yet.
+  // Only said when meaning search can't be used yet; notes still being read just come in as they are.
   const statusLine =
     mode !== 'smart' ? null
-    : status === 'ready' ? (semanticIndex.pending > 0 ? `Reading ${semanticIndex.pending} notes…` : null)
+    : status === 'ready' ? null
     : status === 'loading' ? ((emb?.progress ?? 0) < 100 ? `Downloading the search model… ${emb?.progress ?? 0}%. Keep VB Notes open.` : 'Getting the model ready…')
     : status === 'unavailable' ? (emb?.reason ?? 'Meaning search is not available here; matching words instead.')
     : status === 'error' ? (emb?.paused ? 'Model download paused; it carries on while VB Notes is open. Matching words for now.' : `Model failed: ${emb?.error ?? ''}`)

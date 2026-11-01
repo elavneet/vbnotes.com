@@ -227,6 +227,23 @@ pub async fn ai_models(app: AppHandle) -> Res<Vec<String>> {
     .map_err(text)?
 }
 
+/// What the OpenRouter key has used and has left (GET /key), all apps together, as OpenRouter returns it.
+#[tauri::command]
+pub async fn ai_key_usage(app: AppHandle) -> Res<Value> {
+    let t = target(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let res = with_auth(agent().get(&format!("{}/key", t.base)), &t).call().map_err(|e| format!("Couldn't reach the provider: {e}"))?;
+        let status = res.status().as_u16();
+        let body = res.into_body().read_to_string().map_err(text)?;
+        if status >= 400 {
+            return Err(failure(status, &body));
+        }
+        serde_json::from_str(&body).map_err(text)
+    })
+    .await
+    .map_err(text)?
+}
+
 #[derive(Serialize, Clone)]
 struct Delta<'a> {
     id: &'a str,
@@ -237,6 +254,8 @@ struct Delta<'a> {
 struct Done<'a> {
     id: &'a str,
     error: Option<String>,
+    /// What the reply cost in dollars, where the provider says (OpenRouter's last chunk).
+    cost: Option<f64>,
 }
 
 /// Asks the model, with `system` (the notes it may use) ahead of the conversation. The reply
@@ -250,11 +269,12 @@ pub fn ai_chat(app: AppHandle, chats: State<'_, Chats>, id: String, system: Stri
     let stop = Arc::new(AtomicBool::new(false));
     chats.0.lock().map_err(text)?.insert(id.clone(), stop.clone());
     std::thread::spawn(move || {
-        let error = stream(&app, &t, &id, &system, &messages, &stop).err();
+        let mut cost = None;
+        let error = stream(&app, &t, &id, &system, &messages, &stop, &mut cost).err();
         if let Ok(mut chats) = app.state::<Chats>().0.lock() {
             chats.remove(&id);
         }
-        let _ = app.emit("ai-done", Done { id: &id, error });
+        let _ = app.emit("ai-done", Done { id: &id, error, cost });
     });
     Ok(())
 }
@@ -266,7 +286,7 @@ pub fn ai_cancel(chats: State<'_, Chats>, id: String) {
     }
 }
 
-fn stream(app: &AppHandle, t: &Target, id: &str, system: &str, messages: &[Message], stop: &AtomicBool) -> Res<()> {
+fn stream(app: &AppHandle, t: &Target, id: &str, system: &str, messages: &[Message], stop: &AtomicBool, cost: &mut Option<f64>) -> Res<()> {
     let (url, body) = match t.wire {
         Wire::OpenAi => {
             let mut all = vec![json!({ "role": "system", "content": system })];
@@ -306,6 +326,9 @@ fn stream(app: &AppHandle, t: &Target, id: &str, system: &str, messages: &[Messa
         let Ok(v) = serde_json::from_str::<Value>(data) else { continue };
         if let Some(message) = v.pointer("/error/message").and_then(|m| m.as_str()) {
             return Err(format!("The provider said: {message}"));
+        }
+        if let Some(dollars) = v.pointer("/usage/cost").and_then(|c| c.as_f64()) {
+            *cost = Some(dollars);
         }
         let piece = match t.wire {
             Wire::OpenAi => v.pointer("/choices/0/delta/content"),

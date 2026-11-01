@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { listen } from '@tauri-apps/api/event';
 import { ALL_CHARS, EACH_CHARS, FOUND, NOTE_CHARS, SYSTEM, noteBlock, relevantNotes, type ChatMessage, type Scope, type Source, type Turn } from '@/ai/prompt';
+import { addSpend, type Spend } from '@/ai/spend';
 import { api, type AiSettings, type AiView } from './api';
 import { findNotes, useNotes } from './store';
 
@@ -108,9 +109,27 @@ export const useChat = create<{
 void listen<{ id: string; text: string }>('ai-delta', ({ payload }) => {
   useChat.setState((s) => ({ turns: s.turns.map((t) => (t.id === payload.id ? { ...t, content: t.content + payload.text } : t)) }));
 });
-void listen<{ id: string; error: string | null }>('ai-done', ({ payload }) => {
+void listen<{ id: string; error: string | null; cost: number | null }>('ai-done', ({ payload }) => {
+  if (payload.cost != null) useSpend.getState().add(payload.cost);
   useChat.setState((s) => ({
     busy: s.busy === payload.id ? null : s.busy,
-    turns: s.turns.map((t) => (t.id === payload.id && payload.error ? { ...t, error: payload.error } : t)),
+    turns: s.turns.map((t) => (t.id !== payload.id ? t : {
+      ...t,
+      ...(payload.error ? { error: payload.error } : null),
+      ...(payload.cost != null ? { cost: payload.cost } : null),
+    })),
   }));
 });
+
+const SPEND_KEY = 'vbnotes.ai.spend';
+const savedSpend = (): Spend | null => { try { return JSON.parse(localStorage.getItem(SPEND_KEY) ?? 'null'); } catch { return null; } };
+
+/** What OpenRouter answers have cost from this computer this month (exact; it reports each reply's cost). */
+export const useSpend = create<{ spend: Spend | null; add: (dollars: number) => void }>((set, get) => ({
+  spend: savedSpend(),
+  add: (dollars) => {
+    const spend = addSpend(get().spend, dollars);
+    set({ spend });
+    try { localStorage.setItem(SPEND_KEY, JSON.stringify(spend)); } catch {}
+  },
+}));

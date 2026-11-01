@@ -45,6 +45,14 @@ export function failureMessage(status: number, body: string): string {
   return said ? `The provider said: ${said} (${status})` : `The provider answered with an error (${status}).`;
 }
 
+/** What an OpenRouter key has used and has left (`keyUsageFrom` reads it). */
+export async function keyInfo(fetch: Fetch, t: Target): Promise<unknown> {
+  const res = await fetch(`${t.base}/key`, { headers: headersFor(t) });
+  const body = await res.text();
+  if (!res.ok) throw new Error(failureMessage(res.status, body));
+  return JSON.parse(body);
+}
+
 /** The models the provider offers. */
 export async function listModels(fetch: Fetch, t: Target): Promise<string[]> {
   const res = await fetch(`${t.base}/models`, { headers: headersFor(t) }).catch((e) => { throw new Error(`Couldn't reach the provider: ${e?.message ?? e}`); });
@@ -55,8 +63,11 @@ export async function listModels(fetch: Fetch, t: Target): Promise<string[]> {
   return [...new Set(list.map((m) => (m.id ?? m.name ?? '').replace(/^models\//, '')).filter(Boolean))].sort();
 }
 
-/** Asks the model; each piece of the reply goes to `onText` as it streams in. Throws with a sentence on failure. */
-export async function streamChat(fetch: Fetch, t: Target, system: string, messages: ChatMessage[], onText: (piece: string) => void, signal?: AbortSignal) {
+/**
+ * Asks the model; each piece of the reply goes to `onText` as it streams in, and its cost to
+ * `onCost` where the provider reports one (OpenRouter's last chunk). Throws with a sentence on failure.
+ */
+export async function streamChat(fetch: Fetch, t: Target, system: string, messages: ChatMessage[], onText: (piece: string) => void, signal?: AbortSignal, onCost?: (dollars: number) => void) {
   const [url, body] = t.wire === 'anthropic'
     ? [`${t.base}/messages`, { model: t.model, stream: true, max_tokens: 4096, system, messages }]
     : [`${t.base}/chat/completions`, { model: t.model, stream: true, messages: [{ role: 'system', content: system }, ...messages] }];
@@ -85,6 +96,7 @@ export async function streamChat(fetch: Fetch, t: Target, system: string, messag
         let v: any;
         try { v = JSON.parse(data); } catch { continue; }
         if (v?.error?.message) throw new Error(`The provider said: ${v.error.message}`);
+        if (typeof v?.usage?.cost === 'number') onCost?.(v.usage.cost);
         const piece = t.wire === 'anthropic' ? v?.delta?.text : v?.choices?.[0]?.delta?.content;
         if (typeof piece === 'string' && piece) onText(piece);
       }

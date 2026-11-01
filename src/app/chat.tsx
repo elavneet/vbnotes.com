@@ -4,19 +4,19 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { aiReady, useAi, useChat } from '@/ai/chat';
-import { namedSources, type Scope, type Turn } from '@/ai/prompt';
+import { namedSources, type Turn } from '@/ai/prompt';
 import { destinationOf } from '@/ai/providers';
+import { formatCost } from '@/ai/spend';
 import { ChatMarkdown } from '@/components/ChatMarkdown';
 import { Header } from '@/components/Header';
 import { IconButton } from '@/components/IconButton';
 import { noteRoute } from '@/components/NotesList';
-import { Segmented } from '@/components/Segmented';
 import { useNotes } from '@/store/notes';
 import { useTheme } from '@/theme';
 
 /**
- * Chat with AI: about one note (opened from its ⋮ menu) or about all notes (from Search). Off until
- * switched on in Settings › AI chat.
+ * Chat with AI: about one note (the sparkle beside a note's ⓘ) or about all notes (the sparkle
+ * beside Settings in the library, or Ask AI in Search). Off until switched on in Settings › AI chat.
  */
 export default function ChatScreen() {
   const t = useTheme();
@@ -27,7 +27,7 @@ export default function ChatScreen() {
   const [draft, setDraft] = useState('');
   const scroll = useRef<ScrollViewInstance>(null);
   const notePath = params.path ? String(params.path) : null;
-  const title = useNotes((s) => (notePath ? s.db?.get(notePath)?.title : undefined)) || 'this note';
+  const title = useNotes((s) => (notePath ? s.db?.get(notePath)?.title : undefined)) || 'This note';
   const ready = aiReady(ai);
 
   // Opened on a note: a chat about it; from Search: about all notes, with the question asked at once.
@@ -48,14 +48,9 @@ export default function ChatScreen() {
     <View style={[styles.root, { backgroundColor: t.colors.bg }]}>
       <Header
         left={<IconButton name="chevron-back" size={24} filled color={t.colors.text} onPress={() => router.back()} label="Back" />}
-        title={notePath ? 'Chat with AI' : 'Ask your notes'}
+        title={notePath ? title : 'Ask your notes'}
         right={chat.turns.length ? <IconButton name="create-outline" size={22} filled color={t.colors.text} onPress={chat.clear} label="New chat" /> : null}
       />
-      {notePath ? (
-        <View style={styles.scope}>
-          <Segmented<Scope> fit value={chat.scope} onChange={(s) => chat.start(s, notePath)} options={[['note', 'This note'], ['all', 'All notes']]} />
-        </View>
-      ) : null}
       <KeyboardAvoidingView style={styles.flex} behavior="padding" keyboardVerticalOffset={0}>
         <ScrollView
           ref={scroll}
@@ -76,7 +71,7 @@ export default function ChatScreen() {
             <View style={styles.empty}>
               <Text style={[styles.emptyText, { color: t.colors.textSecondary }]}>
                 {chat.scope === 'note'
-                  ? `Ask about “${title}”: sum it up, find what's missing, turn it into a checklist.`
+                  ? 'Ask about this note: sum it up, find what\'s missing, turn it into a checklist.'
                   : 'Ask anything about your notes. VB Notes finds the notes that fit each question and sends them along.'}
               </Text>
             </View>
@@ -131,6 +126,7 @@ function TurnView({ turn, busy }: { turn: Turn; busy: boolean }) {
     <View style={styles.assistant}>
       {turn.content ? <ChatMarkdown text={turn.content} /> : busy ? <Text style={{ color: t.colors.textMuted }}>Thinking…</Text> : null}
       {turn.error ? <Text style={[styles.error, { color: t.colors.danger }]}>{turn.error}</Text> : null}
+      {turn.cost !== undefined && !busy ? <Text style={[styles.cost, { color: t.colors.textMuted }]}>{formatCost(turn.cost)}</Text> : null}
       {sources.length && (turn.content || turn.error) ? (
         <View style={styles.sources}>
           {sources.map((s) => (
@@ -148,7 +144,6 @@ function TurnView({ turn, busy }: { turn: Turn; busy: boolean }) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
-  scope: { paddingHorizontal: 16, paddingBottom: 8, alignItems: 'center' },
   log: { padding: 16, gap: 16, flexGrow: 1 },
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, paddingHorizontal: 24 },
   emptyText: { fontSize: 16, lineHeight: 23, textAlign: 'center' },
@@ -157,6 +152,7 @@ const styles = StyleSheet.create({
   userText: { fontSize: 16, lineHeight: 22 },
   assistant: { gap: 10 },
   error: { fontSize: 14, lineHeight: 20 },
+  cost: { fontSize: 12 },
   sources: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   source: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, maxWidth: '100%' },
   sourceText: { fontSize: 13 },

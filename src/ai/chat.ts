@@ -7,7 +7,8 @@ import { useSettings } from '@/store/settings';
 import { kvGetSync, kvSet } from '@/utils/kv';
 import { ALL_CHARS, EACH_CHARS, FOUND, NOTE_CHARS, SYSTEM, noteBlock, relevantNotes, type ChatMessage, type Scope, type Source, type Turn } from './prompt';
 import { providerOf } from './providers';
-import { listModels, streamChat, type Target } from './stream';
+import { addSpend, keyUsageFrom, type KeyUsage, type Spend } from './spend';
+import { keyInfo, listModels, streamChat, type Target } from './stream';
 
 /**
  * Chat with AI on the phone: the settings (off until switched on), the API key in the Keychain or
@@ -63,6 +64,23 @@ async function target(): Promise<Target> {
   const key = (await SecureStore.getItemAsync(keyName(p.id)).catch(() => null)) ?? undefined;
   if (p.needsKey && !key) throw new Error('Add your API key in Settings › AI chat.');
   return { base, key, wire: p.wire, model: s.model.trim() };
+}
+
+const SPEND_KEY = 'ai.spend.v1';
+
+/** What OpenRouter replies have cost from this phone this month (exact; it reports each reply's cost). */
+export const useSpend = create<{ spend: Spend | null; add: (dollars: number) => void }>((set, get) => ({
+  spend: kvGetSync<Spend>(SPEND_KEY),
+  add: (dollars) => {
+    const spend = addSpend(get().spend, dollars);
+    set({ spend });
+    void kvSet(SPEND_KEY, spend);
+  },
+}));
+
+/** What the OpenRouter key has used and has left, all apps together. */
+export async function openRouterUsage(): Promise<KeyUsage> {
+  return keyUsageFrom((await keyInfo(fetch, await target())) as never);
 }
 
 /** The models the chosen provider offers, for the list in Settings. */
@@ -134,7 +152,15 @@ export const useChat = create<{
       }
       update({ sources });
       controller = new AbortController();
-      await streamChat(fetch, await target(), `${SYSTEM}\n\n${context}`, [...history, { role: 'user', content: question }], (piece) => update((t) => ({ content: t.content + piece })), controller.signal);
+      await streamChat(
+        fetch,
+        await target(),
+        `${SYSTEM}\n\n${context}`,
+        [...history, { role: 'user', content: question }],
+        (piece) => update((t) => ({ content: t.content + piece })),
+        controller.signal,
+        (dollars) => { update({ cost: dollars }); useSpend.getState().add(dollars); },
+      );
     } catch (e) {
       update({ error: e instanceof Error ? e.message : String(e) });
     } finally {
