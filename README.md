@@ -36,7 +36,7 @@ Linux and Android builds. The iPhone app is built from source for now (see below
 
 ![Desktop: nested tags, a diagram and code](docs/screenshots/desktop-algorithms.png)
 
-![Desktop: linking to another note with [[, and the style bar](docs/screenshots/desktop-links.png)
+![Desktop: typing two square brackets lists notes to link to; the style bar sits under the note](docs/screenshots/desktop-links.png)
 
 ![Desktop, Paper theme](docs/screenshots/desktop-light.png)
 
