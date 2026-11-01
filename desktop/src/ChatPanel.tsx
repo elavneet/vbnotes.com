@@ -28,14 +28,17 @@ function Reply({ text }: { text: string }) {
 function TurnView({ turn, busy }: { turn: Turn; busy: boolean }) {
   const [copied, setCopied] = useState(false);
   if (turn.role === 'user') return <div className="turn user">{turn.content}</div>;
+  // The notes the answer names, when it names any; else every note that was sent.
+  const named = turn.sources?.filter((s) => turn.content.includes(s.title)) ?? [];
+  const sources = named.length ? named : turn.sources ?? [];
   const copy = () => { void navigator.clipboard.writeText(turn.content).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200); }); };
   return (
     <div className="turn assistant">
       {turn.content ? <Reply text={turn.content} /> : busy ? <span className="thinking">Thinking…</span> : null}
       {turn.error ? <p className="turn-error">{turn.error}</p> : null}
-      {turn.sources?.length && (turn.content || turn.error) ? (
+      {sources.length && (turn.content || turn.error) ? (
         <div className="sources">
-          {turn.sources.map((s) => <button key={s.path} className="source" onClick={() => void openNote(s.path)} title={s.path}>{s.title}</button>)}
+          {sources.map((s) => <button key={s.path} className="source" onClick={() => void openNote(s.path)} title={s.path}>{s.title}</button>)}
         </div>
       ) : null}
       {turn.content && !busy ? <button className="text-btn copy" onClick={copy}>{copied ? 'Copied' : 'Copy'}</button> : null}
