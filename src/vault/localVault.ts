@@ -102,7 +102,7 @@ export class LocalVault implements Vault {
   get baseUrl() { return this.root.uri.endsWith('/') ? this.root.uri : `${this.root.uri}/`; }
 
   fetchFromCloud() {
-    return this.kind === 'picked' && FolderAccess ? FolderAccess.downloadFromCloud(this.root.uri).catch(() => 0) : Promise.resolve(0);
+    return this.kind !== 'local' && FolderAccess ? FolderAccess.downloadFromCloud(this.root.uri).catch(() => 0) : Promise.resolve(0);
   }
 
   /** Copies everything in this vault (notes, attachments, `.vbnotes`) into `dest`, never over a file already there. */

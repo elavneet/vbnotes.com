@@ -189,6 +189,23 @@ export function editorCss(theme: Theme, ty: Typography = TYPOGRAPHY): string {
   .vb-link-chip::before { content: ""; position: absolute; inset: -6px; }
   .vb-link-chip svg { flex: none; width: 15px; height: 15px; fill: none; stroke: ${dark ? c.volt : c.accent}; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
   .vb-link-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* [[Note links]] (editor-web/wikiLinks.ts): the title reads as a link, the brackets stay quiet. */
+  .vb-wiki { color: ${c.accent}; text-decoration: underline; text-decoration-color: ${c.accent}66; text-underline-offset: 3px; cursor: pointer; }
+  .vb-wiki-br { color: ${c.textMuted}; }
+  .vb-wiki-typing { text-decoration: underline dotted ${c.textMuted}; text-underline-offset: 3px; }
+  /* The notes listed while a [[link]] is typed. */
+  .vb-wiki-menu {
+    position: absolute; top: 0; left: 0; z-index: 6; width: 300px; max-width: calc(100% - 16px); max-height: 232px; overflow-y: auto;
+    padding: 5px; background: ${c.surface2}; border: 1px solid ${c.border}; border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, ${dark ? 0.5 : 0.16}); user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .vb-wiki-menu[hidden] { display: none; }
+  .vb-wiki-row {
+    padding: 9px 10px; border-radius: 8px; cursor: default; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font: 15px/1.25 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; color: ${c.text};
+  }
+  .vb-wiki-row b { font-weight: 700; }
+  .vb-wiki-row.on { background: ${c.volt}; color: ${c.onVolt}; }
   .is-editor-empty:first-child::before, p.is-empty:first-child::before {
     color: ${c.textMuted}; content: attr(data-placeholder); float: left; height: 0; pointer-events: none;
   }

@@ -5,6 +5,7 @@ import type { EditorView } from '@tiptap/pm/view';
 import { sendMessage, type BridgeExtension } from '@10play/tentap-editor';
 import { LinkAction } from '../src/editor/linkBridge';
 import { hrefForText, isBareLink, linkLabel, looksLikeAddress, openableUrl } from '../src/utils/links';
+import { wikiAtCaret, wikiSource } from './wikiLinks';
 
 const ICON_OPEN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>';
 
@@ -42,10 +43,20 @@ function linkAtCaret(state: EditorState) {
   return url ? { url } : null;
 }
 
+/** What the "Open" button opens: the link under the caret, or the note a `[[link]]` names. */
+type Target = { key: string; label: string; aria: string; go: () => void };
+
+function targetAtCaret(state: EditorState): Target | null {
+  const link = linkAtCaret(state);
+  if (link) return { key: link.url, label: `Open ${linkLabel(link.url)}`, aria: `Open ${link.url}`, go: () => open(link.url) };
+  const title = wikiAtCaret(state);
+  return title ? { key: `[[${title}]]`, label: `Open ${title}`, aria: `Open the note ${title}`, go: () => wikiSource.open(title) } : null;
+}
+
 /** While editing, a link under the caret gets a small "Open" button below its line. */
 class LinkChip {
   private el: HTMLButtonElement;
-  private url = '';
+  private target: Target | null = null;
   private onFocusChange: () => void;
 
   constructor(private view: EditorView) {
@@ -66,24 +77,24 @@ class LinkChip {
   }
 
   private fire() {
-    if (this.url) open(this.url);
+    this.target?.go();
   }
 
   update(view: EditorView) {
     this.view = view;
     const host = view.dom.parentElement;
-    const link = host && view.hasFocus() ? linkAtCaret(view.state) : null;
-    if (!host || !link) { this.el.hidden = true; return; }
+    const target = host && view.hasFocus() ? targetAtCaret(view.state) : null;
+    if (!host || !target) { this.el.hidden = true; return; }
     // The editor is moved into its page container after the view is made, so attach late.
     if (this.el.parentElement !== host) host.appendChild(this.el);
-    if (link.url !== this.url || this.el.hidden) {
-      this.url = link.url;
+    if (target.key !== this.target?.key || this.el.hidden) {
       this.el.innerHTML = ICON_OPEN;
       const label = document.createElement('span');
-      label.textContent = `Open ${linkLabel(link.url)}`;
+      label.textContent = target.label;
       this.el.appendChild(label);
-      this.el.setAttribute('aria-label', `Open ${link.url}`);
+      this.el.setAttribute('aria-label', target.aria);
     }
+    this.target = target;
     this.el.hidden = false;
     const box = host.getBoundingClientRect();
     const caret = view.coordsAtPos(view.state.selection.head);
@@ -169,6 +180,12 @@ export const LinkTaps = Extension.create({
               // A long press is for selecting text, not opening.
               if (!t || t.moved || Date.now() - t.at > 450 || (t.focused && view.editable)) return false;
               const target = e.target instanceof Element ? e.target : (e.target as Node | null)?.parentElement;
+              const wiki = target?.closest('[data-wiki]');
+              if (wiki && view.dom.contains(wiki)) {
+                e.preventDefault();
+                wikiSource.open(wiki.getAttribute('data-wiki') ?? '');
+                return true;
+              }
               const a = target?.closest('a[href]');
               const url = a && view.dom.contains(a) ? openableUrl(a.getAttribute('href')) : null;
               if (!url) return false;

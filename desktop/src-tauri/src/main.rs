@@ -107,15 +107,42 @@ fn fnv(s: &str) -> u64 {
     s.bytes().fold(0xcbf2_9ce4_8422_2325, |h, b| (h ^ b as u64).wrapping_mul(0x100_0000_01b3))
 }
 
-/// The folder to offer on first launch: iCloud Drive › VBNotes when the phone app syncs there, else Documents › VBNotes.
-#[tauri::command]
-fn suggested_folder(app: AppHandle, create: bool) -> Res<String> {
+/// The folders a first launch offers. `icloud`: the iPhone app's own iCloud Drive folder ("VB Notes")
+/// once a phone has made it, else iCloud Drive › VBNotes; none when iCloud Drive is off or this isn't
+/// a Mac. `here`: Documents › VBNotes, on this computer only.
+fn places(app: &AppHandle) -> Res<(Option<PathBuf>, PathBuf)> {
     let home = app.path().home_dir().map_err(text)?;
-    let icloud = home.join("Library/Mobile Documents/com~apple~CloudDocs/VBNotes");
-    let dir = if icloud.is_dir() { icloud } else { app.path().document_dir().unwrap_or(home.join("Documents")).join("VBNotes") };
-    if create {
-        fs::create_dir_all(&dir).map_err(text)?;
-    }
+    let mobile = home.join("Library/Mobile Documents");
+    let phone = mobile.join("iCloud~com~lavneet~vbnotes");
+    let icloud = if phone.is_dir() {
+        Some(phone.join("Documents"))
+    } else if mobile.join("com~apple~CloudDocs").is_dir() {
+        Some(mobile.join("com~apple~CloudDocs/VBNotes"))
+    } else {
+        None
+    };
+    Ok((icloud, app.path().document_dir().unwrap_or(home.join("Documents")).join("VBNotes")))
+}
+
+#[derive(Serialize)]
+struct Places {
+    icloud: Option<String>,
+    here: String,
+}
+
+#[tauri::command]
+fn folder_places(app: AppHandle) -> Res<Places> {
+    let (icloud, here) = places(&app)?;
+    let show = |p: PathBuf| p.to_string_lossy().into_owned();
+    Ok(Places { icloud: icloud.map(show), here: show(here) })
+}
+
+/// Makes one of the first launch's folders (`icloud` or `here`) and returns its path.
+#[tauri::command]
+fn make_place(app: AppHandle, place: String) -> Res<String> {
+    let (icloud, here) = places(&app)?;
+    let dir = if place == "icloud" { icloud.ok_or("iCloud Drive is off on this Mac")? } else { here };
+    fs::create_dir_all(&dir).map_err(text)?;
     Ok(dir.to_string_lossy().into_owned())
 }
 
@@ -274,6 +301,27 @@ async fn db_search(open: State<'_, Open>, q: String, section: String, limit: i64
 }
 
 #[tauri::command]
+async fn db_titles(open: State<'_, Open>, q: String, limit: i64) -> Res<Vec<NoteMeta>> {
+    with(&open, |f| f.index.titles(&q, limit))
+}
+
+/// Copies a file picked outside the folder (a picture for a note) to `to` in it, never over a file already there.
+#[tauri::command]
+async fn import_file(open: State<'_, Open>, from: String, to: String) -> Res<Stat> {
+    with(&open, |f| {
+        let dest = inside(&f.root, &to)?;
+        if dest.exists() {
+            return Err(format!("{to} already exists"));
+        }
+        if let Some(dir) = dest.parent() {
+            fs::create_dir_all(dir).map_err(text)?;
+        }
+        fs::copy(&from, &dest).map_err(text)?;
+        stat_of(&dest).ok_or_else(|| format!("{to} was not copied"))
+    })
+}
+
+#[tauri::command]
 async fn db_counts(open: State<'_, Open>, hidden: Vec<String>) -> Res<Counts> {
     with(&open, |f| f.index.counts(&hidden))
 }
@@ -290,8 +338,8 @@ fn main() {
         .manage(Open::default())
         .manage(meaning::Meaning::default())
         .invoke_handler(tauri::generate_handler![
-            suggested_folder, launch_folder, open_folder, scan, read_files, write_file, move_file, copy_folder, remove_file, exists,
-            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_counts, db_tag_counts,
+            folder_places, make_place, launch_folder, open_folder, scan, read_files, write_file, move_file, copy_folder, remove_file, exists,
+            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file,
             meaning::meaning_enable, meaning::meaning_status, meaning::meaning_stale, meaning::meaning_set, meaning::meaning_search
         ])
         .run(tauri::generate_context!())

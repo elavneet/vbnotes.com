@@ -7,6 +7,10 @@ interface FolderAccessModule {
   open(bookmark: string): { uri: string; bookmark: string } | null;
   /** Asks iCloud to download files that are only in the cloud; resolves with how many. */
   downloadFromCloud(uri: string): Promise<number>;
+  /** Signed in to iCloud with iCloud Drive on. Missing in builds before 0.4. */
+  iCloudAvailable?(): boolean;
+  /** The app's own folder in iCloud Drive ("VB Notes"), made if needed; null when iCloud Drive is off. Missing in builds before 0.4. */
+  iCloudFolder?(): Promise<string | null>;
   /** Keeps a folder the app can fill again out of iCloud backups and the Files app. Missing in builds before 0.2. */
   keepOutOfBackup?(uri: string): boolean;
 }

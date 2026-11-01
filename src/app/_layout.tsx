@@ -11,11 +11,13 @@ import { useIndexing } from '@/search/useIndexing';
 import { WebViewWarmup } from '@/editor/WebViewWarmup';
 import { useSharedIn } from '@/media/useSharedIn';
 import { useUpdateCheck } from '@/store/appUpdate';
+import { FolderChoice } from '@/components/FolderChoice';
 
 export const unstable_settings = { anchor: 'index' };
 
 function Shell() {
   const t = useTheme();
+  const needsFolder = useNotes((s) => s.needsFolder);
   useIndexing();
   useSharedIn();
   useUpdateCheck();
@@ -40,6 +42,7 @@ function Shell() {
         </Stack>
       </NavigationTheme>
       <WebViewWarmup />
+      {needsFolder ? <FolderChoice /> : null}
     </View>
   );
 }

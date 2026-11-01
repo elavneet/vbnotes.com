@@ -13,7 +13,7 @@ import { downloadSizeMB } from '@/search/nativeEmbedder';
 import { IconButton } from '@/components/IconButton';
 import { ActionSheet, type SheetAction } from '@/components/ActionSheet';
 import { Segmented } from '@/components/Segmented';
-import { LocalVault, chooseDeviceFolder, pickFolder } from '@/vault';
+import { LocalVault, canUseICloud, chooseDeviceFolder, iCloudFolder, pickFolder } from '@/vault';
 
 export default function SettingsScreen() {
   const t = useTheme();
@@ -68,8 +68,15 @@ export default function SettingsScreen() {
       Alert.alert('Could not use that folder', String(e?.message ?? e));
       return;
     }
-    if (!picked) return;
-    const { vault: next, remember } = picked;
+    if (picked) offerFolder(picked);
+  };
+  // iCloud Drive's own VB Notes folder, which the Mac app finds too.
+  const chooseICloud = async () => {
+    const picked = await iCloudFolder().catch(() => null);
+    if (picked) offerFolder(picked);
+    else Alert.alert('iCloud Drive is not available', 'Sign in to iCloud and turn on iCloud Drive in the Settings app.');
+  };
+  const offerFolder = ({ vault: next, remember }: { vault: LocalVault; remember: () => Promise<void> }) => {
     if (vault instanceof LocalVault && next.root.uri === vault.root.uri) return;
     Alert.alert(
       `Keep notes in ${next.label}?`,
@@ -179,12 +186,13 @@ export default function SettingsScreen() {
           <Section
             title="Notes folder"
             footer={vaultProblem ?? (Platform.OS === 'ios'
-              ? 'Pick a folder in iCloud Drive to have your notes on all your devices. They stay plain .md files.'
+              ? 'Notes in iCloud Drive are on all your devices and in the Mac app. They stay plain .md files.'
               : 'Pick a folder a sync app keeps up to date. Notes stay plain .md files.')}
             footerColor={vaultProblem ? t.colors.danger : undefined}
           >
             <PickRow label="Location" value={switching ? 'Switching…' : vault?.label ?? '…'} hint="Choose the folder for your notes" disabled={switching} onPress={() => void chooseFolder()} />
-            {vault?.kind === 'picked' ? <Action label="Use the folder on this device" onPress={backToDevice} disabled={switching} /> : null}
+            {vault?.kind !== 'icloud' && canUseICloud() ? <Action label="Use iCloud Drive" onPress={() => void chooseICloud()} disabled={switching} /> : null}
+            {vault && vault.kind !== 'local' ? <Action label="Use the folder on this device" onPress={backToDevice} disabled={switching} /> : null}
           </Section>
 
           <HiddenTags />

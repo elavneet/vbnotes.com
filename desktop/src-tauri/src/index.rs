@@ -440,6 +440,18 @@ impl Index {
         rows.collect::<Result<_, _>>().map_err(err)
     }
 
+    /// Notes to link to from `[[`, Notes before Archive: titles holding `q`, an exact title first, then
+    /// titles starting with it, newest first. An empty `q` gives the newest notes.
+    pub fn titles(&self, q: &str, limit: i64) -> Res<Vec<NoteMeta>> {
+        let sql = format!(
+            "SELECT {COLS} FROM notes n WHERE n.section != 'trash' AND n.title != '' AND instr(lower(n.title), ?1) > 0
+             ORDER BY lower(n.title) = ?1 DESC, instr(lower(n.title), ?1) = 1 DESC, n.section = 'notes' DESC, n.mtime DESC LIMIT ?2"
+        );
+        let mut st = self.db.prepare_cached(&sql).map_err(err)?;
+        let rows = st.query_map(params![q.trim().to_lowercase(), limit], meta).map_err(err)?;
+        rows.collect::<Result<_, _>>().map_err(err)
+    }
+
     /// Notes counts what its list shows, without the notes of `hidden` tags.
     pub fn counts(&self, hidden: &[String]) -> Res<Counts> {
         let mut c = Counts::default();

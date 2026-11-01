@@ -19,7 +19,9 @@ export interface MeaningStatus {
 
 /** The Rust side (`src-tauri/src/main.rs`): the notes folder and its index. Paths are relative to the folder. */
 export const api = {
-  suggestedFolder: (create: boolean) => invoke<string>('suggested_folder', { create }),
+  /** The first launch's choices: VB Notes in iCloud Drive (none without it), and Documents › VBNotes. */
+  folderPlaces: () => invoke<{ icloud: string | null; here: string }>('folder_places'),
+  makePlace: (place: 'icloud' | 'here') => invoke<string>('make_place', { place }),
   launchFolder: () => invoke<string | null>('launch_folder'),
   openFolder: (path: string) => invoke<void>('open_folder', { path }),
   scan: () => invoke<Entry[]>('scan'),
@@ -37,6 +39,8 @@ export const api = {
   get: (path: string) => invoke<NoteMeta | null>('db_get', { path }),
   list: (section: Section, tag: string, limit: number, hidden: string[] = []) => invoke<NoteMeta[]>('db_list', { section, tag, limit, hidden }),
   search: (q: string, section: Section, limit: number) => invoke<Hit[]>('db_search', { q, section, limit }),
+  titles: (q: string, limit: number) => invoke<NoteMeta[]>('db_titles', { q, limit }),
+  importFile: (from: string, to: string) => invoke<Stat>('import_file', { from, to }),
   counts: (hidden: string[]) => invoke<SectionCounts>('db_counts', { hidden }),
   tagCounts: () => invoke<{ tag: string; n: number }[]>('db_tag_counts'),
   meaningEnable: (on: boolean) => invoke<void>('meaning_enable', { on }),

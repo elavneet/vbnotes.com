@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { kvDel } from '@/utils/kv';
 import { fileNameFromTitle, splitTitle } from '@/utils/markdown';
 import {
-  META_PATH, RESERVED_FOLDERS, basename, dirname, joinPath, openSavedVault,
+  META_PATH, RESERVED_FOLDERS, basename, dirname, folderNotChosen, joinPath, openSavedVault,
   type Vault, type VaultMeta,
 } from '@/vault';
 import { openNoteDb, type NoteDb } from './noteDb';
@@ -23,6 +23,8 @@ interface NotesState {
   error?: string;
   /** The picked notes folder could not be opened at launch; shown in settings. */
   vaultProblem?: string;
+  /** A first launch on an iPhone: the app asks where notes live (`FolderChoice`) before it writes anything. */
+  needsFolder: boolean;
   tags: TagNode[];
   counts: SectionCounts;
   pinned: string[];
@@ -35,6 +37,8 @@ interface NotesState {
 
   boot: () => Promise<void>;
   setVault: (v: Vault) => Promise<void>;
+  /** The folder picked on a first launch: opened, then booted (scan, welcome note, watcher). */
+  startIn: (v: Vault) => Promise<void>;
   refresh: () => Promise<void>;
   /** The note's text if it is open or was just read; else read from the file at once (one small file). */
   getText: (path: string) => string | undefined;
@@ -103,7 +107,7 @@ function openAtLaunch(): Partial<NotesState> {
     let meta: string | undefined;
     try { meta = vault.readSync?.(META_PATH); } catch {}
     const { pinned, tagIcons, hiddenTags = [] } = parseMeta(meta);
-    return { vault, db, vaultProblem: problem, status: 'ready', pinned, tagIcons, hiddenTags, ...summary(db, hiddenTags) };
+    return { vault, db, vaultProblem: problem, needsFolder: folderNotChosen(), status: 'ready', pinned, tagIcons, hiddenTags, ...summary(db, hiddenTags) };
   } catch (e: any) {
     return { status: 'error', error: String(e?.message ?? e) };
   }
@@ -180,18 +184,21 @@ export const useNotes = create<NotesState>((set, get) => {
     tagIcons: {},
     hiddenTags: [],
     revision: 0,
+    needsFolder: false,
     ...openAtLaunch(),
 
     boot: async () => {
       // The index from last time is already showing (`openAtLaunch`); the folder scan brings it up to date.
-      const { vault } = get();
-      if (!vault) return;
+      const { vault, needsFolder } = get();
+      if (!vault || needsFolder) return;
       try {
         void kvDel(OLD_CACHE_KEY);
         await get().refresh();
-        const db = get().db;
-        const c = db?.counts();
-        if (db && c && (await welcomeOnce(vault, c.notes + c.archive + c.trash))) await get().refresh();
+        const c = get().db?.counts();
+        let notes = c ? c.notes + c.archive + c.trash : 0;
+        // Notes in iCloud that haven't come down to this phone yet count too: no welcome note among them.
+        if (!notes && vault.kind !== 'local') notes = (await vault.list()).filter((e) => !e.isDir).length;
+        if (c && (await welcomeOnce(vault, notes))) await get().refresh();
         startWatching(vault);
         // Files may have changed through iCloud/Drive while the app slept.
         AppState.addEventListener('change', (s) => { if (s === 'active') void get().refresh(); });
@@ -210,6 +217,14 @@ export const useNotes = create<NotesState>((set, get) => {
       if (old !== db) old?.close();
       await get().refresh();
       startWatching(vault);
+    },
+
+    startIn: async (vault) => {
+      const db = openNoteDb(vault.id);
+      const old = get().db;
+      set((s) => ({ vault, db, needsFolder: false, vaultProblem: undefined, pinned: [], tagIcons: {}, hiddenTags: [], status: 'ready', scanned: false, ...summary(db, []), revision: s.revision + 1 }));
+      if (old !== db) old?.close();
+      await get().boot();
     },
 
     refresh: async () => {

@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, AppState, Linking, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
 import {
   CustomKeyboard, EditorKeyboardAvoidingView, PlaceholderBridge, RichText, TenTapStartKit, useEditorBridge, useKeyboard, type EditorBridge,
 } from '@10play/tentap-editor';
 import { useSettings } from '@/store/settings';
 import { useNotes } from '@/store/notes';
+import { useUi } from '@/store/ui';
 import { fonts, typographyKey, useTheme, type Theme, type Typography } from '@/theme';
 import { editorHtml } from '@/editor/editorHtml';
 import { editorCss } from '@/editor/editorCss';
@@ -12,6 +14,7 @@ import { MarkdownBridge, markdownListeners } from '@/editor/markdownBridge';
 import { MediaAction, MediaBridge, mediaHost } from '@/editor/mediaBridge';
 import { LinkOpenBridge, linkHost } from '@/editor/linkBridge';
 import { EditBridge } from '@/editor/editBridge';
+import { WikiBridge, wikiHost } from '@/editor/wikiBridge';
 import { openableUrl } from '@/utils/links';
 import { probe, release, seek, toggle } from '@/media/player';
 import { EditorToolbar } from './EditorToolbar';
@@ -101,6 +104,15 @@ function useEditorFlags(editor: EditorBridge) {
   return flags;
 }
 
+/** The note a `[[link]]` names (in Notes or Archive), or a new one titled so. */
+async function openLinked(title: string, wide: boolean) {
+  const { db, createNote } = useNotes.getState();
+  const found = db?.titles(title, 5).find((n) => n.title.toLowerCase() === title.toLowerCase());
+  const path = found?.path ?? await createNote(`# ${title}\n\n`);
+  if (wide) useUi.getState().select(path);
+  else router.push({ pathname: '/note/[id]', params: { id: encodeURIComponent(path), ...(found ? {} : { new: '1' }) } });
+}
+
 function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPlacement = 'bottom', editorRef }: Props & { initial: string }) {
   const t = useTheme();
   const ty = useSettings((s) => s.typography);
@@ -108,7 +120,7 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
   const syncTitle = useNotes((s) => s.syncTitle);
   const { isKeyboardUp } = useKeyboard();
 
-  const bridges = useMemo(() => [...TenTapStartKit, PlaceholderBridge.configureExtension({ placeholder: 'Start writing…' }), MarkdownBridge, MediaBridge, LinkOpenBridge, EditBridge], []);
+  const bridges = useMemo(() => [...TenTapStartKit, PlaceholderBridge.configureExtension({ placeholder: 'Start writing…' }), MarkdownBridge, MediaBridge, LinkOpenBridge, EditBridge, WikiBridge], []);
   // Fixed for the life of this editor; later theme changes go through injectCSS.
   const [page] = useState(() => ({ html: themedPage(t, ty), key: pageKey(t, ty) }));
   // The newest markdown the page sent (see `markdownListeners`), saved 1 s after typing stops.
@@ -205,6 +217,13 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
     };
     return () => { linkHost.open = undefined; };
   }, []);
+
+  // `[[` lists notes by title; a `[[link]]` opens its note, or makes one with that title, as in Bear.
+  useEffect(() => {
+    wikiHost.find = (q) => (useNotes.getState().db?.titles(q, 8) ?? []).map((n) => ({ title: n.title, path: n.path }));
+    wikiHost.open = (title) => void openLinked(title, toolbarPlacement === 'top');
+    return () => { wikiHost.find = undefined; wikiHost.open = undefined; };
+  }, [toolbarPlacement]);
 
   // Going to the background: write now, the app may not come back.
   useEffect(() => {

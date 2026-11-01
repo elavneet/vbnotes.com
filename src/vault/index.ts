@@ -8,9 +8,10 @@ import type { Vault } from './types';
 export * from './types';
 export { LocalVault } from './localVault';
 
-/** Where the notes live: the app's own folder, or one picked in Files. */
-type Location = { kind: 'device' } | { kind: 'picked'; uri: string; label: string; bookmark?: string };
+/** Where the notes live: the app's own folder, its folder in iCloud Drive, or one picked in Files. */
+type Location = { kind: 'device' } | { kind: 'icloud'; uri: string } | { kind: 'picked'; uri: string; label: string; bookmark?: string };
 const LOCATION_KEY = 'vault.location.v1';
+const ICLOUD_LABEL = 'iCloud Drive · VB Notes';
 
 /** The vault the app starts with: <Documents>/VBNotes. */
 export function openDefaultVault(): Vault {
@@ -18,6 +19,7 @@ export function openDefaultVault(): Vault {
 }
 
 const pickedVault = (dir: Directory, label: string) => new LocalVault(dir, `picked:${dir.uri}`, label, 'picked');
+const iCloudVault = (dir: Directory) => new LocalVault(dir, 'icloud', ICLOUD_LABEL, 'icloud');
 
 /** "iCloud Drive · Notes", "On this device · Notes" or just the folder name. */
 function labelFor(uri: string): string {
@@ -35,6 +37,12 @@ function labelFor(uri: string): string {
 export function openSavedVault(): { vault: Vault; problem?: string } {
   const loc = kvGetSync<Location>(LOCATION_KEY);
   if (!loc || loc.kind === 'device') return { vault: openDefaultVault() };
+  if (loc.kind === 'icloud') {
+    // The app's own iCloud folder needs no bookmark; it is there while iCloud Drive is on.
+    const dir = new Directory(loc.uri);
+    if (dir.exists) return { vault: iCloudVault(dir) };
+    return { vault: openDefaultVault(), problem: "Couldn't reach iCloud Drive, so these are the notes on this device. Check that iCloud Drive is on, then choose it again." };
+  }
   try {
     let uri = loc.uri;
     if (Platform.OS === 'ios') {
@@ -69,6 +77,36 @@ export async function pickFolder(): Promise<{ vault: LocalVault; remember: () =>
     vault: pickedVault(dir, label),
     remember: () => kvSet<Location>(LOCATION_KEY, { kind: 'picked', uri: dir.uri, label, bookmark }),
   };
+}
+
+/**
+ * The app's own folder in iCloud Drive, which shows there (and in Finder on a Mac) as "VB Notes".
+ * Null when iCloud Drive is off or this build can't use it.
+ */
+export async function iCloudFolder(): Promise<{ vault: LocalVault; remember: () => Promise<void> } | null> {
+  const uri = Platform.OS === 'ios' ? await FolderAccess?.iCloudFolder?.().catch(() => null) : null;
+  if (!uri) return null;
+  return { vault: iCloudVault(new Directory(uri)), remember: () => kvSet<Location>(LOCATION_KEY, { kind: 'icloud', uri }) };
+}
+
+/** iCloud Drive is on and this build can use it; nothing is made until the folder is chosen. */
+export function canUseICloud(): boolean {
+  return Platform.OS === 'ios' && !!FolderAccess?.iCloudFolder && !!FolderAccess.iCloudAvailable?.();
+}
+
+/**
+ * A first launch on an iPhone asks where notes should live before anything is written: nothing
+ * chosen yet, no welcome note made, and nothing in the device folder (people from before this
+ * question keep theirs without being asked).
+ */
+export function folderNotChosen(): boolean {
+  // 'welcomed' is WELCOMED_KEY in store/welcome.ts.
+  if (Platform.OS !== 'ios' || kvGetSync<Location>(LOCATION_KEY) || kvGetSync<boolean>('welcomed')) return false;
+  try {
+    return !LocalVault.default().root.list().some((it) => !it.name?.startsWith('.'));
+  } catch {
+    return false;
+  }
 }
 
 /** Back to the app's own folder. */

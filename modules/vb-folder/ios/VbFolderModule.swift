@@ -33,6 +33,21 @@ public class VbFolderModule: Module {
       return ["uri": url.absoluteString, "bookmark": kept]
     }
 
+    /// Whether someone is signed in to iCloud with iCloud Drive on. Asks nothing and makes nothing.
+    Function("iCloudAvailable") { () -> Bool in
+      FileManager.default.ubiquityIdentityToken != nil
+    }
+
+    /// The app's own folder in iCloud Drive (shown there, and in Finder, as "VB Notes"), made if
+    /// needed. Nil when iCloud Drive is off, no one is signed in, or the build has no iCloud
+    /// entitlement. Off the main thread: iOS can take a moment to set the container up the first time.
+    AsyncFunction("iCloudFolder") { () -> String? in
+      guard let container = FileManager.default.url(forUbiquityContainerIdentifier: nil) else { return nil }
+      let docs = container.appendingPathComponent("Documents", isDirectory: true)
+      try? FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
+      return FileManager.default.fileExists(atPath: docs.path) ? docs.absoluteString : nil
+    }
+
     /// Keeps a folder the app can fill again (the search model, which react-native-executorch
     /// downloads into Documents) out of iCloud backups, as Apple's storage rules ask, and out of
     /// sight in the Files app. False when it isn't there yet.
