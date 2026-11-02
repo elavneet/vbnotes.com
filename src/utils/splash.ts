@@ -1,6 +1,7 @@
 import * as SplashScreen from 'expo-splash-screen';
 import * as Font from 'expo-font';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { markListReady } from './launchTiming';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 /**
@@ -27,6 +28,7 @@ const hide = () => {
 
 /** The first screen is laid out: the splash goes once the icons are in too. */
 export function appReady() {
+  markListReady();
   void icons.then(hide);
 }
 // Whatever happens, never stuck behind the splash.
