@@ -473,8 +473,8 @@ async fn db_list(open: State<'_, Open>, section: String, tag: String, limit: i64
 }
 
 #[tauri::command]
-async fn db_search(open: State<'_, Open>, q: String, section: String, limit: i64) -> Res<Vec<Hit>> {
-    with(&open, |f| f.index.search(&q, &section, limit))
+async fn db_search(open: State<'_, Open>, q: String, section: String, limit: i64, tag: Option<String>, hidden: Option<Vec<String>>) -> Res<Vec<Hit>> {
+    with(&open, |f| f.index.search(&q, &section, limit, &tag.unwrap_or_default(), &hidden.unwrap_or_default()))
 }
 
 #[tauri::command]

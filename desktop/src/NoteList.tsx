@@ -91,7 +91,7 @@ export function NoteList({ searchRef, onCreate }: { searchRef: React.RefObject<H
       </header>
       <label className="search">
         <Icon name="search" size={16} />
-        <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder={meaningOn ? 'Search or ask (⌘F)' : 'Search (⌘F)'} spellCheck={false}
+        <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tag === UNTAGGED ? 'Search Untagged (⌘F)' : tag ? `Search #${tag} (⌘F)` : meaningOn ? 'Search or ask (⌘F)' : 'Search (⌘F)'} spellCheck={false}
           onKeyDown={(e) => { if (e.key === 'Escape') setQuery(''); }} />
       </label>
       <div className="list" ref={listRef} onScroll={onScroll} tabIndex={0} onKeyDown={onKeyDown}>

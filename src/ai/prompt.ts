@@ -1,3 +1,5 @@
+import { hiddenBy } from '@/store/noteModel';
+
 /** What the chat sends with a question, the same on the phone and the desktop. */
 
 export type Scope = 'note' | 'all';
@@ -35,22 +37,6 @@ export function historyOf(turns: Turn[]): ChatMessage[] {
 
 export const noteBlock = (title: string, text: string, max: number) =>
   `<note title="${title.replace(/"/g, "'")}">\n${text.length > max ? `${text.slice(0, max)}\n[…the rest of this note is left out]` : text}\n</note>`;
-
-/**
- * Whether a note has a tag that Hide from Notes names (Settings), at any level, as `notHidden` in
- * noteDb.ts: `melta` hides `#melta`, `#melta/x` and `#go2lister/melta`. Those notes stay out of
- * questions about all notes too.
- */
-export function hiddenBy(tags: readonly string[], hidden: readonly string[]) {
-  if (!hidden.length) return false;
-  return tags.some((tag) => {
-    const parts = tag.split('/');
-    return parts.some((_, i) => {
-      const p = parts.slice(0, i + 1).join('/');
-      return hidden.some((h) => p === h || p.endsWith(`/${h}`));
-    });
-  });
-}
 
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 const HEADING = /^ {0,3}#{1,6}\s/;

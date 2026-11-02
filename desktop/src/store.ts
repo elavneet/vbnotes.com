@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { listen } from '@tauri-apps/api/event';
 import { fileNameFromTitle, splitTitle } from '@/utils/markdown';
 import { META_PATH, RESERVED_FOLDERS, basename, dirname, joinPath, type VaultMeta } from '@/vault/types';
-import { buildTags, cleanHiddenTags, recordFrom, sectionOf, type NoteMeta, type NoteRecord, type Section, type SectionCounts, type TagNode } from '@/store/noteModel';
+import { buildTags, cleanHiddenTags, inList, recordFrom, sectionOf, type NoteMeta, type NoteRecord, type Section, type SectionCounts, type TagNode } from '@/store/noteModel';
 import { fuse } from '@/search/fuse';
 import { api } from './api';
 import { MODEL, meaningReady, syncMeaning } from './meaning';
@@ -329,10 +329,12 @@ export interface Found {
 /**
  * Notes of a section matching `query`: keyword matches and, once the model is ready, notes close in
  * meaning, merged as on the phone (`fuse`). A single word brings in meaning only when no note has
- * it: on its own ("rent") it pulled in loosely related notes.
+ * it: on its own ("rent") it pulled in loosely related notes. With a `tag` (or Untagged) only its
+ * notes; without, the section's notes but those of `hidden` tags, as the list shows them. Quick Open
+ * (⌘O) searches every note.
  */
-export async function findNotes(query: string, section: Section, limit: number): Promise<Found> {
-  const hits = await api.search(query, section, limit);
+export async function findNotes(query: string, section: Section, limit: number, tag = '', hidden: string[] = []): Promise<Found> {
+  const hits = await api.search(query, section, limit, tag, hidden);
   const ask = query.trim().split(/\s+/).length > 1 || hits.length === 0;
   const near = ask && meaningReady() ? await api.meaningSearch(query, section, 40).catch(() => []) : [];
   if (!near.length) return { notes: hits.map((h) => h.note), snippets: new Map(hits.map((h) => [h.note.path, h.snippet])), meaning: new Set() };
@@ -340,7 +342,7 @@ export async function findNotes(query: string, section: Section, limit: number):
   const known = new Map(hits.map((h) => [h.note.path, h.note]));
   const notes = await Promise.all(results.map((r) => known.get(r.path) ?? api.get(r.path)));
   return {
-    notes: notes.filter((n): n is NoteMeta => !!n),
+    notes: notes.filter((n): n is NoteMeta => !!n && inList(n.tags, tag, hidden)),
     snippets: new Map(results.map((r) => [r.path, r.snippet])),
     meaning: new Set(results.filter((r) => r.via === 'smart').map((r) => r.path)),
   };
@@ -352,7 +354,7 @@ export function useNoteList(section: Section, tag: string, query: string, limit:
   return useIndexQuery<Partial<Found> & { notes: NoteMeta[] }>(
     async () => {
       if (!query.trim()) return { notes: await api.list(section, tag, limit, hidden) };
-      return findNotes(query, section, limit);
+      return findNotes(query, section, limit, tag, section === 'notes' ? hidden : []);
     },
     { notes: [] },
     [section, tag, query, limit, hidden],

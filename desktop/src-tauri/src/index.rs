@@ -416,7 +416,9 @@ impl Index {
 
     /// Notes with every typed word as a word start ("gro" finds "Groceries"), best first: an exact
     /// title, then title words weighing 8× text words. The snippet is the text around the match.
-    pub fn search(&self, q: &str, section: &str, limit: i64) -> Res<Vec<Hit>> {
+    /// Within one tag (and its nested tags) or Untagged when `tag` names one, as `list` does; all
+    /// notes of the section but those of `hidden` tags otherwise.
+    pub fn search(&self, q: &str, section: &str, limit: i64, tag: &str, hidden: &[String]) -> Res<Vec<Hit>> {
         let words: Vec<String> = q
             .split_whitespace()
             .map(|w| w.replace('"', ""))
@@ -426,16 +428,26 @@ impl Index {
         if words.is_empty() {
             return Ok(vec![]);
         }
+        let mut args = vec![Value::Text(words.join(" ")), Value::Text(section.to_string())];
+        let mut within = String::new();
+        if tag == UNTAGGED {
+            within.push_str(" AND n.tags = '[]'");
+        } else if !tag.is_empty() {
+            within.push_str(" AND n.id IN (SELECT note FROM note_tags WHERE tag = ?)");
+            args.push(Value::Text(tag.to_string()));
+        } else if section == "notes" {
+            within += &not_hidden(hidden, &mut args);
+        }
+        args.push(Value::Text(q.trim().to_lowercase()));
+        args.push(Value::Integer(limit));
         let sql = format!(
             "SELECT {COLS}, snippet(notes_text, 1, '', '', '…', 16) FROM notes_text JOIN notes n ON n.id = notes_text.rowid
-             WHERE notes_text MATCH ?1 AND n.section = ?2
-             ORDER BY lower(n.title) = ?3 DESC, bm25(notes_text, 8.0, 1.0) LIMIT ?4"
+             WHERE notes_text MATCH ? AND n.section = ?{within}
+             ORDER BY lower(n.title) = ? DESC, bm25(notes_text, 8.0, 1.0) LIMIT ?"
         );
         let mut st = self.db.prepare_cached(&sql).map_err(err)?;
         let rows = st
-            .query_map(params![words.join(" "), section, q.trim().to_lowercase(), limit], |r| {
-                Ok(Hit { note: meta(r)?, snippet: r.get(7)? })
-            })
+            .query_map(params_from_iter(args), |r| Ok(Hit { note: meta(r)?, snippet: r.get(7)? }))
             .map_err(err)?;
         rows.collect::<Result<_, _>>().map_err(err)
     }
