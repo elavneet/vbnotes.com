@@ -191,13 +191,18 @@ fn hand_over(app: &AppHandle, paths: Vec<String>) {
 #[derive(Default)]
 struct Shown(AtomicBool);
 
-/// The page is drawn in its theme: the window takes its background (Windows paints it before the
-/// page; macOS keeps its own) and shows.
+/// The page is drawn in its theme: the window takes its background (Windows and Linux paint it
+/// before the page) and shows. Not on macOS: there it switches the webview's own background off
+/// while the page runs (WebKit's private `drawsBackground`), and parts of the page, such as the
+/// notes list, then stopped repainting. Showing the window only once the page is drawn is enough.
 #[tauri::command]
 fn window_ready(app: AppHandle, background: String) {
+    #[cfg(not(target_os = "macos"))]
     if let (Some(window), Some(color)) = (app.get_webview_window("main"), hex_color(&background)) {
         let _ = window.set_background_color(Some(color));
     }
+    #[cfg(target_os = "macos")]
+    let _ = background;
     first_show(&app);
 }
 
@@ -208,6 +213,7 @@ fn first_show(app: &AppHandle) {
 }
 
 /// `#rrggbb` as a colour.
+#[cfg(not(target_os = "macos"))]
 fn hex_color(hex: &str) -> Option<tauri::window::Color> {
     let h = hex.strip_prefix('#').filter(|h| h.len() == 6)?;
     let byte = |i: usize| u8::from_str_radix(h.get(i..i + 2)?, 16).ok();
