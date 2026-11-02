@@ -44,7 +44,10 @@ export function NoteList({ searchRef, onCreate }: { searchRef: React.RefObject<H
   const [page, setPage] = useState({ filter, limit: PAGE });
   const limit = page.filter === filter ? page.limit : PAGE;
   const { notes, snippets, meaning } = useNoteList(section, tag, search, limit);
-  const groups = useMemo(() => (search.trim() ? [{ title: `${notes.length} found`, notes }] : groupNotes(notes)), [notes, search]);
+  // Search results (they come with snippets) keep their order: grouped by date, the same heading
+  // could come twice. That happened for a moment after the search box was cleared, before the list
+  // was read again, and React then left the old rows on screen for good.
+  const groups = useMemo(() => (snippets ? [{ title: `${notes.length} found`, notes }] : groupNotes(notes)), [notes, snippets]);
   const [menu, setMenu] = useState<Menu | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const paneRef = useRef<HTMLElement>(null);
@@ -93,8 +96,8 @@ export function NoteList({ searchRef, onCreate }: { searchRef: React.RefObject<H
       </label>
       <div className="list" ref={listRef} onScroll={onScroll} tabIndex={0} onKeyDown={onKeyDown}>
         {notes.length === 0 ? <p className="list-empty">{empty}</p> : null}
-        {groups.map((g) => (
-          <div key={g.title}>
+        {groups.map((g, i) => (
+          <div key={`${i}:${g.title}`}>
             <h3 className="group">{g.title}</h3>
             {g.notes.map((n) => (
               <Row key={n.path} note={n} snippet={snippets?.get(n.path)} byMeaning={!!meaning?.has(n.path)} selected={n.path === selected}
