@@ -3,6 +3,8 @@
 Markdown notes for iPhone, Android, Mac, Windows and Linux, with search that understands meaning and
 runs on the device.
 
+<a href="https://apps.apple.com/app/vb-notes/id6829176804"><img src="docs/app-store-badge.svg" alt="Download on the App Store" height="48"></a>
+
 Your notes are plain `.md` files in a folder you choose. Put that folder in iCloud Drive, or let a sync
 app such as Syncthing or FolderSync keep it in step, and the phone and the desktop app show the same
 notes. There is no account and no server: the search model runs on your phone or computer, and the
