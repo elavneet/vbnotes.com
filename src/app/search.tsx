@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/theme';
 import { useNotes, type NoteMeta } from '@/store/notes';
 import { useSettings } from '@/store/settings';
@@ -13,6 +13,7 @@ import { Segmented } from '@/components/Segmented';
 import { noteRoute, startNote } from '@/components/NotesList';
 import { useBreakpoint } from '@/utils/useBreakpoint';
 import { useAi } from '@/ai/chat';
+import { meaningWanted } from '@/search/useIndexing';
 
 type Item = { note: NoteMeta; result?: SearchResult };
 
@@ -34,6 +35,7 @@ export default function SearchScreen() {
   const scope = section === 'trash' ? 'notes' : section;
 
   useEffect(() => semanticIndex.subscribe(() => bump((n) => n + 1)), []);
+  useEffect(() => meaningWanted(), []);
   useEffect(() => { const id = setTimeout(() => inputRef.current?.focus(), 120); return () => clearTimeout(id); }, []);
 
   useEffect(() => {

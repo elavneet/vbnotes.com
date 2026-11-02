@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useTheme } from '@/theme';
 import type { NoteMeta } from '@/store/notes';
 import { formatNoteDate } from '@/utils/dates';
