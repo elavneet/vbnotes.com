@@ -44,7 +44,8 @@ export const api = {
   setPinned: (paths: string[]) => invoke<void>('db_set_pinned', { paths }),
   get: (path: string) => invoke<NoteMeta | null>('db_get', { path }),
   list: (section: Section, tag: string, limit: number, hidden: string[] = []) => invoke<NoteMeta[]>('db_list', { section, tag, limit, hidden }),
-  search: (q: string, section: Section, limit: number) => invoke<Hit[]>('db_search', { q, section, limit }),
+  /** Within one tag or Untagged when `tag` names one; else the section, without notes of `hidden` tags. */
+  search: (q: string, section: Section, limit: number, tag = '', hidden: string[] = []) => invoke<Hit[]>('db_search', { q, section, limit, tag, hidden }),
   titles: (q: string, limit: number) => invoke<NoteMeta[]>('db_titles', { q, limit }),
   importFile: (from: string, to: string) => invoke<Stat>('import_file', { from, to }),
   welcomePicture: (to: string) => invoke<Stat>('welcome_picture', { to }),
