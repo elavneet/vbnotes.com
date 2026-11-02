@@ -1,5 +1,5 @@
 import React, { memo, useMemo } from 'react';
-import { Platform, StyleSheet, Text, View, type TextStyle } from 'react-native';
+import { Platform, StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
 import { codeFont, textFont, weightIn, type EditorFont, type Theme, type Typography } from '@/theme';
 import { findTags, tagHue } from '@/utils/tags';
 import { highlightCode } from '@/editor/highlight';
@@ -236,6 +236,11 @@ function cssLine(size: number, ratio: number, m: Metrics) {
 
 /** Browser default markers by nesting depth: disc, circle, square. */
 const BULLETS = ['•', '◦', '▪'];
+/** WebKit's bullets by depth: a disc, a circle, a square. */
+const discOf = (level: number, color: string): ViewStyle =>
+  level === 1 ? { backgroundColor: color, borderRadius: 999 }
+  : level === 2 ? { borderWidth: 1, borderColor: color, borderRadius: 999 }
+  : { backgroundColor: color, transform: [{ scale: 0.8 }] };
 const isTitle = (b: Extract<Block, { k: 'h' }>, i: number) => i === 0 && b.level === 1;
 const headingSize = (b: Extract<Block, { k: 'h' }>, i: number, F: number) => F * (isTitle(b, i) ? E.title : E.h[b.level]);
 
@@ -278,8 +283,11 @@ export const NotePreview = memo(function NotePreview({ md, t, ty }: { md: string
   const boxOuter = E.box + E.boxTop;
   const taskH = Math.max(lh, boxOuter + lh - line.baseline);
   const boxTop = Math.max(E.boxTop, line.baseline - E.box);
-  // WebKit draws bullets as shapes, a little lower than the "•" glyph (measured).
+  // WebKit draws bullets as shapes, a little lower than the "•" glyph (measured). On iOS the
+  // preview draws the same shapes: the glyph was smaller, so the bullets grew when the editor came.
   const bulletNudge = IOS ? F * 0.05 : 0;
+  const discSize = F * E.disc.size;
+  const disc = { position: 'absolute' as const, width: discSize, height: discSize, top: line.baseline - F * E.disc.up - discSize / 2 };
   // A tag pill is the text's content box plus its padding, hung from the line's baseline.
   const pillText = line.asc + line.desc;
   const pill = { top: line.baseline - line.asc - E.pillTop, height: pillText + E.pillTop + E.pillBottom };
@@ -291,7 +299,7 @@ export const NotePreview = memo(function NotePreview({ md, t, ty }: { md: string
       const size = headingSize(b, i, F);
       const hl = cssLine(size, E.headLine, head);
       const title = isTitle(b, i);
-      el = <Inline text={b.text} t={t} ty={ty} base={{ fontFamily: head.rn, fontWeight: weightIn(head, title ? '800' : '700'), fontSize: size, lineHeight: fit(hl.lineHeight), top: hl.top, color: t.colors.text, letterSpacing: -size * (title ? 0.022 : 0.012) }} />;
+      el = <Inline text={b.text} t={t} ty={ty} base={{ fontFamily: head.rn, fontWeight: weightIn(head, title ? '800' : '700'), fontSize: size, lineHeight: fit(hl.lineHeight), top: hl.top, color: t.colors.text, letterSpacing: -size * (title ? 0.022 + (IOS ? head.titleTrack ?? 0 : 0) : 0.012) }} />;
     } else if (b.k === 'p') {
       el = <Inline text={b.text} t={t} ty={ty} base={body} />;
     } else if (b.k === 'empty') {
@@ -329,12 +337,14 @@ export const NotePreview = memo(function NotePreview({ md, t, ty }: { md: string
                   <View style={[styles.box, { left: textLeft - E.box - 10, marginTop: boxTop, borderColor: it.checked ? t.colors.volt : t.colors.textMuted, backgroundColor: it.checked ? t.colors.volt : 'transparent' }]}>
                     {it.checked ? <View style={[styles.tick, { borderColor: t.colors.onVolt }]} /> : null}
                   </View>
-                ) : (
+                ) : it.marker === 'bullet' && IOS ? null : (
                   <Text style={[body, styles.marker, { color: t.colors.textMuted, top: line.top + (it.marker === 'bullet' ? bulletNudge : 0), left: textLeft - F * E.indent, width: F * E.indent - 6 }]}>
                     {it.marker === 'number' ? `${it.n}.` : BULLETS[Math.min(it.lists.length, 3) - 1]}
                   </Text>
                 )}
                 <View style={{ flex: 1 }}>
+                  {/* Placed from where the text starts, as WebKit places its bullet. */}
+                  {it.marker === 'bullet' && IOS ? <View style={[disc, discOf(Math.min(it.lists.length, 3), t.colors.textMuted), { left: -F * E.disc.left - disc.width / 2 }]} /> : null}
                   <Inline text={it.text} t={t} ty={ty} base={done ? { ...body, color: t.colors.textMuted, textDecorationLine: 'line-through' } : body} />
                 </View>
               </View>

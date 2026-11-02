@@ -18,10 +18,16 @@ export interface EditorFont {
   desc: number;
   /** Weights the family lacks, mapped to one it has: UIKit and WebKit fall back to different faces. */
   weights?: Partial<Record<Weight, Weight>>;
+  /**
+   * Extra letter spacing (em) for the note's title in the native preview: WebKit sets the heavy
+   * title of this family a little tighter than UIKit. Measured on iOS.
+   */
+  titleTrack?: number;
 }
 
 export const TEXT_FONTS = {
-  system: { label: 'System', css: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif', asc: 0.95215, desc: 0.24121 },
+  // titleTrack: "Font check" 486 px wide in UIKit, 478 in WebKit (1.6%); 942 and 927 for a longer title.
+  system: { label: 'System', css: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif', asc: 0.95215, desc: 0.24121, titleTrack: 0.008 },
   rounded: { label: 'SF Rounded', css: 'ui-rounded, -apple-system, sans-serif', rn: 'ui-rounded', asc: 0.95215, desc: 0.24121 },
   newYork: { label: 'New York', css: 'ui-serif, Georgia, serif', rn: 'ui-serif', asc: 0.95215, desc: 0.24121 },
   avenir: { label: 'Avenir Next', css: '"Avenir Next", sans-serif', rn: 'Avenir Next', asc: 1, desc: 0.366 },
