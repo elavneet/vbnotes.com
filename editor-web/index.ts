@@ -1,11 +1,11 @@
-import React from 'react';
-import { EditorContent, TenTapStartKit, useTenTap } from '@10play/tentap-editor';
+import { TenTapStartKit, startTenTap } from './tentap';
 import { MarkdownBridge } from '../src/editor/markdownBridge';
 import { MediaBridge } from '../src/editor/mediaBridge';
 import { EditBridge } from '../src/editor/editBridge';
 import { WikiBridge } from '../src/editor/wikiBridge';
 import { HorizontalRule } from '@tiptap/extension-horizontal-rule';
-import { Table, TableCell, TableHeader, TableRow, renderTableToMarkdown } from '@tiptap/extension-table';
+import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
+import { PlainTable } from './plainTable';
 import { TagPills } from './tagPills';
 import { RichCodeBlock } from './codeBlocks';
 import { MediaViews } from './media';
@@ -16,25 +16,28 @@ import { MergeFormats } from './mergeFormats';
 import { MarkdownPush } from './markdownPush';
 import { WikiLinks } from './wikiLinks';
 
-// The stock renderer wraps tables in extra newlines, which come back as an empty paragraph on the
-// next open; a note would gain a blank line around each table with every save.
-export const PlainTable = Table.extend({ renderMarkdown: (node, h) => renderTableToMarkdown(node, h).trim() });
+declare global {
+  interface Window { contentInjected: boolean | undefined }
+}
 
-export const Editor = () => {
-  const editor = useTenTap({
+// Android injects the boot config after load; wait for it before making the editor.
+const interval = setInterval(() => {
+  if (!window.contentInjected) return;
+  clearInterval(interval);
+  // The editor scrolls inside this box (index.html).
+  const holder = document.createElement('div');
+  document.getElementById('root')!.appendChild(holder);
+  startTenTap(holder, {
     bridges: [...withPlainLinks(TenTapStartKit), MarkdownBridge, MediaBridge, EditBridge, WikiBridge],
     // Toolbar state does not need every keystroke; fewer messages keep typing smooth.
     stateUpdateDebounceMs: 60,
     tiptapOptions: {
       // The note's markdown arrives in the boot config, so the first paint already shows it.
       contentType: 'markdown',
-      // Nothing in this component reads editor state; re-rendering React per keystroke was wasted work.
-      shouldRerenderOnTransaction: false,
       // TenTapStartKit has no code block, rule or table; without them the markdown parser drops
       // ``` blocks, --- and | tables |, and the next save would delete them from the file.
       extensions: [MarkdownPush, TagPills, WikiLinks, LinkTaps, CodePaste, WordTaps, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell],
       editorProps: { attributes: { spellcheck: 'true', autocapitalize: 'sentences' } },
     },
   });
-  return <EditorContent editor={editor} className={(window as any).dynamicHeight ? 'dynamic-height' : undefined} />;
-};
+}, 1);
