@@ -52,12 +52,20 @@ export const useAppUpdate = create<AppUpdateState>((set) => ({
   dismiss: () => set({ ready: false }),
 }));
 
-/** Looks for an update at launch and whenever the app comes back. */
+/**
+ * Looks for an update at launch and whenever the app comes back. The app also looks by itself as it
+ * starts and downloads in the background; then this check found nothing new to fetch, and the card
+ * never showed (the update only came with a later start). Either way, the card shows once one waits.
+ */
 export function useUpdateCheck() {
   useEffect(() => {
     const { check } = useAppUpdate.getState();
     void check();
     const sub = AppState.addEventListener('change', (s) => { if (s === 'active') void check(); });
-    return () => sub.remove();
+    const u = updates();
+    const pending = (p: boolean) => { if (p) useAppUpdate.setState({ ready: true }); };
+    pending(!!u?.latestContext.isUpdatePending);
+    const native = u?.addUpdatesStateChangeListener((e) => pending(e.context.isUpdatePending));
+    return () => { sub.remove(); native?.remove(); };
   }, []);
 }
