@@ -1,6 +1,6 @@
 [package]
 name = "vbnotes"
-version = "0.4.6"
+version = "0.4.7"
 description = "VBNotes for the desktop: markdown notes in a plain folder"
 authors = ["Lavneet Sharma"]
 edition = "2021"
@@ -28,6 +28,12 @@ notify-debouncer-mini = "=0.7.0"
 llama-cpp-2 = { version = "=0.1.160", default-features = false }
 ureq = { version = "=3.5.0", default-features = false, features = ["rustls"] }
 sha2 = "=0.10.9"
+
+# Notes that iCloud keeps only in the cloud (Optimize Mac Storage) are asked down when the folder
+# is read, so opening one doesn't wait for the download.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "=0.6.5"
+objc2-foundation = { version = "=0.3.2", features = ["NSError", "NSFileManager", "NSString", "NSURL"] }
 
 [profile.release]
 codegen-units = 1

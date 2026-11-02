@@ -75,14 +75,21 @@ export function NoteEditor({ path }: { path: string }) {
   const readText = useNotes((s) => s.readText);
   const [text, setText] = useState<{ path: string; md: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // A note iCloud keeps only in the cloud takes a moment to come down; past a moment, say so.
+  const [slow, setSlow] = useState(false);
+  const inICloud = useNotes((s) => !!s.folder?.includes('/Mobile Documents/'));
   useEffect(() => {
     let live = true;
     setError(null);
+    setSlow(false);
+    const wait = setTimeout(() => { if (live) setSlow(true); }, 400);
     readText(path).then((md) => { if (live) setText({ path, md }); }, (e) => { if (live) setError(String(e)); });
-    return () => { live = false; };
+    return () => { live = false; clearTimeout(wait); };
   }, [path, readText]);
   if (error) return <div className="editor-empty">{error}</div>;
-  if (!text || text.path !== path) return <div className="editor-scroll" />;
+  if (!text || text.path !== path) {
+    return slow ? <div className="editor-empty">{inICloud ? 'Downloading this note from iCloud…' : 'Opening…'}</div> : <div className="editor-scroll" />;
+  }
   return <Pane key={path} path={path} initial={text.md} />;
 }
 

@@ -4548,10 +4548,12 @@ checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 
 [[package]]
 name = "vbnotes"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "llama-cpp-2",
  "notify-debouncer-mini",
+ "objc2",
+ "objc2-foundation",
  "rusqlite",
  "serde",
  "serde_json",
