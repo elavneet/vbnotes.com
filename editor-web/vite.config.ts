@@ -1,5 +1,4 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import { execSync } from 'node:child_process';
 import path from 'node:path';
@@ -11,13 +10,12 @@ export default defineConfig({
   build: { outDir: 'build', emptyOutDir: false },
   resolve: {
     alias: [
-      { find: '@10play/tentap-editor', replacement: '@10play/tentap-editor/web' },
-      { find: '@tiptap/pm/view', replacement: '@10play/tentap-editor/web' },
-      { find: '@tiptap/pm/state', replacement: '@10play/tentap-editor/web' },
+      // tentap from its sources, sharing one TipTap with our extensions, without React (tentap.ts).
+      { find: /^@10play\/tentap-editor$/, replacement: path.resolve(root, 'tentap.ts') },
+      { find: /^tentap-src\/(.*)$/, replacement: path.resolve(root, '../node_modules/@10play/tentap-editor/src/$1') },
     ],
   },
   plugins: [
-    react(),
     viteSingleFile(),
     {
       name: 'tentap-post-build',

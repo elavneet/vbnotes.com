@@ -8,7 +8,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { MarkdownBridge } from '@/editor/markdownBridge';
 import { openableUrl } from '@/utils/links';
 import { splitTitle } from '@/utils/markdown';
-import { PlainTable } from '../../editor-web/Editor';
+import { PlainTable } from '../../editor-web/plainTable';
 import { TagPills } from '../../editor-web/tagPills';
 import { RichCodeBlock, mermaidFrom, type Mermaid } from '../../editor-web/codeBlocks';
 import { MediaViews } from '../../editor-web/media';

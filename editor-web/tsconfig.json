@@ -4,6 +4,7 @@
     "module": "esnext",
     "paths": {
       "@10play/tentap-editor": ["../node_modules/@10play/tentap-editor/lib-web/typescript/webEditorUtils/index.d.ts"],
+      "tentap-src/*": ["../node_modules/@10play/tentap-editor/src/*"],
       "@/*": ["../src/*"]
     },
     "moduleResolution": "bundler",
