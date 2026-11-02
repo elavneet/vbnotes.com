@@ -29,8 +29,9 @@ files stay yours to open in any editor.
 
 **Website:** [vbnotes.com](https://vbnotes.com), with a short guide and the blog.
 
-**Download:** see [Releases](https://github.com/elavneet/vbnotes.com/releases) for macOS, Windows,
-Linux and Android builds. The iPhone app is built from source for now (see below).
+**Download:** the iPhone app is on the [App Store](https://apps.apple.com/app/vb-notes/id6829176804).
+See [Releases](https://github.com/elavneet/vbnotes.com/releases) for macOS, Windows, Linux and Android
+builds; Android is coming to Google Play.
 
 ## Phone
 
