@@ -18,6 +18,8 @@ export const EDITOR = {
   headBottom: 0.45,
   liGap: 0.15,
   indent: 1.4,
+  /** WebKit's list bullet (a drawn disc): its size, its centre left of the item's text box and above the baseline, in em (measured on iOS). */
+  disc: { size: 0.353, left: 0.892, up: 0.304 },
   blockBottom: 1,
   hr: 1.4,
   /** Table cell padding in px; columns share the width equally. */
