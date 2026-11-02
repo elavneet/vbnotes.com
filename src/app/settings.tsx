@@ -19,6 +19,7 @@ import { formatCost, showsSpend, spentThisMonth, type KeyUsage } from '@/ai/spen
 import { PROVIDERS, chatModels, destinationOf, preferredModel, providerOf } from '@/ai/providers';
 import { CONSENT_TEXT, CONSENT_TITLE } from '@/ai/prompt';
 import { ModelPicker } from '@/components/ModelPicker';
+import { launchSummary } from '@/utils/launchTiming';
 
 type Page = 'main' | 'appearance' | 'typography' | 'folder' | 'hidden' | 'search' | 'ai';
 
@@ -210,6 +211,7 @@ export default function SettingsScreen() {
             </Section>
             <Section title="About">
               <Row label="Version" value={Constants.expoConfig?.version ?? '–'} />
+              {launchSummary() ? <Row label="Last start" value={launchSummary()!} /> : null}
             </Section>
           </>
         ) : null}

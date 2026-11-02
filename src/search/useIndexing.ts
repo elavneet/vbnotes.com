@@ -8,10 +8,11 @@ const INDEX_IDLE_MS = 4000;
 const RETRY_MS = 2000;
 const MAX_RETRIES = 3;
 /**
- * After launch the model (about 200 MB) and the saved index (several MB of JSON) wait this long,
- * so the notes list and the first note open without them in the way. Search asks for them at once.
+ * After launch the search model (about 200 MB, seconds of work for a phone to load) waits this
+ * long, so moving around the app in its first moments isn't slowed by it. Search asks for it at
+ * once; new and changed notes are embedded once it is in.
  */
-const LAUNCH_QUIET_MS = 3000;
+const LAUNCH_QUIET_MS = 20_000;
 let quietOver = false;
 let wanted: (() => void) | null = null;
 

@@ -11,6 +11,7 @@ import { openNoteDb, type NoteDb } from './noteDb';
 import { welcomeOnce } from './welcome';
 import { WELCOME_TITLE, WELCOME_VERSION } from './welcomeNote';
 import { buildTags, cleanHiddenTags, recordFrom, sectionOf, type NoteMeta, type NoteRecord, type Section, type SectionCounts, type TagNode } from './noteModel';
+import { timeFolder } from '@/utils/launchTiming';
 
 export { UNTAGGED, sectionOf, type NoteMeta, type Section, type SectionCounts, type TagNode } from './noteModel';
 
@@ -103,10 +104,13 @@ const statOf = (vault: Vault, path: string, text: string) => vault.stat?.(path) 
  */
 function openAtLaunch(): Partial<NotesState> {
   try {
-    const { vault, problem } = openSavedVault();
+    const { vault, problem, meta } = timeFolder(() => {
+      const opened = openSavedVault();
+      let text: string | undefined;
+      try { text = opened.vault.readSync?.(META_PATH); } catch {}
+      return { ...opened, meta: text };
+    });
     const db = openNoteDb(vault.id);
-    let meta: string | undefined;
-    try { meta = vault.readSync?.(META_PATH); } catch {}
     const { pinned, tagIcons, hiddenTags = [] } = parseMeta(meta);
     return { vault, db, vaultProblem: problem, needsFolder: folderNotChosen(), status: 'ready', pinned, tagIcons, hiddenTags, ...summary(db, hiddenTags) };
   } catch (e: any) {
