@@ -286,6 +286,17 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
     { label: 'Audio file', icon: 'musical-notes-outline', onPress: after(async () => [await pickAudioFile()]) },
   ];
 
+  // The page view is made two frames after the screen, once the slide has started (the native
+  // preview shows the note meanwhile): made with the screen, it held the slide back. On the
+  // simulator a long note's screen drew in about 100 ms instead of 230, and the editor was ready
+  // about as soon as before. A new note gets it at once, for the keyboard.
+  const [webOn, setWebOn] = useState(!!autofocus);
+  useEffect(() => {
+    if (webOn) return;
+    let frame = requestAnimationFrame(() => { frame = requestAnimationFrame(() => setWebOn(true)); });
+    return () => cancelAnimationFrame(frame);
+  }, [webOn]);
+
   return (
     <View style={[styles.root, { backgroundColor: t.colors.bg }]}>
       {toolbarPlacement === 'top' ? <EditorToolbar editor={editor} compact formatOpen={!!keyboard} onFormat={toggleFormat} onAttach={() => setAttach(true)} /> : null}
@@ -293,14 +304,14 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
         {previewOn ? <NotePreview md={initial} t={t} ty={ty} /> : null}
         <Animated.View style={[styles.root, { opacity }]}>
           {/* The page's base URL is the vault folder: keep that load inside the WebView (web links still open outside). */}
-          <RichText
+          {webOn ? <RichText
             editor={editor}
             style={{ backgroundColor: t.colors.bg }}
             originWhitelist={WEBVIEW_ORIGINS}
             allowFileAccess
             allowFileAccessFromFileURLs
             allowingReadAccessToURL={useNotes.getState().vault?.baseUrl}
-          />
+          /> : null}
         </Animated.View>
       </View>
       <EditorKeyboardAvoidingView style={styles.kav} pointerEvents="box-none" onLayout={(e) => setCovered(Math.round(e.nativeEvent.layout.height))}>

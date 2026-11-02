@@ -12,8 +12,18 @@ import { saveFile } from '@/media/attachments';
 const BARS = 32;
 const fmt = (ms: number) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
-/** Records as soon as it opens; Done saves the clip to `attachments/` and hands back its path. */
-export function VoiceRecorder({ visible, onClose, onDone }: { visible: boolean; onClose: () => void; onDone: (path: string) => void }) {
+type RecorderProps = { visible: boolean; onClose: () => void; onDone: (path: string) => void };
+
+/**
+ * Records as soon as it opens; Done saves the clip to `attachments/` and hands back its path.
+ * The recorder exists only while this is open: made with every note, its native recorder slowed
+ * each note's opening, and its status was read 12 times a second for as long as the note was open.
+ */
+export function VoiceRecorder(props: RecorderProps) {
+  return props.visible ? <Recorder {...props} /> : null;
+}
+
+function Recorder({ visible, onClose, onDone }: RecorderProps) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
