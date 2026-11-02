@@ -148,8 +148,16 @@ function parse(md: string): Block[] {
   return out;
 }
 
-/** WebKit keeps `a/b` and `https://x` whole where UIKit would break after the slash; a word joiner stops UIKit. */
-const keepSlashes = (s: string) => s.replace(/\/(?=\w)/g, '/\u2060');
+/**
+ * WebKit keeps `a/b` and `https://x` whole where UIKit would break after the slash; a word joiner
+ * stops UIKit. And the editor keeps spaces (ProseMirror's `white-space: break-spaces`): a word goes
+ * to the next line unless it fits together with the space after it, where UIKit lets that space
+ * hang past the edge. A no-break space followed by a zero-width break makes UIKit do the same.
+ */
+const keepSlashes = (s: string) => {
+  const joined = s.replace(/\/(?=\w)/g, '/\u2060');
+  return Platform.OS === 'ios' ? joined.replace(/ /g, '\u00A0\u200B') : joined;
+};
 
 /** Inline markdown: bold, italic, code, links, tags. Enough to look like the editor for a moment. */
 function Inline({ text, t, ty, base }: { text: string; t: Theme; ty: Typography; base: TextStyle }) {
@@ -166,8 +174,9 @@ function Inline({ text, t, ty, base }: { text: string; t: Theme; ty: Typography;
       const hue = t.tags[tagHue(tag.tag)];
       parts.push(
         <Text key={key++} style={{ backgroundColor: hue.bg, color: hue.fg, fontWeight: weightIn(face, '500') }}>
-          {/* En spaces (half an em) stand in for the pill's 8–9px side padding. */}
-          <Text style={{ fontWeight: weightIn(face, '600') }}>{'\u2002#'}</Text>
+          {/* Two no-break spaces (half an em) and an en space stand in for the pill's 8–9px side
+              padding; the no-break ones keep the pill whole when it wraps, as in the editor. */}
+          <Text style={{ fontWeight: weightIn(face, '600') }}>{'\u00A0\u00A0#'}</Text>
           {s.slice(tag.start + 1, tag.end) + '\u2002'}
         </Text>,
       );
@@ -236,6 +245,8 @@ function cssLine(size: number, ratio: number, m: Metrics) {
 
 /** Browser default markers by nesting depth: disc, circle, square. */
 const BULLETS = ['•', '◦', '▪'];
+/** WebKit's "1." stands further from the item's text (its marker ends in a space): measured, in em. */
+const NUMBER_GAP = 0.216;
 /** WebKit's bullets by depth: a disc, a circle, a square. */
 const discOf = (level: number, color: string): ViewStyle =>
   level === 1 ? { backgroundColor: color, borderRadius: 999 }
@@ -338,7 +349,7 @@ export const NotePreview = memo(function NotePreview({ md, t, ty }: { md: string
                     {it.checked ? <View style={[styles.tick, { borderColor: t.colors.onVolt }]} /> : null}
                   </View>
                 ) : it.marker === 'bullet' && IOS ? null : (
-                  <Text style={[body, styles.marker, { color: t.colors.textMuted, top: line.top + (it.marker === 'bullet' ? bulletNudge : 0), left: textLeft - F * E.indent, width: F * E.indent - 6 }]}>
+                  <Text style={[body, styles.marker, { color: t.colors.textMuted, top: line.top + (it.marker === 'bullet' ? bulletNudge : 0), left: textLeft - F * E.indent, width: F * E.indent - 6 - (IOS && it.marker === 'number' ? F * NUMBER_GAP : 0) }]}>
                     {it.marker === 'number' ? `${it.n}.` : BULLETS[Math.min(it.lists.length, 3) - 1]}
                   </Text>
                 )}
