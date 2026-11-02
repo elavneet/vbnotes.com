@@ -86,7 +86,8 @@ fn join(rel: &str, name: &str) -> String {
 }
 
 /// Every note file under `dir`. Hidden files and folders (`.vbnotes`, `.git`) are skipped.
-fn walk(dir: &Path, rel: &str, out: &mut Vec<Entry>) {
+/// The notes under `dir`; those iCloud keeps only in the cloud also go into `away`.
+fn walk(dir: &Path, rel: &str, out: &mut Vec<Entry>, away: &mut Vec<PathBuf>) {
     let Ok(items) = fs::read_dir(dir) else { return };
     for item in items.flatten() {
         let name = item.file_name().to_string_lossy().into_owned();
@@ -95,20 +96,58 @@ fn walk(dir: &Path, rel: &str, out: &mut Vec<Entry>) {
             if let Some(real) = hidden.strip_suffix(".icloud") {
                 if kind.is_file() && is_markdown(real) {
                     out.push(Entry { path: join(rel, real), mtime: 0, size: 0, cloud: true });
+                    away.push(dir.join(real));
                 }
             }
             continue;
         }
         let path = join(rel, &name);
         if kind.is_dir() {
-            walk(&item.path(), &path, out);
+            walk(&item.path(), &path, out, away);
         } else if kind.is_file() && is_markdown(&name) {
             if let Some(s) = stat_of(&item.path()) {
                 out.push(Entry { path, mtime: s.mtime, size: s.size, cloud: false });
             }
+            if cloud_only(&item) {
+                away.push(item.path());
+            }
         }
     }
 }
+
+/// A file iCloud has taken off this Mac to save space ("Optimize Mac Storage"): its name and size
+/// are here, its text only in the cloud. Reading it waits for the download, a second or more.
+#[cfg(target_os = "macos")]
+fn cloud_only(item: &fs::DirEntry) -> bool {
+    use std::os::macos::fs::MetadataExt;
+    const SF_DATALESS: u32 = 0x4000_0000;
+    item.metadata().is_ok_and(|m| m.st_flags() & SF_DATALESS != 0)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn cloud_only(_: &fs::DirEntry) -> bool {
+    false
+}
+
+/// Asks iCloud to bring notes back onto this Mac, in the background, so they open at once.
+#[cfg(target_os = "macos")]
+fn download_from_icloud(paths: Vec<PathBuf>) {
+    if paths.is_empty() {
+        return;
+    }
+    std::thread::spawn(move || {
+        objc2::rc::autoreleasepool(|_| {
+            let files = objc2_foundation::NSFileManager::defaultManager();
+            for p in paths {
+                let url = objc2_foundation::NSURL::fileURLWithPath(&objc2_foundation::NSString::from_str(&p.to_string_lossy()));
+                let _ = files.startDownloadingUbiquitousItemAtURL_error(&url);
+            }
+        });
+    });
+}
+
+#[cfg(not(target_os = "macos"))]
+fn download_from_icloud(_: Vec<PathBuf>) {}
 
 /// FNV-1a, to name a folder's index file after its path.
 fn fnv(s: &str) -> u64 {
@@ -316,21 +355,19 @@ fn open_folder(app: AppHandle, open: State<'_, Open>, path: String) -> Res<()> {
 #[tauri::command]
 async fn scan(open: State<'_, Open>) -> Res<Vec<Entry>> {
     with(&open, |f| {
-        let mut out = Vec::new();
-        walk(&f.root, "", &mut out);
+        let (mut out, mut away) = (Vec::new(), Vec::new());
+        walk(&f.root, "", &mut out, &mut away);
+        download_from_icloud(away);
         Ok(out)
     })
 }
 
-/// The texts of `paths`; `None` for one that can't be read.
+/// The texts of `paths`; `None` for one that can't be read. Read without holding the folder: a note
+/// only in iCloud takes a moment to come down, and the list and search shouldn't wait for it.
 #[tauri::command]
 async fn read_files(open: State<'_, Open>, paths: Vec<String>) -> Res<Vec<Option<String>>> {
-    with(&open, |f| {
-        Ok(paths
-            .iter()
-            .map(|p| inside(&f.root, p).ok().and_then(|abs| fs::read(abs).ok()).map(|b| String::from_utf8_lossy(&b).into_owned()))
-            .collect())
-    })
+    let files: Vec<Option<PathBuf>> = with(&open, |f| Ok(paths.iter().map(|p| inside(&f.root, p).ok()).collect()))?;
+    Ok(files.into_iter().map(|abs| abs.and_then(|abs| fs::read(abs).ok()).map(|b| String::from_utf8_lossy(&b).into_owned())).collect())
 }
 
 #[tauri::command]
