@@ -7,6 +7,19 @@ import { semanticIndex, type NoteSource } from './semanticIndex';
 const INDEX_IDLE_MS = 4000;
 const RETRY_MS = 2000;
 const MAX_RETRIES = 3;
+/**
+ * After launch the model (about 200 MB) and the saved index (several MB of JSON) wait this long,
+ * so the notes list and the first note open without them in the way. Search asks for them at once.
+ */
+const LAUNCH_QUIET_MS = 3000;
+let quietOver = false;
+let wanted: (() => void) | null = null;
+
+/** Search is open: the model and index load now rather than after the launch pause. */
+export function meaningWanted() {
+  quietOver = true;
+  wanted?.();
+}
 
 /**
  * Keeps the semantic index in step with the notes. Loads the model lazily
@@ -54,6 +67,12 @@ export function useIndexing() {
     const off = () => { offChanges(); if (timer) clearTimeout(timer); };
     semanticIndex.setModel(model);
     (async () => {
+      if (!quietOver) {
+        await new Promise<void>((resolve) => { wanted = resolve; setTimeout(resolve, LAUNCH_QUIET_MS); });
+        quietOver = true;
+        wanted = null;
+      }
+      if (!active) return;
       try {
         await semanticIndex.ensureEmbedder();
         failures.current = 0;

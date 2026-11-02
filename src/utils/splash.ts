@@ -1,6 +1,7 @@
 import * as SplashScreen from 'expo-splash-screen';
 import * as Font from 'expo-font';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 /**
  * The launch screen (the app icon on Paper or Ink) stays up until the first screen has something
@@ -20,6 +21,8 @@ const hide = () => {
   hidden = true;
   // One frame later, so what was just laid out is on screen under the splash.
   requestAnimationFrame(() => SplashScreen.hide());
+  // The note toolbar's icons, ready before the first note opens.
+  void Font.loadAsync(MaterialCommunityIcons.font).catch(() => {});
 };
 
 /** The first screen is laid out: the splash goes once the icons are in too. */

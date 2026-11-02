@@ -1,6 +1,6 @@
 import React from 'react';
 import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBridgeState, useCustomKeyboard, type EditorBridge } from '@10play/tentap-editor';
 import { useTheme } from '@/theme';

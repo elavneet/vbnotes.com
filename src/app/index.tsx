@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import type { DrawerLayoutMethods } from 'react-native-gesture-handler/ReanimatedDrawerLayout';
 import { useTheme } from '@/theme';
 import { useBreakpoint } from '@/utils/useBreakpoint';
