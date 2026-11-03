@@ -53,6 +53,9 @@ export function lineGutter(ty: Typography) {
   return { size, width, padLeft: width + 12 };
 }
 
+/** Capital height of the editor's fonts, in em (close enough across them for centring). */
+const CAP = 0.7;
+
 /** A line's baseline from its top, as WebKit sets it: ascent and descent rounded up to whole px, centred in the line height. */
 function baselineIn(lineHeight: number, size: number, f: EditorFont) {
   const asc = Math.ceil(size * f.asc - 1e-6);
@@ -62,16 +65,18 @@ function baselineIn(lineHeight: number, size: number, f: EditorFont) {
 
 /**
  * The numbers `editor-web/lineNumbers.ts` puts on each block (`data-ln`, and `data-lns` on a code
- * block, one per line). Each sits at the top of its line in the margin, moved down onto that
- * line's baseline. `--vb-lines` is how the page knows the setting is on.
+ * block, one per line). Each sits at the top of its line in the margin, moved down to be centred
+ * on that line's text. `--vb-lines` is how the page knows the setting is on.
  */
 function lineNumberCss(theme: Theme, ty: Typography, text: EditorFont, head: EditorFont, mono: EditorFont) {
   const e = EDITOR;
   const g = lineGutter(ty);
   const own = Math.round(g.size * 1.3);
-  // How far down a number goes so its baseline meets that of a line of `size` px text.
+  // How far down a number goes so its middle meets the middle of a line of `size` px text: halfway
+  // up the capitals, which reads as centred beside text of any size.
+  const middle = (lineHeight: number, size: number, f: EditorFont) => baselineIn(lineHeight, size, f) - (CAP * size) / 2;
   const onto = (size: number, lineHeight: number, f: EditorFont, numberLine = own) =>
-    `${baselineIn(lineHeight, size, f) - baselineIn(numberLine, g.size, mono)}px`;
+    `${(middle(lineHeight, size, f) - middle(numberLine, g.size, mono)).toFixed(1)}px`;
   const F = ty.size;
   const heading = (k: number) => onto(F * e.h[k], F * e.h[k] * e.headLine, head);
   const codeSize = F * e.code;
