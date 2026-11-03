@@ -79,11 +79,13 @@ function lineNumberCss(theme: Theme, ty: Typography, text: EditorFont, head: Edi
   return `
   :root { --vb-lines: 1; }
   .ProseMirror { padding-left: ${g.padLeft}px; }
-  .ProseMirror :where([data-ln]:not(.is-empty:first-child):not(.is-editor-empty))::before, .ProseMirror .vb-cb[data-lns]::before {
+  .ProseMirror :where([data-ln]:not(.is-editor-empty))::before, .ProseMirror .vb-cb[data-lns]::before {
     content: attr(data-ln); position: absolute; left: 0; width: ${g.width}px; text-align: right; white-space: pre;
     font: 400 ${g.size}px/${own}px ${mono.css}; letter-spacing: 0; color: ${theme.colors.textMuted}; opacity: 0.7;
     margin-top: ${onto(F, F * ty.line, text)}; pointer-events: none; user-select: none; -webkit-user-select: none;
   }
+  /* An empty first line in a note that has text takes its number over the placeholder; an empty note keeps the placeholder. */
+  .ProseMirror p.is-empty:first-child[data-ln]:not(.is-editor-empty)::before { content: attr(data-ln); float: none; height: auto; }
   .ProseMirror h1[data-ln]::before { margin-top: ${heading(1)}; }
   .ProseMirror h2[data-ln]::before { margin-top: ${heading(2)}; }
   .ProseMirror h3[data-ln]::before { margin-top: ${heading(3)}; }
