@@ -13,7 +13,7 @@ const key = new PluginKey<State>('vbLineNumbers');
 const wanted = () => getComputedStyle(document.documentElement).getPropertyValue('--vb-lines').trim() === '1';
 
 /**
- * One number per line, the way the note reads: each paragraph, heading, list item, picture or rule,
+ * One number per line, the way the note reads, after the title: each paragraph, heading, list item, picture or rule,
  * one per row of a table, one per line of a code block. They are attributes on the blocks
  * (`data-ln`, `data-lns` on a code block), drawn by `editorCss`, so the text never holds them.
  */
@@ -22,6 +22,8 @@ function numbers(doc: PMNode): DecorationSet {
   let n = 0;
   const mark = (pos: number, node: PMNode) => out.push(Decoration.node(pos, pos + node.nodeSize, { 'data-ln': String(++n) }));
   doc.descendants((node, pos) => {
+    // A title (a heading on the first line) is not counted: numbering starts under it.
+    if (pos === 0 && node.type.name === 'heading') return false;
     if (node.type.name === 'table') {
       // The row's number goes on its first cell's first paragraph.
       node.forEach((row, rowOffset) => {

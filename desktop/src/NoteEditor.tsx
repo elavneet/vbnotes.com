@@ -17,6 +17,7 @@ import { CodePaste } from '../../editor-web/codePaste';
 import { MergeFormats } from '../../editor-web/mergeFormats';
 import { WikiLinks, wikiSource } from '../../editor-web/wikiLinks';
 import { LineNumbers } from '../../editor-web/lineNumbers';
+import { HeadingMarks } from '../../editor-web/headingMarks';
 import { onContentsChanged, useNotes } from './store';
 import { StyleBar, StyleKeys } from './StyleBar';
 
@@ -97,7 +98,7 @@ const EXTENSIONS: AnyExtension[] = (() => {
     const { config, extendConfig } = b as unknown as { config?: unknown; extendConfig?: unknown };
     b.configureTiptapExtensionsOnRunTime(config, extendConfig).forEach(add);
   }
-  [TagPills, WikiLinks, LinkTaps, LinkClicks, BrowserReturn, StyleKeys, CodePaste, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers].forEach(add);
+  [TagPills, WikiLinks, LinkTaps, LinkClicks, BrowserReturn, StyleKeys, CodePaste, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers, HeadingMarks].forEach(add);
   return out;
 })();
 
@@ -153,8 +154,10 @@ function Pane({ path, initial }: { path: string; initial: string }) {
 
   const editor = useEditor({
     extensions: EXTENSIONS,
-    content: initial,
-    contentType: 'markdown',
+    // A new, empty note starts in its title line, as on the phone; Backspace there makes it plain text.
+    ...(fresh && !initial.trim()
+      ? { content: { type: 'doc', content: [{ type: 'heading', attrs: { level: 1 } }] } }
+      : { content: initial, contentType: 'markdown' }),
     // A new note starts in its title line, above a tag it may come with; one made with its title
     // (⌘O) starts on the empty line under it.
     autofocus: fresh ? (splitTitle(initial).title ? 'end' : 'start') : false,
