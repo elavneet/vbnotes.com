@@ -25,6 +25,10 @@ files stay yours to open in any editor.
   written for you. Tap or ⌘-click it to open that note.
 - **A style bar on the desktop**, as in Bear: headings, lists, bold, highlight, links, tables and
   pictures, with Bear's shortcuts.
+- **Line numbers**, as in a code editor: Settings › Typography › Line numbers puts a number beside
+  each line of a note, and a code block numbers each of its lines.
+- **Headings as in Bear.** With the caret at the start of a heading its `#`s show; Backspace there
+  turns it back into text.
 - **iCloud Drive from the first launch.** The app asks where notes live, and iCloud Drive comes first,
   so the iPhone and the Mac show the same notes with nothing to set up. On Android it offers a sync
   app with short steps and a [guide with pictures](https://vbnotes.com/docs/android-sync).
@@ -78,6 +82,9 @@ builds; Android is coming to Google Play.
   (↑ ↓ and Return, a click or a tap), and picking one writes `[[Note title]]` with the closing brackets.
   ⌘-click a link on the desktop or tap it on the phone to open that note; a link to a title that
   doesn't exist yet makes the note. The file keeps plain `[[Note title]]`, as Obsidian and Bear write it.
+- **Line numbers.** Settings › Typography › Line numbers shows a number beside each line of a note,
+  in the margin, never in the file. A paragraph, heading, list item, picture or table row is one line;
+  a code block numbers each of its lines; the title has none.
 - **Style bar (desktop).** The BIU button over a note (or ⇧⌘Y) shows a bar under it, as in Bear:
   headings, todo, lists and quotes, bold, italic, highlight, link, table, pictures, and a menu with
   underline, strikethrough and code. Every item shows its shortcut, and the shortcuts are Bear's
