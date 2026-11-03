@@ -16,24 +16,43 @@ import { CONSENT_TEXT, CONSENT_TITLE } from '@/ai/prompt';
 
 export const useSettingsOpen = create<{ open: boolean; set: (open: boolean) => void }>((set) => ({ open: false, set: (open) => set({ open }) }));
 
-/** Settings (⌘,): the phone's Appearance, Typography, Search, Hide from Notes, Notes folder and About, in a sheet over the window. */
+type Page = 'main' | 'appearance' | 'typography' | 'folder' | 'hidden' | 'search' | 'ai' | 'window';
+const TITLES: Record<Page, string> = {
+  main: 'Settings', appearance: 'Appearance', typography: 'Typography', folder: 'Notes folder', hidden: 'Hide from Notes', search: 'Local search', ai: 'AI chat', window: 'Window',
+};
+
+/**
+ * Settings (⌘,), laid out as on the phone: a short list of groups, each opening its own page in
+ * the same sheet. Escape goes back to the list, then closes.
+ */
 export function Settings() {
   const { open: visible, set: setOpen } = useSettingsOpen();
+  const [page, setPage] = useState<Page>('main');
   const prefs = useThemePrefs();
   const folder = useNotes((s) => s.folder);
   const openFolder = useNotes((s) => s.openFolder);
   const noteCount = useNotes((s) => s.counts.notes + s.counts.archive + s.counts.trash);
+  const hidden = useNotes((s) => s.hiddenTags);
+  const meaning = useMeaning();
+  const ai = useAi((s) => s.view);
+  const loadAi = useAi((s) => s.load);
+  const tray = useTray((s) => s.on);
   // A folder just picked, waiting for: copy the notes there, or open it as it is.
   const [picked, setPicked] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [version, setVersion] = useState('');
   useEffect(() => { void getVersion().then(setVersion).catch(() => {}); }, []);
+  useEffect(() => { if (visible) setPage('main'); else setPicked(null); }, [visible]);
+  useEffect(() => { if (visible && !ai) void loadAi(); }, [visible, ai, loadAi]);
   useEffect(() => {
     if (!visible) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (page === 'main') setOpen(false); else setPage('main');
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [visible, setOpen]);
+  }, [visible, setOpen, page]);
   if (!visible) return null;
 
   const ty = prefs.typography;
@@ -57,71 +76,144 @@ export function Settings() {
     setOpen(false);
   };
 
+  const modeLabel = prefs.pref === 'system' ? 'System' : prefs.pref === 'dark' ? 'Dark' : 'Light';
+  const st = meaning.status;
+  const searchLabel = !meaning.on ? 'Exact words'
+    : st.state === 'downloading' ? `Downloading ${Math.round(st.progress * 100)}%`
+    : st.state === 'error' ? 'Not working'
+    : st.state === 'ready' && st.pending > 0 ? 'Reading notes…'
+    : st.state === 'ready' ? 'By meaning'
+    : 'Starting…';
+
   return (
     <div className="sheet-scrim" onMouseDown={() => setOpen(false)}>
       <div className="sheet" role="dialog" aria-label="Settings" onMouseDown={(e) => e.stopPropagation()}>
         <header className="sheet-head">
-          <h2>Settings</h2>
-          <button className="text-btn" onClick={() => setOpen(false)}>Done</button>
+          {page !== 'main' ? (
+            <button className="text-btn back-btn" onClick={() => setPage('main')} aria-label="Back to Settings">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+              Settings
+            </button>
+          ) : <span />}
+          <h2>{TITLES[page]}</h2>
+          <button className="text-btn done-btn" onClick={() => setOpen(false)}>Done</button>
         </header>
-        <div className="sheet-body">
-          <h3>Appearance</h3>
-          <div className="segmented">
-            {(['system', 'light', 'dark'] as ThemePref[]).map((p) => (
-              <button key={p} className={prefs.pref === p ? 'on' : undefined} onClick={() => prefs.set({ pref: p })}>{p[0].toUpperCase() + p.slice(1)}</button>
-            ))}
-          </div>
-          <p className="hint">System follows the computer: the light theme by day, the dark one at night.</p>
-          <ThemeRow name="light" />
-          <ThemeRow name="dark" />
-
-          <h3>Typography</h3>
-          <Pick label="Text" value={ty.text} options={TEXT_FONTS} onChange={(text) => setTy({ text })} css={textFont(ty.text).css} />
-          <Pick label="Headings" value={ty.head} options={TEXT_FONTS} onChange={(head) => setTy({ head })} css={textFont(ty.head).css} />
-          <Pick label="Code" value={ty.code} options={CODE_FONTS} onChange={(code) => setTy({ code })} css={codeFont(ty.code).css} />
-          <Step label="Text size" value={ty.size} min={13} max={24} step={1} show={(v) => `${v} pt`} onChange={(size) => setTy({ size })} />
-          <Step label="Line height" value={ty.line} min={1.3} max={2} step={0.05} show={(v) => v.toFixed(2)} onChange={(line) => setTy({ line })} />
-          <Step label="Paragraph spacing" value={ty.para} min={0} max={1.5} step={0.25} show={(v) => v.toFixed(2)} onChange={(para) => setTy({ para })} />
-
-          <h3>Local search</h3>
-          <MeaningSetting />
-
-          <h3>AI chat</h3>
-          <AiSetting />
-
-          <h3>Hide from Notes</h3>
-          <HiddenTags />
-
-          <h3>Notes folder</h3>
-          <div className="row-setting">
-            <span className="path" title={folder ?? ''}><bdi>{folder}</bdi></span>
-            <button className="text-btn" onClick={() => void changeFolder()}>Change…</button>
-          </div>
-          {picked ? (
-            <div className="folder-choice">
-              <p>Copy your {noteCount.toLocaleString()} notes to <b>{picked.split(/[\\/]/).pop()}</b>, or open it as it is? The notes here stay where they are.</p>
-              {copyError ? <p className="error">{copyError}</p> : null}
-              <div className="folder-choice-buttons">
-                <button className="secondary" onClick={() => setPicked(null)}>Cancel</button>
-                <button className="secondary" onClick={() => void switchTo(false)}>Open as it is</button>
-                <button className="primary" onClick={() => void switchTo(true)}>Copy {noteCount.toLocaleString()} notes</button>
-              </div>
-            </div>
-          ) : null}
-          <p className="hint">Notes are plain .md files. Use the folder your phone uses (iCloud Drive › VBNotes) to see the same notes on both.</p>
-
-          {TRAY_OFFERED ? (
+        <div className="sheet-body" key={page}>
+          {page === 'main' ? (
             <>
-              <h3>Window</h3>
-              <TraySetting />
+              <Group>
+                <NavRow label="Appearance" value={modeLabel} onClick={() => setPage('appearance')} />
+                <NavRow label="Typography" value={`${textFont(ty.text).label}, ${ty.size} pt`} onClick={() => setPage('typography')} />
+              </Group>
+              <Group>
+                <NavRow label="Notes folder" value={folder ? folderLabel(folder) : '…'} onClick={() => setPage('folder')} />
+                <NavRow label="Hide from Notes" value={hidden.length ? hidden.map((h) => `#${h}`).join(', ') : 'None'} onClick={() => setPage('hidden')} />
+              </Group>
+              <Group>
+                <NavRow label="Local search" value={searchLabel} onClick={() => setPage('search')} />
+                <NavRow label="AI chat" value={ai?.enabled ? providerOf(ai.provider).name : 'Off'} onClick={() => setPage('ai')} />
+              </Group>
+              {TRAY_OFFERED ? (
+                <Group>
+                  <NavRow label="Window" value={tray ? 'Keeps running in the tray' : 'Closing quits'} onClick={() => setPage('window')} />
+                </Group>
+              ) : null}
+              <Group title="About">
+                <div className="row-setting"><span>Version</span><span className="value">{version}</span></div>
+              </Group>
             </>
           ) : null}
 
-          <h3>About</h3>
-          <div className="row-setting"><span>Version</span><span className="value">{version}</span></div>
+          {page === 'appearance' ? (
+            <Group title="Mode" footer="System follows the computer: the light theme by day, the dark one at night.">
+              <div className="row-setting row-wide">
+                <div className="segmented">
+                  {(['system', 'light', 'dark'] as ThemePref[]).map((p) => (
+                    <button key={p} className={prefs.pref === p ? 'on' : undefined} onClick={() => prefs.set({ pref: p })}>{p[0].toUpperCase() + p.slice(1)}</button>
+                  ))}
+                </div>
+              </div>
+              <ThemeRow name="light" />
+              <ThemeRow name="dark" />
+            </Group>
+          ) : null}
+
+          {page === 'typography' ? (
+            <>
+              <Group title="Fonts and spacing">
+                <Pick label="Text" value={ty.text} options={TEXT_FONTS} onChange={(text) => setTy({ text })} css={textFont(ty.text).css} />
+                <Pick label="Headings" value={ty.head} options={TEXT_FONTS} onChange={(head) => setTy({ head })} css={textFont(ty.head).css} />
+                <Pick label="Code" value={ty.code} options={CODE_FONTS} onChange={(code) => setTy({ code })} css={codeFont(ty.code).css} />
+                <Step label="Text size" value={ty.size} min={13} max={24} step={1} show={(v) => `${v} pt`} onChange={(size) => setTy({ size })} />
+                <Step label="Line height" value={ty.line} min={1.3} max={2} step={0.05} show={(v) => v.toFixed(2)} onChange={(line) => setTy({ line })} />
+                <Step label="Paragraph spacing" value={ty.para} min={0} max={1.5} step={0.25} show={(v) => v.toFixed(2)} onChange={(para) => setTy({ para })} />
+              </Group>
+              <Group footer="A number beside each line of a note, as in a code editor.">
+                <label className="row-setting">
+                  <span>Line numbers</span>
+                  <input type="checkbox" className="switch" checked={ty.lines} onChange={(e) => setTy({ lines: e.target.checked })} />
+                </label>
+              </Group>
+            </>
+          ) : null}
+
+          {page === 'folder' ? (
+            <Group title="Location" footer="Notes are plain .md files. Use the folder your phone uses (iCloud Drive › VBNotes) to see the same notes on both.">
+              <div className="row-setting">
+                <span className="path" title={folder ?? ''}><bdi>{folder}</bdi></span>
+                <button className="text-btn" onClick={() => void changeFolder()}>Change…</button>
+              </div>
+              {picked ? (
+                <div className="folder-choice">
+                  <p>Copy your {noteCount.toLocaleString()} notes to <b>{picked.split(/[\\/]/).pop()}</b>, or open it as it is? The notes here stay where they are.</p>
+                  {copyError ? <p className="error">{copyError}</p> : null}
+                  <div className="folder-choice-buttons">
+                    <button className="secondary" onClick={() => setPicked(null)}>Cancel</button>
+                    <button className="secondary" onClick={() => void switchTo(false)}>Open as it is</button>
+                    <button className="primary" onClick={() => void switchTo(true)}>Copy {noteCount.toLocaleString()} notes</button>
+                  </div>
+                </div>
+              ) : null}
+            </Group>
+          ) : null}
+
+          {page === 'hidden' ? <HiddenTags /> : null}
+          {page === 'search' ? <MeaningSetting /> : null}
+          {page === 'ai' ? <AiSetting /> : null}
+          {page === 'window' ? <TraySetting /> : null}
         </div>
       </div>
     </div>
+  );
+}
+
+/** The notes folder in a few words: the app's own iCloud folder ends in "Documents", which says nothing. */
+function folderLabel(folder: string) {
+  const name = folder.split(/[\\/]/).filter(Boolean).pop() ?? folder;
+  if (folder.includes('/iCloud~com~lavneet~vbnotes/')) return 'iCloud Drive · VB Notes';
+  if (folder.includes('/Mobile Documents/')) return `iCloud Drive · ${name}`;
+  return name;
+}
+
+/** An inset group of rows, with an optional title over it and a note under it, as on the phone. */
+function Group({ title, footer, children }: { title?: string; footer?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="set-group">
+      {title ? <h3>{title}</h3> : null}
+      <div className="set-card">{children}</div>
+      {footer ? <p className="hint">{footer}</p> : null}
+    </section>
+  );
+}
+
+/** A row that opens a page: the current value and a chevron. */
+function NavRow({ label, value, onClick }: { label: string; value: string; onClick: () => void }) {
+  return (
+    <button className="row-setting nav-row" onClick={onClick}>
+      <span>{label}</span>
+      <span className="value">{value}</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
+    </button>
   );
 }
 
@@ -138,13 +230,12 @@ function MeaningSetting() {
     : status.state === 'ready' ? `Ready: ${n(status.indexed, 'note')}. The model runs on this computer; notes never leave it.`
     : 'Starting…';
   return (
-    <>
+    <Group footer={line}>
       <label className="row-setting">
         <span>Search by meaning</span>
         <input type="checkbox" className="switch" checked={on} onChange={(e) => setOn(e.target.checked)} />
       </label>
-      <p className="hint">{line}</p>
-    </>
+    </Group>
   );
 }
 
@@ -185,6 +276,9 @@ function AiSetting() {
   const saveKey = async (k: string) => { setKey(''); await save({}, k); };
   return (
     <>
+      <Group footer={view.enabled
+        ? 'Ask about the open note or all your notes, from the sparkle button over a note or ⇧⌘J. Only what you ask about is sent, and only when you ask.'
+        : 'Off: nothing is ever sent. Switched on, you can ask an AI about one note or all of them, with your own account at OpenRouter, OpenAI, Anthropic, Google and others.'}>
       <label className="row-setting">
         <span>Chat with AI</span>
         <input type="checkbox" className="switch" checked={view.enabled || asking} onChange={(e) => (e.target.checked ? setAsking(true) : void save({ enabled: false }))} />
@@ -198,13 +292,11 @@ function AiSetting() {
           </div>
         </div>
       ) : null}
-      <p className="hint">
-        {view.enabled
-          ? 'Ask about the open note or all your notes, from the sparkle button over a note or ⇧⌘J. Only what you ask about is sent, and only when you ask.'
-          : 'Off: nothing is ever sent. Switched on, you can ask an AI about one note or all of them, with your own account at OpenRouter, OpenAI, Anthropic, Google and others.'}
-      </p>
+      </Group>
       {view.enabled ? (
-        <>
+        <Group footer={problem ? <span className="error">{problem}</span> : p.keyUrl ? (
+          <>Get a key at <a href={p.keyUrl} onClick={(e) => { e.preventDefault(); void openUrl(p.keyUrl!); }}>{p.keyUrl.replace(/^https:\/\//, '')}</a>. It stays on this computer, out of your notes folder.</>
+        ) : undefined}>
           <div className="row-setting">
             <span>Provider</span>
             <select value={view.provider} onChange={(e) => { setModels(null); void save({ provider: e.target.value, model: '', baseUrl: providerOf(e.target.value).address ?? '' }); }}>
@@ -227,9 +319,6 @@ function AiSetting() {
                 : view.hasKey ? <button className="text-btn" onClick={() => void saveKey('')}>Remove</button> : null}
             </div>
           ) : null}
-          {p.keyUrl ? (
-            <p className="hint">Get a key at <a href={p.keyUrl} onClick={(e) => { e.preventDefault(); void openUrl(p.keyUrl!); }}>{p.keyUrl.replace(/^https:\/\//, '')}</a>. It stays on this computer, out of your notes folder.</p>
-          ) : null}
           <div className="row-setting">
             <span>Model</span>
             {models?.length ? (
@@ -243,10 +332,9 @@ function AiSetting() {
             )}
             {canList ? <button className="text-btn" disabled={busy} onClick={() => void fetchModels(false)}>{busy ? 'Loading…' : 'Refresh'}</button> : null}
           </div>
-          {problem ? <p className="hint error">{problem}</p> : null}
-          {showsSpend(view.provider) && view.hasKey ? <SpendRows /> : null}
-        </>
+        </Group>
       ) : null}
+      {view.enabled && showsSpend(view.provider) && view.hasKey ? <SpendRows /> : null}
     </>
   );
 }
@@ -262,12 +350,11 @@ function SpendRows() {
     return () => { live = false; };
   }, []);
   return (
-    <>
+    <Group title="Spending" footer={problem ?? "OpenRouter reports what each answer costs. The key's totals include any other apps that use the same key."}>
       <div className="row-setting"><span>Spent in VB Notes this month</span><span className="value">{formatCost(spentThisMonth(spend))}</span></div>
       <div className="row-setting"><span>Key: this month / in total</span><span className="value">{usage ? `${formatCost(usage.month)} / ${formatCost(usage.total)}` : '…'}</span></div>
       {usage && usage.left !== null ? <div className="row-setting"><span>Left on the key</span><span className="value">{formatCost(usage.left)}</span></div> : null}
-      <p className="hint">{problem ?? "OpenRouter reports what each answer costs. The key's totals include any other apps that use the same key."}</p>
-    </>
+    </Group>
   );
 }
 
@@ -275,13 +362,12 @@ function SpendRows() {
 function TraySetting() {
   const { on, set } = useTray();
   return (
-    <>
+    <Group footer={on ? 'Closing the window leaves VB Notes in the system tray, by the clock. Click its icon to open it again; right-click it to quit.' : 'Closing the window quits VB Notes.'}>
       <label className="row-setting">
         <span>Keep running in the tray</span>
         <input type="checkbox" className="switch" checked={on} onChange={(e) => set(e.target.checked)} />
       </label>
-      <p className="hint">{on ? 'Closing the window leaves VB Notes in the system tray, by the clock. Click its icon to open it again; right-click it to quit.' : 'Closing the window quits VB Notes.'}</p>
-    </>
+    </Group>
   );
 }
 
@@ -296,7 +382,7 @@ function HiddenTags() {
     setDraft('');
   };
   return (
-    <>
+    <Group footer="Notes with these tags stay out of Notes, at any level: melta hides #melta and #go2lister/melta. Pick the tag in the sidebar to see them. The phone uses the same list.">
       {hidden.length ? (
         <div className="hidden-tags">
           {hidden.map((h) => (
@@ -312,8 +398,7 @@ function HiddenTags() {
           placeholder="Add a tag, like melta" spellCheck={false} aria-label="Tag to hide from Notes" />
         <button className="text-btn" onClick={add} disabled={!draft.trim()}>Hide</button>
       </div>
-      <p className="hint">Notes with these tags stay out of Notes, at any level: melta hides #melta and #go2lister/melta. Pick the tag in the sidebar to see them. The phone uses the same list.</p>
-    </>
+    </Group>
   );
 }
 

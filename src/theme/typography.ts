@@ -55,11 +55,13 @@ export interface Typography {
   text: TextFontId;
   head: TextFontId;
   code: CodeFontId;
+  /** A number beside each line, as in a code editor (`editor-web/lineNumbers.ts`). */
+  lines: boolean;
 }
 
-export const TYPOGRAPHY: Typography = { size: 17, line: 1.55, para: 0.75, text: 'system', head: 'system', code: 'menlo' };
+export const TYPOGRAPHY: Typography = { size: 17, line: 1.55, para: 0.75, text: 'system', head: 'system', code: 'menlo', lines: false };
 
 export const textFont = (id: string): EditorFont => TEXT_FONTS[id as TextFontId] ?? TEXT_FONTS.system;
 export const codeFont = (id: string): EditorFont => CODE_FONTS[id as CodeFontId] ?? CODE_FONTS.menlo;
 export const weightIn = (font: EditorFont, w: Weight): Weight => font.weights?.[w] ?? w;
-export const typographyKey = (ty: Typography) => [ty.size, ty.line, ty.para, ty.text, ty.head, ty.code].join(':');
+export const typographyKey = (ty: Typography) => [ty.size, ty.line, ty.para, ty.text, ty.head, ty.code, ty.lines ? 'lines' : ''].join(':');

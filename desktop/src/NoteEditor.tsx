@@ -16,6 +16,7 @@ import { LinkTaps, withPlainLinks } from '../../editor-web/links';
 import { CodePaste } from '../../editor-web/codePaste';
 import { MergeFormats } from '../../editor-web/mergeFormats';
 import { WikiLinks, wikiSource } from '../../editor-web/wikiLinks';
+import { LineNumbers } from '../../editor-web/lineNumbers';
 import { onContentsChanged, useNotes } from './store';
 import { StyleBar, StyleKeys } from './StyleBar';
 
@@ -64,7 +65,7 @@ const EXTENSIONS: AnyExtension[] = (() => {
     const { config, extendConfig } = b as unknown as { config?: unknown; extendConfig?: unknown };
     b.configureTiptapExtensionsOnRunTime(config, extendConfig).forEach(add);
   }
-  [TagPills, WikiLinks, LinkTaps, LinkClicks, StyleKeys, CodePaste, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell].forEach(add);
+  [TagPills, WikiLinks, LinkTaps, LinkClicks, StyleKeys, CodePaste, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers].forEach(add);
   return out;
 })();
 

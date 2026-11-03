@@ -236,6 +236,14 @@ export default function SettingsScreen() {
             <StepRow label="Paragraph spacing" value={ty.para} min={0} max={1.5} step={0.25} digits={2} onChange={(para) => settings.setTypography({ para })} />
           </Section>
         ) : null}
+        {page === 'typography' ? (
+          <Section footer="A number beside each line of a note, as in a code editor.">
+            <View style={styles.row}>
+              <Text style={[styles.label, { color: t.colors.text }]}>Line numbers</Text>
+              <Switch value={ty.lines} onValueChange={(lines) => settings.setTypography({ lines })} trackColor={{ true: t.colors.volt, false: t.colors.surface2 }} thumbColor="#fff" accessibilityLabel="Line numbers" />
+            </View>
+          </Section>
+        ) : null}
 
         {page === 'folder' ? (
           <Section
