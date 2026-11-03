@@ -16,6 +16,7 @@ import { MergeFormats } from './mergeFormats';
 import { MarkdownPush } from './markdownPush';
 import { WikiLinks } from './wikiLinks';
 import { LineNumbers } from './lineNumbers';
+import { HeadingMarks } from './headingMarks';
 
 declare global {
   interface Window { contentInjected: boolean | undefined }
@@ -37,7 +38,7 @@ const interval = setInterval(() => {
       contentType: 'markdown',
       // TenTapStartKit has no code block, rule or table; without them the markdown parser drops
       // ``` blocks, --- and | tables |, and the next save would delete them from the file.
-      extensions: [MarkdownPush, TagPills, WikiLinks, LinkTaps, CodePaste, WordTaps, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers],
+      extensions: [MarkdownPush, TagPills, WikiLinks, LinkTaps, CodePaste, WordTaps, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers, HeadingMarks],
       editorProps: { attributes: { spellcheck: 'true', autocapitalize: 'sentences' } },
     },
   });

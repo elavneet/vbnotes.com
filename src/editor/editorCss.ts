@@ -255,6 +255,8 @@ export function editorCss(theme: Theme, ty: Typography = TYPOGRAPHY): string {
   /* [[Note links]] (editor-web/wikiLinks.ts): the title reads as a link, the brackets stay quiet. */
   .vb-wiki { color: ${c.accent}; text-decoration: underline; text-decoration-color: ${c.accent}66; text-underline-offset: 3px; cursor: pointer; }
   .vb-wiki-br { color: ${c.textMuted}; }
+  /* A heading's #s, shown while the caret is at its start (editor-web/headingMarks.ts). */
+  .vb-hmark { color: ${c.textMuted}; user-select: none; -webkit-user-select: none; }
   .vb-wiki-typing { text-decoration: underline dotted ${c.textMuted}; text-underline-offset: 3px; }
   /* The notes listed while a [[link]] is typed. */
   .vb-wiki-menu {
