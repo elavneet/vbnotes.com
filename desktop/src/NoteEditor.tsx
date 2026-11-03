@@ -49,6 +49,38 @@ const LinkClicks = Extension.create({
 });
 
 /**
+ * Return pressed just after macOS ends a composition (its inline word predictions are one) is a
+ * keydown ProseMirror leaves to the browser, so Japanese input can confirm a word with it. WebKit's
+ * own Return then put a newline that does not show at the end of a code block, and a second one
+ * made a paragraph after it. When the browser is about to break the line itself, Return goes to
+ * the editor's keymap instead.
+ */
+const BrowserReturn = Extension.create({
+  name: 'vbBrowserReturn',
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey('vbBrowserReturn'),
+        props: {
+          handleDOMEvents: {
+            beforeinput: (view, e) => {
+              const type = (e as InputEvent).inputType;
+              if (type !== 'insertParagraph' && type !== 'insertLineBreak') return false;
+              e.preventDefault();
+              // Take in text the composition left in the page before acting on it.
+              (view as unknown as { domObserver?: { forceFlush?: () => void } }).domObserver?.forceFlush?.();
+              const enter = new KeyboardEvent('keydown', { key: 'Enter', shiftKey: type === 'insertLineBreak' });
+              view.someProp('handleKeyDown', (f) => f(view, enter));
+              return true;
+            },
+          },
+        },
+      }),
+    ];
+  },
+});
+
+/**
  * The phone's editor, extension for extension, so a note reads and saves the same on both:
  * tentap's starter kit (as its web side builds it) plus the extensions in `editor-web/`.
  * Touch-only ones (word taps, the markdown push to the native app) are left out.
@@ -65,7 +97,7 @@ const EXTENSIONS: AnyExtension[] = (() => {
     const { config, extendConfig } = b as unknown as { config?: unknown; extendConfig?: unknown };
     b.configureTiptapExtensionsOnRunTime(config, extendConfig).forEach(add);
   }
-  [TagPills, WikiLinks, LinkTaps, LinkClicks, StyleKeys, CodePaste, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers].forEach(add);
+  [TagPills, WikiLinks, LinkTaps, LinkClicks, BrowserReturn, StyleKeys, CodePaste, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers].forEach(add);
   return out;
 })();
 
