@@ -3,7 +3,7 @@ import { Platform, StyleSheet, Text, View, type TextStyle, type ViewStyle } from
 import { codeFont, textFont, weightIn, type EditorFont, type Theme, type Typography } from '@/theme';
 import { findTags, tagHue } from '@/utils/tags';
 import { highlightCode } from '@/editor/highlight';
-import { EDITOR as E } from '@/editor/editorCss';
+import { EDITOR as E, lineGutter } from '@/editor/editorCss';
 import { marked, type Token, type Tokens } from 'marked';
 
 /**
@@ -404,7 +404,8 @@ export const NotePreview = memo(function NotePreview({ md, t, ty }: { md: string
   });
 
   return (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.root, { backgroundColor: t.colors.bg }]}>
+    // With line numbers on, the text starts where the editor's does; the numbers come with the editor.
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.root, { backgroundColor: t.colors.bg }, ty.lines && { paddingLeft: lineGutter(ty).padLeft }]}>
       {nodes}
     </View>
   );

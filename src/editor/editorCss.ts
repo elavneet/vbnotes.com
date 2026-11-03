@@ -1,5 +1,5 @@
 import type { Theme } from '@/theme';
-import { TYPOGRAPHY, codeFont, textFont, weightIn, type Typography } from '@/theme/typography';
+import { TYPOGRAPHY, codeFont, textFont, weightIn, type EditorFont, type Typography } from '@/theme/typography';
 
 /**
  * Sizes and margins of the editor page, in em of the body size unless noted. The line height
@@ -42,6 +42,60 @@ export const EDITOR = {
   pillLeft: 8,
   pillRight: 9,
 } as const;
+
+/**
+ * Line numbers (Typography `lines`): their size, the box they are right-aligned in from the
+ * page's left edge, and the left padding the text moves to, in px. Three digits fit.
+ */
+export function lineGutter(ty: Typography) {
+  const size = Math.max(10, Math.round(ty.size * 0.72));
+  const width = 6 + Math.ceil(3 * 0.61 * size);
+  return { size, width, padLeft: width + 12 };
+}
+
+/** A line's baseline from its top, as WebKit sets it: ascent and descent rounded up to whole px, centred in the line height. */
+function baselineIn(lineHeight: number, size: number, f: EditorFont) {
+  const asc = Math.ceil(size * f.asc - 1e-6);
+  const desc = Math.ceil(size * f.desc - 1e-6);
+  return Math.floor((lineHeight - asc - desc) / 2) + asc;
+}
+
+/**
+ * The numbers `editor-web/lineNumbers.ts` puts on each block (`data-ln`, and `data-lns` on a code
+ * block, one per line). Each sits at the top of its line in the margin, moved down onto that
+ * line's baseline. `--vb-lines` is how the page knows the setting is on.
+ */
+function lineNumberCss(theme: Theme, ty: Typography, text: EditorFont, head: EditorFont, mono: EditorFont) {
+  const e = EDITOR;
+  const g = lineGutter(ty);
+  const own = Math.round(g.size * 1.3);
+  // How far down a number goes so its baseline meets that of a line of `size` px text.
+  const onto = (size: number, lineHeight: number, f: EditorFont, numberLine = own) =>
+    `${baselineIn(lineHeight, size, f) - baselineIn(numberLine, g.size, mono)}px`;
+  const F = ty.size;
+  const heading = (k: number) => onto(F * e.h[k], F * e.h[k] * e.headLine, head);
+  const codeSize = F * e.code;
+  const codeLine = codeSize * e.codeLine;
+  return `
+  :root { --vb-lines: 1; }
+  .ProseMirror { padding-left: ${g.padLeft}px; }
+  .ProseMirror :where([data-ln]:not(.is-empty:first-child):not(.is-editor-empty))::before, .ProseMirror .vb-cb[data-lns]::before {
+    content: attr(data-ln); position: absolute; left: 0; width: ${g.width}px; text-align: right; white-space: pre;
+    font: 400 ${g.size}px/${own}px ${mono.css}; letter-spacing: 0; color: ${theme.colors.textMuted}; opacity: 0.7;
+    margin-top: ${onto(F, F * ty.line, text)}; pointer-events: none; user-select: none; -webkit-user-select: none;
+  }
+  .ProseMirror h1[data-ln]::before { margin-top: ${heading(1)}; }
+  .ProseMirror h2[data-ln]::before { margin-top: ${heading(2)}; }
+  .ProseMirror h3[data-ln]::before { margin-top: ${heading(3)}; }
+  .ProseMirror :is(h4, h5, h6)[data-ln]::before { margin-top: ${heading(4)}; }
+  .ProseMirror > h1:first-child[data-ln]::before { margin-top: ${onto(F * e.title, F * e.title * e.headLine, head)}; }
+  /* A code block lists its numbers in one column with the code's line height, under the border and padding. */
+  .ProseMirror .vb-cb[data-lns]::before { content: attr(data-lns); line-height: ${codeLine}px; margin-top: calc(13px + ${onto(codeSize, codeLine, mono, codeLine)}); }
+  .ProseMirror .vb-cb.vb-has-diagram:not(.vb-cb-active)::before { display: none; }
+  .ProseMirror hr[data-ln]::before { margin-top: ${-Math.round(own / 2) - 1}px; }
+  .ProseMirror .vb-audio[data-ln]::before { margin-top: 0; }
+  `;
+}
 
 /** CSS injected into the editor WebView: the theme's colours and the chosen type. */
 export function editorCss(theme: Theme, ty: Typography = TYPOGRAPHY): string {
@@ -211,5 +265,6 @@ export function editorCss(theme: Theme, ty: Typography = TYPOGRAPHY): string {
   .is-editor-empty:first-child::before, p.is-empty:first-child::before {
     color: ${c.textMuted}; content: attr(data-placeholder); float: left; height: 0; pointer-events: none;
   }
+  ${ty.lines ? lineNumberCss(theme, ty, text, head, codeFont(ty.code)) : ''}
   `;
 }
