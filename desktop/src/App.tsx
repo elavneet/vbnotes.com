@@ -83,7 +83,9 @@ function Main() {
       }
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // VB Notes › Settings… in the macOS menu bar.
+    const off = listen('open-settings', () => useSettingsOpen.getState().set(true));
+    return () => { window.removeEventListener('keydown', onKey); void off.then((f) => f()); };
   }, []);
 
   return (

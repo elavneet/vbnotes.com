@@ -566,6 +566,19 @@ async fn db_tag_counts(open: State<'_, Open>) -> Res<Vec<TagCount>> {
     with(&open, |f| f.index.tag_counts())
 }
 
+/// The standard macOS menu, with "Settings…" (⌘,) under the app's name, as Mac apps have it.
+#[cfg(target_os = "macos")]
+fn app_menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
+    use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+    let menu = Menu::default(app)?;
+    if let Some(first) = menu.items()?.first().and_then(|m| m.as_submenu().cloned()) {
+        let settings = MenuItem::with_id(app, "settings", "Settings…", true, Some("CmdOrCtrl+,"))?;
+        first.insert(&settings, 2)?;
+        first.insert(&PredefinedMenuItem::separator(app)?, 3)?;
+    }
+    Ok(menu)
+}
+
 fn main() {
     tauri::Builder::default()
         // First, so a second copy hands over its files before it sets anything up.
@@ -579,7 +592,14 @@ fn main() {
         .manage(Opened::default())
         .manage(Shown::default())
         .manage(ai::Chats::default())
+        .on_menu_event(|app, event| {
+            if event.id() == "settings" {
+                let _ = app.emit("open-settings", ());
+            }
+        })
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            app.set_menu(app_menu(app.handle())?)?;
             let cwd = std::env::current_dir().unwrap_or_default();
             hand_over(app.handle(), note_args(std::env::args().skip(1), &cwd));
             // If the page never says it is ready, the window still shows.
