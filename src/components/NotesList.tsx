@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/theme';
-import { UNTAGGED, useNoteList, useNotes, type NoteMeta } from '@/store/notes';
+import { BOOKMARKS, UNTAGGED, tagOf, useNoteList, useNotes, type NoteMeta } from '@/store/notes';
 import { useUi } from '@/store/ui';
 import { formatTag, tagHue } from '@/utils/tags';
 import { tagIconOf } from '@/utils/tagIcons';
@@ -24,14 +24,15 @@ type Group = { title: string; data: NoteMeta[] };
 
 /**
  * Makes a note and opens it. A note made while a tag is picked starts with that tag under the
- * title. A titled note ends in an empty line for the caret (the editor reads the last blank pair
+ * title; one made in Bookmarks is bookmarked. A titled note ends in an empty line for the caret (the editor reads the last blank pair
  * as an empty paragraph).
  */
 export async function startNote(title: string, wide: boolean) {
   const { tag, select } = useUi.getState();
-  const tagLine = tag && tag !== UNTAGGED ? formatTag(tag) : '';
+  const tagLine = tagOf(tag) ? formatTag(tag) : '';
   const initial = title ? `# ${title}\n\n${tagLine ? `${tagLine}\n\n` : ''}` : tagLine ? `# \n\n${tagLine} ` : '';
   const path = await useNotes.getState().createNote(initial);
+  if (tag === BOOKMARKS) await useNotes.getState().toggleBookmark(path);
   if (wide) select(path); else router.push({ pathname: '/note/[id]', params: { id: encodeURIComponent(path), new: '1' } });
 }
 
@@ -65,7 +66,8 @@ export function NotesList({ wide, onLibrary }: { wide: boolean; onLibrary?: () =
   const more = useCallback(() => { if (list.length >= limit) setPage({ filter, limit: limit + PAGE }); }, [list.length, limit, filter]);
   const groups = useMemo(() => groupNotes(list), [list]);
   const [sheetFor, setSheetFor] = useState<NoteMeta | null>(null);
-  const { togglePin, trash, archive, restore, deleteForever } = useNotes.getState();
+  const { togglePin, toggleBookmark, trash, restore, deleteForever } = useNotes.getState();
+  const marked = useNotes((s) => !!sheetFor && s.bookmarks.includes(sheetFor.path));
 
   const open = useCallback((n: NoteMeta) => {
     if (wide) select(n.path); else router.push(noteRoute(n.path));
@@ -86,7 +88,7 @@ export function NotesList({ wide, onLibrary }: { wide: boolean; onLibrary?: () =
           { label: sheetFor.pinned ? 'Unpin' : 'Pin to top', icon: 'pin-outline', onPress: () => void togglePin(sheetFor.path) },
           section === 'archive'
             ? { label: 'Move to Notes', icon: 'arrow-undo-outline', onPress: () => void restore(sheetFor.path) }
-            : { label: 'Archive', icon: 'archive-outline', onPress: () => void archive(sheetFor.path) },
+            : { label: marked ? 'Remove bookmark' : 'Bookmark', icon: marked ? 'bookmark' : 'bookmark-outline', onPress: () => void toggleBookmark(sheetFor.path) },
           { label: 'Move to Trash', icon: 'trash-outline', destructive: true, onPress: () => void trash(sheetFor.path) },
         ]
   ) : [];
@@ -117,7 +119,7 @@ export function NotesList({ wide, onLibrary }: { wide: boolean; onLibrary?: () =
           <View style={styles.empty}>
             <Ionicons name={section === 'trash' ? 'trash-outline' : 'sparkles-outline'} size={30} color={t.colors.textMuted} />
             <Text style={[styles.emptyText, { color: t.colors.textMuted }]}>
-              {!scanned ? 'Opening your notes…' : tag === UNTAGGED ? 'Every note has a tag.' : tag ? `Nothing tagged #${tag} yet.` : section === 'notes' ? 'A blank page.\nWrite the first note.' : `${SECTION_TITLES[section]} is empty.`}
+              {!scanned ? 'Opening your notes…' : tag === UNTAGGED ? 'Every note has a tag.' : tag === BOOKMARKS ? 'No bookmarks yet.\nBookmark a note from its ⋮ menu.' : tag ? `Nothing tagged #${tag} yet.` : section === 'notes' ? 'A blank page.\nWrite the first note.' : `${SECTION_TITLES[section]} is empty.`}
             </Text>
           </View>
         }
@@ -133,10 +135,11 @@ export function NotesList({ wide, onLibrary }: { wide: boolean; onLibrary?: () =
 function LibraryButton({ onPress }: { onPress: () => void }) {
   const t = useTheme();
   const { section, tag } = useUi();
-  const tagIcon = useNotes((s) => (tag && tag !== UNTAGGED ? tagIconOf(s.tagIcons, tag) : null));
+  const tagIcon = useNotes((s) => (tagOf(tag) ? tagIconOf(s.tagIcons, tag) : null));
   const filter: { icon: IconName; label: string; color: string } | null =
     tagIcon ? { icon: tagIcon, label: tag.split('/').pop()!, color: t.tags[tagHue(tag)].fg }
     : tag === UNTAGGED ? { icon: 'pricetag-outline', label: 'Untagged', color: t.colors.textSecondary }
+    : tag === BOOKMARKS ? { icon: 'bookmark-outline', label: 'Bookmarks', color: t.colors.textSecondary }
     : section !== 'notes' ? { icon: section === 'trash' ? 'trash-outline' : 'archive-outline', label: SECTION_TITLES[section], color: t.colors.textSecondary }
     : null;
   return (

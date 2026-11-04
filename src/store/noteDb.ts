@@ -33,12 +33,13 @@ const COLS = 'n.path, n.title, n.preview, n.image, n.mtime, n.tags, n.pinned';
 /**
  * Leaves out notes with a tag named in `hidden` at any level: `melta` matches the tag rows `melta`
  * and `go2lister/melta` (each tag's parents have rows too, so `melta/x` and `a/melta/x` match).
+ * A pinned note stays: pinning it says it should be seen.
  */
 function notHidden(hidden: readonly string[]): { sql: string; params: string[] } {
   if (!hidden.length) return { sql: '', params: [] };
   const one = "t.tag = ? OR substr(t.tag, -length(?) - 1) = '/' || ?";
   return {
-    sql: ` AND n.id NOT IN (SELECT t.note FROM note_tags t WHERE ${hidden.map(() => one).join(' OR ')})`,
+    sql: ` AND (n.pinned = 1 OR n.id NOT IN (SELECT t.note FROM note_tags t WHERE ${hidden.map(() => one).join(' OR ')}))`,
     params: hidden.flatMap((h) => [h, h, h]),
   };
 }

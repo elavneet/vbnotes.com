@@ -146,7 +146,7 @@ fn meta(r: &rusqlite::Row) -> rusqlite::Result<NoteMeta> {
 }
 
 /// Leaves out notes with a tag named in `hidden` at any level, as the phone does (`noteDb.ts`):
-/// `melta` matches the tag rows `melta` and `go2lister/melta`.
+/// `melta` matches the tag rows `melta` and `go2lister/melta`. A pinned note stays.
 fn not_hidden(hidden: &[String], args: &mut Vec<Value>) -> String {
     if hidden.is_empty() {
         return String::new();
@@ -155,7 +155,7 @@ fn not_hidden(hidden: &[String], args: &mut Vec<Value>) -> String {
         args.extend(std::iter::repeat_n(Value::Text(h.clone()), 3));
     }
     let one = "t.tag = ? OR substr(t.tag, -length(?) - 1) = '/' || ?";
-    format!(" AND n.id NOT IN (SELECT t.note FROM note_tags t WHERE {})", vec![one; hidden.len()].join(" OR "))
+    format!(" AND (n.pinned = 1 OR n.id NOT IN (SELECT t.note FROM note_tags t WHERE {}))", vec![one; hidden.len()].join(" OR "))
 }
 
 /// `#a/b` gives rows for `a` and `a/b`, so a parent counts and lists its children's notes.

@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { listen } from '@tauri-apps/api/event';
 import { fileNameFromTitle, followsTitle, splitTitle } from '@/utils/markdown';
 import { META_PATH, RESERVED_FOLDERS, basename, dirname, joinPath, type VaultMeta } from '@/vault/types';
-import { buildTags, cleanHiddenTags, inList, recordFrom, sectionOf, type NoteMeta, type NoteRecord, type Section, type SectionCounts, type TagNode } from '@/store/noteModel';
+import { BOOKMARKS, buildTags, byDate, cleanHiddenTags, inList, recordFrom, sectionOf, type NoteMeta, type NoteRecord, type Section, type SectionCounts, type TagNode } from '@/store/noteModel';
 import { fuse } from '@/search/fuse';
 import { api } from './api';
 import { MODEL, meaningReady, syncMeaning } from './meaning';
@@ -24,12 +24,14 @@ interface NotesState {
   tags: TagNode[];
   counts: SectionCounts;
   pinned: string[];
+  /** Bookmarked notes, in the order they were added (`VaultMeta.bookmarks`), shared with the phone. */
+  bookmarks: string[];
   /** Tag names kept out of the main Notes list, shared with the phone (`VaultMeta.hiddenTags`). */
   hiddenTags: string[];
   /** Goes up whenever a note changes; lists read the index again. */
   revision: number;
   section: Section;
-  /** A tag (`dev/code`), UNTAGGED, or '' for every note of the section. */
+  /** A tag (`dev/code`), UNTAGGED, BOOKMARKS, or '' for every note of the section. */
   tag: string;
   selected: string | null;
   /** A note just made: its editor takes the focus. */
@@ -43,10 +45,10 @@ interface NotesState {
   syncTitle: (path: string) => Promise<string>;
   moveTo: (path: string, folder: string) => Promise<string>;
   trash: (path: string) => Promise<string>;
-  archive: (path: string) => Promise<string>;
   restore: (path: string) => Promise<string>;
   deleteForever: (path: string) => Promise<void>;
   togglePin: (path: string) => Promise<void>;
+  toggleBookmark: (path: string) => Promise<void>;
   setHiddenTags: (names: string[]) => Promise<void>;
   /** Writes `patch` into the folder's `.vbnotes/meta.json`, keeping the rest. */
   saveMeta: (patch: Partial<VaultMeta>) => Promise<void>;
@@ -71,9 +73,9 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
 export function parseMeta(text: string | null | undefined): VaultMeta {
   try {
-    if (text) return { pinned: [], tagIcons: {}, hiddenTags: [], ...JSON.parse(text) };
+    if (text) return { pinned: [], tagIcons: {}, hiddenTags: [], bookmarks: [], ...JSON.parse(text) };
   } catch {}
-  return { pinned: [], tagIcons: {}, hiddenTags: [] };
+  return { pinned: [], tagIcons: {}, hiddenTags: [], bookmarks: [] };
 }
 
 const summary = async (hidden = useNotes.getState().hiddenTags) => {
@@ -99,7 +101,7 @@ export const useNotes = create<NotesState>((set, get) => {
     wrote();
     const [text] = await api.readFiles([META_PATH]);
     // Tag icons are picked on the phone; keep them.
-    await api.writeFile(META_PATH, JSON.stringify({ ...parseMeta(text), pinned: get().pinned, ...patch }, null, 2));
+    await api.writeFile(META_PATH, JSON.stringify({ ...parseMeta(text), pinned: get().pinned, bookmarks: get().bookmarks, ...patch }, null, 2));
   };
 
   const applyMove = async (from: string, to: string) => {
@@ -109,11 +111,13 @@ export const useNotes = create<NotesState>((set, get) => {
     contents.delete(from);
     if (text !== undefined) contents.set(to, text);
     await api.move(from, to, sectionOf(to), mtime);
-    let { pinned } = get();
-    if (pinned.includes(from)) {
-      pinned = pinned.map((p) => (p === from ? to : p));
-      set({ pinned });
-      await writeMeta({ pinned });
+    // Pins and bookmarks follow the note.
+    const follow = (paths: string[]) => (paths.includes(from) ? paths.map((p) => (p === from ? to : p)) : paths);
+    const { pinned, bookmarks } = get();
+    const moved = { pinned: follow(pinned), bookmarks: follow(bookmarks) };
+    if (moved.pinned !== pinned || moved.bookmarks !== bookmarks) {
+      set(moved);
+      await writeMeta(moved);
     }
     const sum = await summary();
     set((s) => ({ ...sum, revision: s.revision + 1, selected: s.selected === from ? to : s.selected }));
@@ -127,6 +131,7 @@ export const useNotes = create<NotesState>((set, get) => {
     tags: [],
     counts: EMPTY_COUNTS,
     pinned: [],
+    bookmarks: [],
     hiddenTags: [],
     revision: 0,
     section: 'notes',
@@ -198,12 +203,14 @@ export const useNotes = create<NotesState>((set, get) => {
         const pinsMoved = !same(meta.pinned, get().pinned);
         const hiddenTags = meta.hiddenTags ?? [];
         const hiddenMoved = !same(hiddenTags, get().hiddenTags);
+        const bookmarks = meta.bookmarks ?? [];
         const sum = changed.length || pinsMoved || hiddenMoved ? await summary(hiddenTags) : null;
         // When nothing changed only `scanned` is set, so the list doesn't redraw.
         set((s) => ({
           scanned: true,
           ...(pinsMoved ? { pinned: meta.pinned } : null),
           ...(hiddenMoved ? { hiddenTags } : null),
+          ...(same(bookmarks, s.bookmarks) ? null : { bookmarks }),
           ...(sum ? { ...sum, revision: s.revision + 1 } : null),
         }));
         emit(changed);
@@ -265,7 +272,6 @@ export const useNotes = create<NotesState>((set, get) => {
       return applyMove(path, await uniquePath(folder, base));
     },
     trash: (path) => get().moveTo(path, RESERVED_FOLDERS.trash),
-    archive: (path) => get().moveTo(path, RESERVED_FOLDERS.archive),
     restore: (path) => get().moveTo(path, ''),
 
     deleteForever: async (path) => {
@@ -283,7 +289,16 @@ export const useNotes = create<NotesState>((set, get) => {
       set({ pinned: next });
       await writeMeta({ pinned: next });
       await api.setPinned(next);
-      set((s) => ({ revision: s.revision + 1 }));
+      // A pinned note of a hidden tag shows in Notes, so its count changes too.
+      const sum = await summary();
+      set((s) => ({ ...sum, revision: s.revision + 1 }));
+    },
+
+    toggleBookmark: async (path) => {
+      const { bookmarks } = get();
+      const next = bookmarks.includes(path) ? bookmarks.filter((p) => p !== path) : [...bookmarks, path];
+      set({ bookmarks: next });
+      await writeMeta({ bookmarks: next });
     },
 
     setHiddenTags: async (names) => {
@@ -330,7 +345,7 @@ export interface Found {
  * Notes of a section matching `query`: keyword matches and, once the model is ready, notes close in
  * meaning, merged as on the phone (`fuse`). A single word brings in meaning only when no note has
  * it: on its own ("rent") it pulled in loosely related notes. With a `tag` (or Untagged) only its
- * notes; without, the section's notes but those of `hidden` tags, as the list shows them. Quick Open
+ * notes; without, the section's notes but those of `hidden` tags (unless pinned), as the list shows them. Quick Open
  * (⌘O) searches every note.
  */
 export async function findNotes(query: string, section: Section, limit: number, tag = '', hidden: string[] = []): Promise<Found> {
@@ -342,25 +357,42 @@ export async function findNotes(query: string, section: Section, limit: number, 
   const known = new Map(hits.map((h) => [h.note.path, h.note]));
   const notes = await Promise.all(results.map((r) => known.get(r.path) ?? api.get(r.path)));
   return {
-    notes: notes.filter((n): n is NoteMeta => !!n && inList(n.tags, tag, hidden)),
+    notes: notes.filter((n): n is NoteMeta => !!n && ((!tag && n.pinned) || inList(n.tags, tag, hidden))),
     snippets: new Map(results.map((r) => [r.path, r.snippet])),
     meaning: new Set(results.filter((r) => r.via === 'smart').map((r) => r.path)),
   };
 }
 
-/** The newest `limit` notes of a section (and tag), pinned first; or the notes matching `query`. */
+/** Bookmarked notes in the order they were bookmarked; notes in Trash or gone are left out. */
+const bookmarked = async (paths: string[]) =>
+  (await Promise.all(paths.map((p) => api.get(p)))).filter((n): n is NoteMeta => !!n && sectionOf(n.path) !== 'trash');
+
+/** The newest `limit` notes of a section (and tag, Untagged or Bookmarks), pinned first; or the notes matching `query`. */
 export function useNoteList(section: Section, tag: string, query: string, limit: number): Partial<Found> & { notes: NoteMeta[] } {
   const hidden = useNotes((s) => s.hiddenTags);
+  const bookmarks = useNotes((s) => s.bookmarks);
+  const marks = tag === BOOKMARKS ? bookmarks : null;
   return useIndexQuery<Partial<Found> & { notes: NoteMeta[] }>(
     async () => {
+      if (marks && !query.trim()) return { notes: byDate(await bookmarked(marks)).slice(0, limit) };
+      if (marks) {
+        const found = await findNotes(query, section, limit);
+        return { ...found, notes: found.notes.filter((n) => marks.includes(n.path)) };
+      }
       if (!query.trim()) return { notes: await api.list(section, tag, limit, hidden) };
       return findNotes(query, section, limit, tag, section === 'notes' ? hidden : []);
     },
     { notes: [] },
-    [section, tag, query, limit, hidden],
+    [section, tag, query, limit, hidden, marks],
   );
 }
 
 export function useNote(path: string | null): NoteMeta | null {
   return useIndexQuery(async () => (path ? api.get(path) : null), null, [path]);
+}
+
+/** The bookmarked notes, in the order they were bookmarked, for the sidebar's Bookmarks fold. */
+export function useBookmarked(): NoteMeta[] {
+  const bookmarks = useNotes((s) => s.bookmarks);
+  return useIndexQuery(() => bookmarked(bookmarks), [], [bookmarks]);
 }

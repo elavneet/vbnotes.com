@@ -1,7 +1,7 @@
 import { useEffect, useState, type RefObject } from 'react';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { attachmentName } from '@/media/attachmentName';
-import { UNTAGGED } from '@/store/noteModel';
+import { tagOf } from '@/store/noteModel';
 import { fileNameFromTitle } from '@/utils/markdown';
 import { formatTag } from '@/utils/tags';
 import { RESERVED_FOLDERS, isMarkdown } from '@/vault/types';
@@ -29,7 +29,7 @@ export async function addFiles(paths: string[]) {
   await openEditor.flush();
   const kinds = await api.pathKinds(paths);
   const inFolder = `${slashes(folder).replace(/\/$/, '')}/`;
-  const tagLine = tag && tag !== UNTAGGED ? `${formatTag(tag)}\n\n` : '';
+  const tagLine = tagOf(tag) ? `${formatTag(tag)}\n\n` : '';
   let last: string | null = null;
   for (const [i, from] of paths.entries()) {
     const name = nameOf(from);

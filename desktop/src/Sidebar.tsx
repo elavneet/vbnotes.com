@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { create } from 'zustand';
-import { UNTAGGED, type Section, type TagNode } from '@/store/noteModel';
+import { BOOKMARKS, UNTAGGED, type Section, type TagNode } from '@/store/noteModel';
 import { tagHue } from '@/utils/tags';
 import { Icon, type IconName } from './Icon';
 import { useSettingsOpen } from './Settings';
-import { useNotes } from './store';
+import { useBookmarked, useNotes } from './store';
 
 /** In a narrow window (half the screen, a snap group) the library slides over the list instead. */
 export const useDrawer = create<{ open: boolean; set: (open: boolean) => void }>((set) => ({ open: false, set: (open) => set({ open }) }));
 
-/** The library, in the phone's order: Notes, Untagged, the tag tree, Archive, Trash. */
+/** The library, in the phone's order: Notes, Untagged, Bookmarks, the tag tree, Trash (and Archive while it holds notes). */
 export function Sidebar() {
   const { section, tag, counts, tags } = useNotes();
   const show = (s: Section, t?: string) => { useNotes.getState().show(s, t); useDrawer.getState().set(false); };
@@ -20,12 +20,14 @@ export function Sidebar() {
       <div className="drag" data-tauri-drag-region />
       <Item icon="notes" label="Notes" count={counts.notes} active={at('notes')} onClick={() => show('notes')} />
       <Item icon="untagged" label="Untagged" count={counts.untagged} active={at('notes', UNTAGGED)} onClick={() => show('notes', UNTAGGED)} />
+      <Bookmarks active={at('notes', BOOKMARKS)} onShow={() => show('notes', BOOKMARKS)} />
       {tags.length ? <h3 className="side-head">Tags</h3> : null}
       <div className="tags">
         {tags.map((n) => <TagRow key={n.path} node={n} depth={0} active={section === 'notes' ? tag : ''} onPick={(t) => show('notes', t)} />)}
       </div>
       <div className="side-bottom">
-        <Item icon="archive" label="Archive" count={counts.archive} active={at('archive')} onClick={() => show('archive')} />
+        {/* Notes can't be archived any more; the row stays while older archived notes are there to restore. */}
+        {counts.archive || at('archive') ? <Item icon="archive" label="Archive" count={counts.archive} active={at('archive')} onClick={() => show('archive')} /> : null}
         <Item icon="trash" label="Trash" count={counts.trash} active={at('trash')} onClick={() => show('trash')} />
         <button className="item" onClick={() => { useDrawer.getState().set(false); openSettings(true); }} title="Settings (⌘,)">
           <Icon name="settings" />
@@ -43,6 +45,37 @@ function Item({ icon, label, count, active, onClick }: { icon: IconName; label: 
       <span className="item-label">{label}</span>
       <span className="count">{count || ''}</span>
     </button>
+  );
+}
+
+/**
+ * Bookmarks: a click lists the bookmarked notes; the chevron unfolds them here (closed at first),
+ * and picking one lists Bookmarks with that note open.
+ */
+function Bookmarks({ active, onShow }: { active: boolean; onShow: () => void }) {
+  const [open, setOpen] = useState(false);
+  const notes = useBookmarked();
+  const selected = useNotes((s) => s.selected);
+  const pick = (path: string) => { onShow(); useNotes.getState().select(path); };
+  return (
+    <>
+      <div className={`item${active ? ' active' : ''}`}>
+        <button className="item-main" onClick={onShow}>
+          <Icon name="bookmark" />
+          <span className="item-label">Bookmarks</span>
+          <span className="count">{notes.length || ''}</span>
+        </button>
+        <button className={`fold${open ? ' open' : ''}`} onClick={() => setOpen(!open)} aria-expanded={open} aria-label={open ? 'Fold bookmarks' : 'Unfold bookmarks'}>
+          <Icon name="chevron" size={12} />
+        </button>
+      </div>
+      {open ? notes.map((n) => (
+        <button key={n.path} className={`item mark${active && selected === n.path ? ' current' : ''}`} onClick={() => pick(n.path)} title={n.title}>
+          <span className="item-label">{n.title || 'Untitled'}</span>
+        </button>
+      )) : null}
+      {open && !notes.length ? <p className="side-hint">Bookmark a note with the bookmark button above it.</p> : null}
+    </>
   );
 }
 

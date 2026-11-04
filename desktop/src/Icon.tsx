@@ -8,6 +8,7 @@ const PATHS = {
   archive: 'M3 4h18v4H3zM5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4',
   trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
   pin: 'M9 3h6M10 3v6l-3 4h10l-3-4V3M12 13v8',
+  bookmark: 'M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z',
   plus: 'M12 5v14M5 12h14',
   search: 'M11 4a7 7 0 1 1 0 14 7 7 0 0 1 0-14zM20 20l-4-4',
   chevron: 'M9 6l6 6-6 6',
@@ -44,9 +45,10 @@ const PATHS = {
 
 export type IconName = keyof typeof PATHS;
 
-export function Icon({ name, size = 18, className, weight = 1.8 }: { name: IconName; size?: number; className?: string; weight?: number }) {
+/** `filled` paints the inside too, for a button that is on (a closed shape such as `bookmark`). */
+export function Icon({ name, size = 18, className, weight = 1.8, filled }: { name: IconName; size?: number; className?: string; weight?: number; filled?: boolean }) {
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={weight} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={weight} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d={PATHS[name]} />
     </svg>
   );
