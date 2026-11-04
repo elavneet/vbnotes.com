@@ -10,7 +10,11 @@ import { WebView } from 'react-native-webview';
 export function WebViewWarmup() {
   const [on, setOn] = useState(false);
   useEffect(() => {
-    const id = setTimeout(() => setOn(true), 400);
+    const id = setTimeout(() => {
+      setOn(true);
+      // The editor's code, kept off the launch (see `HomeScreen`), so the first note opens as fast.
+      void import('@/components/NoteEditor');
+    }, 400);
     return () => clearTimeout(id);
   }, []);
   if (!on) return null;

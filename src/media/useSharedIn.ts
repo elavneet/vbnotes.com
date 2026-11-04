@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import { useShareIntent } from 'expo-share-intent';
 import { useNotes } from '@/store/notes';
 import { noteRoute } from '@/components/NotesList';
-import { saveImage } from './attachments';
 
 /**
  * Text, links and photos shared from other apps ("Save to VB Notes" in the share sheet) become a new
@@ -23,9 +22,10 @@ export function useSharedIn() {
       if (title) parts.push(`# ${title}`);
       const text = shareIntent.text?.trim() || shareIntent.webUrl;
       if (text) parts.push(text);
-      for (const f of shareIntent.files ?? []) {
-        if (f.mimeType?.startsWith('image/')) parts.push(`![](${await saveImage(f.path, f.width ?? undefined, f.height ?? undefined)})`);
-      }
+      const images = (shareIntent.files ?? []).filter((f) => f.mimeType?.startsWith('image/'));
+      // The picture code (pickers, resizing) loads only when a picture comes in, not at launch.
+      const { saveImage } = images.length ? await import('./attachments') : { saveImage: null };
+      for (const f of images) parts.push(`![](${await saveImage!(f.path, f.width ?? undefined, f.height ?? undefined)})`);
       if (!parts.length) return;
       const path = await useNotes.getState().createNote(`${parts.join('\n\n')}\n`);
       router.push(noteRoute(path));

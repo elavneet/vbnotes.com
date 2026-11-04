@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { Suspense, lazy, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { DrawerLayoutMethods } from 'react-native-gesture-handler/ReanimatedDrawerLayout';
@@ -9,8 +9,11 @@ import { useNote, useNotes } from '@/store/notes';
 import { Header } from '@/components/Header';
 import { IconButton } from '@/components/IconButton';
 import { NotesList } from '@/components/NotesList';
-import { NoteEditor } from '@/components/NoteEditor';
 import { LibraryDrawer, LibraryPanel } from '@/components/Library';
+
+// The editor (Tiptap, ProseMirror, the code colours) is a large part of the app's code. Only a wide
+// screen shows it beside the list, so it doesn't load with the list; `WebViewWarmup` loads it soon after.
+const NoteEditor = lazy(() => import('@/components/NoteEditor').then((m) => ({ default: m.NoteEditor })));
 
 /** Phones: the feed, with the library in a left drawer. Wide screens: library, feed and the open note side by side. */
 export default function HomeScreen() {
@@ -63,7 +66,9 @@ function EditorPane({ path, onPathChange, onClose }: { path: string; onPathChang
         }
       />
       <View style={styles.page}>
-        <NoteEditor path={path} toolbarPlacement="top" onPathChange={(next) => onPathChange(path, next)} />
+        <Suspense fallback={null}>
+          <NoteEditor path={path} toolbarPlacement="top" onPathChange={(next) => onPathChange(path, next)} />
+        </Suspense>
       </View>
     </View>
   );
