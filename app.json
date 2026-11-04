@@ -4,7 +4,7 @@
     "slug": "vbnotes",
     "owner": "ramarya",
     "scheme": "vbnotes",
-    "version": "0.4.8",
+    "version": "0.4.9",
     "runtimeVersion": {
       "policy": "appVersion"
     },
