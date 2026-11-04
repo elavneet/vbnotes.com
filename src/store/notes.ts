@@ -10,10 +10,10 @@ import {
 import { openNoteDb, type NoteDb } from './noteDb';
 import { welcomeOnce } from './welcome';
 import { WELCOME_TITLE, WELCOME_VERSION } from './welcomeNote';
-import { buildTags, cleanHiddenTags, recordFrom, sectionOf, type NoteMeta, type NoteRecord, type Section, type SectionCounts, type TagNode } from './noteModel';
+import { BOOKMARKS, buildTags, byDate, cleanHiddenTags, recordFrom, sectionOf, type NoteMeta, type NoteRecord, type Section, type SectionCounts, type TagNode } from './noteModel';
 import { timeFolder } from '@/utils/launchTiming';
 
-export { UNTAGGED, sectionOf, type NoteMeta, type Section, type SectionCounts, type TagNode } from './noteModel';
+export { BOOKMARKS, UNTAGGED, sectionOf, tagOf, type NoteMeta, type Section, type SectionCounts, type TagNode } from './noteModel';
 
 interface NotesState {
   vault: Vault | null;
@@ -30,6 +30,8 @@ interface NotesState {
   tags: TagNode[];
   counts: SectionCounts;
   pinned: string[];
+  /** Bookmarked notes, in the order they were added (`VaultMeta.bookmarks`). */
+  bookmarks: string[];
   /** Icons picked by hand, by tag path. Tags without one use `defaultTagIcon`. */
   tagIcons: Record<string, string>;
   /** Tag names kept out of the main Notes list (`VaultMeta.hiddenTags`). */
@@ -52,10 +54,10 @@ interface NotesState {
   syncTitle: (path: string) => Promise<string>;
   moveTo: (path: string, folder: string) => Promise<string>;
   trash: (path: string) => Promise<string>;
-  archive: (path: string) => Promise<string>;
   restore: (path: string) => Promise<string>;
   deleteForever: (path: string) => Promise<void>;
   togglePin: (path: string) => Promise<void>;
+  toggleBookmark: (path: string) => Promise<void>;
   /** `null` goes back to the default icon. */
   setTagIcon: (tag: string, icon: string | null) => Promise<void>;
   setHiddenTags: (names: string[]) => Promise<void>;
@@ -90,9 +92,9 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
 function parseMeta(text: string | undefined): VaultMeta {
   try {
-    if (text) return { pinned: [], tagIcons: {}, hiddenTags: [], ...JSON.parse(text) };
+    if (text) return { pinned: [], tagIcons: {}, hiddenTags: [], bookmarks: [], ...JSON.parse(text) };
   } catch {}
-  return { pinned: [], tagIcons: {}, hiddenTags: [] };
+  return { pinned: [], tagIcons: {}, hiddenTags: [], bookmarks: [] };
 }
 
 /** A file's date and size as the next folder scan will see them, so that scan doesn't read it again. */
@@ -111,8 +113,8 @@ function openAtLaunch(): Partial<NotesState> {
       return { ...opened, meta: text };
     });
     const db = openNoteDb(vault.id);
-    const { pinned, tagIcons, hiddenTags = [] } = parseMeta(meta);
-    return { vault, db, vaultProblem: problem, needsFolder: folderNotChosen(), status: 'ready', pinned, tagIcons, hiddenTags, ...summary(db, hiddenTags) };
+    const { pinned, tagIcons, hiddenTags = [], bookmarks = [] } = parseMeta(meta);
+    return { vault, db, vaultProblem: problem, needsFolder: folderNotChosen(), status: 'ready', pinned, bookmarks, tagIcons, hiddenTags, ...summary(db, hiddenTags) };
   } catch (e: any) {
     return { status: 'error', error: String(e?.message ?? e) };
   }
@@ -147,10 +149,10 @@ export const useNotes = create<NotesState>((set, get) => {
   /** Writes the meta file with `patch` over what the app holds now. */
   const writeMeta = async (vault: Vault, patch: Partial<VaultMeta>) => {
     wrote();
-    const { pinned, tagIcons, hiddenTags } = get();
+    const { pinned, bookmarks, tagIcons, hiddenTags } = get();
     // What the app doesn't hold (the welcome note's version, fields from a newer app) stays.
     const kept = await readMeta(vault);
-    await vault.write(META_PATH, JSON.stringify({ ...kept, pinned, tagIcons, hiddenTags, ...patch }, null, 2));
+    await vault.write(META_PATH, JSON.stringify({ ...kept, pinned, bookmarks, tagIcons, hiddenTags, ...patch }, null, 2));
   };
 
   const open = () => {
@@ -168,13 +170,13 @@ export const useNotes = create<NotesState>((set, get) => {
     contents.delete(from);
     if (text !== undefined) contents.set(to, text);
     db.move(from, to, sectionOf(to), vault.stat?.(to)?.mtime ?? Date.now());
-    const { pinned } = get();
-    let nextPinned = pinned;
-    if (pinned.includes(from)) {
-      nextPinned = pinned.map((p) => (p === from ? to : p));
-      await writeMeta(vault, { pinned: nextPinned });
-    }
-    set((s) => ({ ...summary(db, get().hiddenTags), pinned: nextPinned, revision: s.revision + 1 }));
+    // Pins and bookmarks follow the note.
+    const follow = (paths: string[]) => (paths.includes(from) ? paths.map((p) => (p === from ? to : p)) : paths);
+    const { pinned, bookmarks } = get();
+    const nextPinned = follow(pinned);
+    const nextBookmarks = follow(bookmarks);
+    if (nextPinned !== pinned || nextBookmarks !== bookmarks) await writeMeta(vault, { pinned: nextPinned, bookmarks: nextBookmarks });
+    set((s) => ({ ...summary(db, get().hiddenTags), pinned: nextPinned, bookmarks: nextBookmarks, revision: s.revision + 1 }));
     emit([from, to]);
     void get().refresh();
     return to;
@@ -188,6 +190,7 @@ export const useNotes = create<NotesState>((set, get) => {
     tags: [],
     counts: EMPTY_COUNTS,
     pinned: [],
+    bookmarks: [],
     tagIcons: {},
     hiddenTags: [],
     revision: 0,
@@ -217,7 +220,7 @@ export const useNotes = create<NotesState>((set, get) => {
       const old = get().db;
       const db = openNoteDb(vault.id);
       contents.clear();
-      set((s) => ({ vault, db, vaultProblem: undefined, pinned: [], tagIcons: {}, hiddenTags: [], status: 'ready', scanned: false, ...summary(db, []), revision: s.revision + 1 }));
+      set((s) => ({ vault, db, vaultProblem: undefined, pinned: [], bookmarks: [], tagIcons: {}, hiddenTags: [], status: 'ready', scanned: false, ...summary(db, []), revision: s.revision + 1 }));
       // A scan of the old folder may still be running; let it finish (and be dropped) first.
       await refreshing?.catch(() => {});
       if (old !== db) old?.close();
@@ -228,7 +231,7 @@ export const useNotes = create<NotesState>((set, get) => {
     startIn: async (vault) => {
       const db = openNoteDb(vault.id);
       const old = get().db;
-      set((s) => ({ vault, db, needsFolder: false, vaultProblem: undefined, pinned: [], tagIcons: {}, hiddenTags: [], status: 'ready', scanned: false, ...summary(db, []), revision: s.revision + 1 }));
+      set((s) => ({ vault, db, needsFolder: false, vaultProblem: undefined, pinned: [], bookmarks: [], tagIcons: {}, hiddenTags: [], status: 'ready', scanned: false, ...summary(db, []), revision: s.revision + 1 }));
       if (old !== db) old?.close();
       await get().boot();
     },
@@ -288,10 +291,12 @@ export const useNotes = create<NotesState>((set, get) => {
         const pinsMoved = !same(meta.pinned, get().pinned);
         const hiddenTags = meta.hiddenTags ?? [];
         const hiddenMoved = !same(hiddenTags, get().hiddenTags);
+        const bookmarks = meta.bookmarks ?? [];
         // When nothing changed only `scanned` is set, so the list doesn't redraw.
         set((s) => ({
           scanned: true,
           ...(pinsMoved ? { pinned: meta.pinned } : null),
+          ...(same(bookmarks, s.bookmarks) ? null : { bookmarks }),
           ...(hiddenMoved ? { hiddenTags } : null),
           ...(same(meta.tagIcons, s.tagIcons) ? null : { tagIcons: meta.tagIcons }),
           ...(changed.length || pinsMoved || hiddenMoved ? { ...summary(db, hiddenTags), revision: s.revision + 1 } : null),
@@ -371,7 +376,6 @@ export const useNotes = create<NotesState>((set, get) => {
       return applyMove(path, target);
     },
     trash: (path) => get().moveTo(path, RESERVED_FOLDERS.trash),
-    archive: (path) => get().moveTo(path, RESERVED_FOLDERS.archive),
     restore: (path) => get().moveTo(path, ''),
 
     deleteForever: async (path) => {
@@ -391,7 +395,16 @@ export const useNotes = create<NotesState>((set, get) => {
       const next = pinned.includes(path) ? pinned.filter((p) => p !== path) : [...pinned, path];
       await writeMeta(vault, { pinned: next });
       db.setPinned(next);
-      set((s) => ({ pinned: next, revision: s.revision + 1 }));
+      // A pinned note of a hidden tag shows in Notes, so its count changes too.
+      set((s) => ({ pinned: next, ...summary(db, get().hiddenTags), revision: s.revision + 1 }));
+    },
+
+    toggleBookmark: async (path) => {
+      const { vault, bookmarks } = get();
+      if (!vault) return;
+      const next = bookmarks.includes(path) ? bookmarks.filter((p) => p !== path) : [...bookmarks, path];
+      set({ bookmarks: next });
+      await writeMeta(vault, { bookmarks: next });
     },
 
     setTagIcon: async (tag, icon) => {
@@ -414,13 +427,19 @@ export const useNotes = create<NotesState>((set, get) => {
   };
 });
 
-/** The newest `limit` notes of a section, optionally of one tag (and its nested tags), pinned first. */
+/** Bookmarked notes in the order they were bookmarked; notes in Trash or gone are left out. */
+const bookmarked = (db: NoteDb, paths: string[]) =>
+  paths.map((p) => db.get(p)).filter((n): n is NoteMeta => !!n && sectionOf(n.path) !== 'trash');
+
+/** The newest `limit` notes of a section, of one tag (and its nested tags), Untagged or Bookmarks; pinned first. */
 export function useNoteList(section: Section, tag: string, limit: number): NoteMeta[] {
   const db = useNotes((s) => s.db);
   const revision = useNotes((s) => s.revision);
   const hidden = useNotes((s) => s.hiddenTags);
+  const bookmarks = useNotes((s) => s.bookmarks);
+  const marks = tag === BOOKMARKS ? bookmarks : null;
   // eslint-disable-next-line react-hooks/exhaustive-deps -- `revision`: the index changed, read it again.
-  return useMemo(() => (db ? db.list(section, tag, limit, hidden) : []), [db, section, tag, limit, hidden, revision]);
+  return useMemo(() => (!db ? [] : marks ? byDate(bookmarked(db, marks)).slice(0, limit) : db.list(section, tag, limit, hidden)), [db, section, tag, limit, hidden, marks, revision]);
 }
 
 export function useNote(path: string | null | undefined): NoteMeta | null {
@@ -428,4 +447,13 @@ export function useNote(path: string | null | undefined): NoteMeta | null {
   const revision = useNotes((s) => s.revision);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- `revision`: the index changed, read it again.
   return useMemo(() => (db && path ? db.get(path) : null), [db, path, revision]);
+}
+
+/** The bookmarked notes, in the order they were bookmarked, for the library's Bookmarks fold. */
+export function useBookmarked(): NoteMeta[] {
+  const db = useNotes((s) => s.db);
+  const bookmarks = useNotes((s) => s.bookmarks);
+  const revision = useNotes((s) => s.revision);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `revision`: the index changed, read it again.
+  return useMemo(() => (db ? bookmarked(db, bookmarks) : []), [db, bookmarks, revision]);
 }

@@ -25,6 +25,11 @@ input, select { font: inherit; color: inherit; }
 .count { color: var(--textMuted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .side-head { margin: 16px 10px 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--textMuted); }
 .tags { flex: 1; min-height: 0; overflow-y: auto; }
+.item-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; height: 100%; text-align: left; }
+.item.active .item-main > svg { color: var(--accent); }
+.item.mark { height: 28px; padding-left: 38px; font-size: 13px; }
+.item.mark.current { color: var(--text); font-weight: 600; }
+.side-hint { margin: 2px 10px 6px 38px; font-size: 12px; line-height: 1.45; color: var(--textMuted); }
 .item.tag { gap: 2px; padding-right: 10px; }
 .fold { width: 18px; height: 24px; display: flex; align-items: center; justify-content: center; color: var(--textMuted); flex: none; }
 .fold.none { visibility: hidden; }

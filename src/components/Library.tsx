@@ -9,14 +9,16 @@ import ReanimatedDrawerLayout, {
 } from 'react-native-gesture-handler/ReanimatedDrawerLayout';
 import { router } from 'expo-router';
 import { useTheme } from '@/theme';
-import { UNTAGGED, useNotes, type Section, type TagNode } from '@/store/notes';
+import { BOOKMARKS, UNTAGGED, useBookmarked, useNotes, type Section, type TagNode } from '@/store/notes';
 import { useUi } from '@/store/ui';
 import { formatTag, tagHue } from '@/utils/tags';
 import { TAG_ICONS, tagIconOf } from '@/utils/tagIcons';
+import { useBreakpoint } from '@/utils/useBreakpoint';
 import { IconButton, type IconName } from './IconButton';
+import { noteRoute } from './NotesList';
 import { useAi } from '@/ai/chat';
 
-/** Everything you can browse: all notes, your tags (nested ones fold), then Archive and Trash. */
+/** Everything you can browse: all notes, bookmarks, Trash (and Archive while it holds notes), then your tags (nested ones fold). */
 function LibraryList({ onNavigate }: { onNavigate?: () => void }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -41,7 +43,9 @@ function LibraryList({ onNavigate }: { onNavigate?: () => void }) {
         <Row icon="documents-outline" label="Notes" count={counts.notes} active={section === 'notes' && !tag} onPress={() => go('notes')} />
         {/* Untagged only filters something when some notes have tags. */}
         {counts.untagged && counts.untagged < counts.notes ? <Row icon="pricetag-outline" label="Untagged" count={counts.untagged} active={tag === UNTAGGED} onPress={() => goTag(UNTAGGED)} /> : null}
-        <Row icon="archive-outline" label="Archive" count={counts.archive} active={section === 'archive'} onPress={() => go('archive')} />
+        <Bookmarks active={tag === BOOKMARKS} onShow={() => goTag(BOOKMARKS)} />
+        {/* Notes can't be archived any more; the row stays while older archived notes are there to restore. */}
+        {counts.archive || section === 'archive' ? <Row icon="archive-outline" label="Archive" count={counts.archive} active={section === 'archive'} onPress={() => go('archive')} /> : null}
         <Row icon="trash-outline" label="Trash" count={counts.trash} active={section === 'trash'} onPress={() => go('trash')} />
         <View style={styles.gap} />
         {tags.map((n) => <TagRow key={n.path} node={n} depth={0} active={tag} onPress={goTag} onLongPress={setIconFor} />)}
@@ -89,6 +93,30 @@ function Row({ icon, label, count, active, onPress, onLongPress, depth = 0, icon
         </>
       ) : null}
     </Pressable>
+  );
+}
+
+/**
+ * Bookmarks: a tap lists the bookmarked notes; the chevron unfolds them here (closed at first), and
+ * picking one lists Bookmarks with that note open.
+ */
+function Bookmarks({ active, onShow }: { active: boolean; onShow: () => void }) {
+  const t = useTheme();
+  const [open, setOpen] = useState(false);
+  const notes = useBookmarked();
+  const { isWide } = useBreakpoint();
+  const openNote = (path: string) => {
+    onShow();
+    if (isWide) useUi.getState().select(path); else router.push(noteRoute(path));
+  };
+  return (
+    <>
+      <Row icon="bookmark-outline" label="Bookmarks" count={notes.length} active={active} onPress={onShow} chevron={open ? 'open' : 'closed'} onChevron={() => setOpen((o) => !o)} />
+      {open ? notes.map((n) => (
+        <Row key={n.path} icon="document-text-outline" label={n.title || 'Untitled'} depth={1} onPress={() => openNote(n.path)} />
+      )) : null}
+      {open && !notes.length ? <Text style={[styles.hint, { color: t.colors.textMuted }]}>Bookmark a note from its ⋮ menu.</Text> : null}
+    </>
   );
 }
 

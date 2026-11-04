@@ -51,7 +51,8 @@ export default function HomeScreen() {
 
 function EditorPane({ path, onPathChange, onClose }: { path: string; onPathChange: (from: string, to: string) => void; onClose: () => void }) {
   const note = useNote(path);
-  const { togglePin, archive, trash } = useNotes.getState();
+  const { togglePin, toggleBookmark, trash } = useNotes.getState();
+  const marked = useNotes((s) => s.bookmarks.includes(path));
   return (
     <View style={styles.editorPane}>
       <Header
@@ -60,7 +61,7 @@ function EditorPane({ path, onPathChange, onClose }: { path: string; onPathChang
         right={
           <>
             <IconButton name={note?.pinned ? 'pin' : 'pin-outline'} onPress={() => void togglePin(path)} label={note?.pinned ? 'Unpin' : 'Pin'} active={note?.pinned} />
-            <IconButton name="archive-outline" onPress={() => { void archive(path); onClose(); }} label="Archive" />
+            <IconButton name={marked ? 'bookmark' : 'bookmark-outline'} onPress={() => void toggleBookmark(path)} label={marked ? 'Remove bookmark' : 'Bookmark'} active={marked} />
             <IconButton name="trash-outline" onPress={() => { void trash(path); onClose(); }} label="Move to Trash" />
           </>
         }

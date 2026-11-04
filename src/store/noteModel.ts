@@ -31,6 +31,12 @@ export interface NoteRecord extends Omit<NoteMeta, 'pinned'> {
 
 /** Filter for notes without a single #tag. Not a valid tag itself, so it cannot clash. */
 export const UNTAGGED = ':untagged';
+/** Filter for bookmarked notes (Bookmarks in the library); not a tag either. */
+export const BOOKMARKS = ':bookmarks';
+/** The tag a list filter names: '' for every note, Untagged and Bookmarks. */
+export const tagOf = (filter: string) => (filter === UNTAGGED || filter === BOOKMARKS ? '' : filter);
+/** Pinned first, then newest first, as every list orders its notes. */
+export const byDate = (notes: NoteMeta[]) => [...notes].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.mtime - a.mtime);
 
 /**
  * Whether a note has a tag that Hide from Notes names (Settings), at any level, as `notHidden` in

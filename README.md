@@ -29,6 +29,8 @@ files stay yours to open in any editor.
   each line of a note, and a code block numbers each of its lines.
 - **Headings as in Bear.** With the caret at the start of a heading its `#`s show; Backspace there
   turns it back into text.
+- **Bookmarks.** Bookmark a note and it is one tap away under Bookmarks in the library, on the phone
+  and the desktop alike. A pinned note now shows in Notes even when Settings hides its tag.
 - **iCloud Drive from the first launch.** The app asks where notes live, and iCloud Drive comes first,
   so the iPhone and the Mac show the same notes with nothing to set up. On Android it offers a sync
   app with short steps and a [guide with pictures](https://vbnotes.com/docs/android-sync).
@@ -107,7 +109,8 @@ builds; Android is coming to Google Play.
   note, or press Return on the first row to start a note with that title.
 - **Fast with thousands of notes.** The list, tags and keyword search come from a SQLite index
   (FTS5) that is rebuilt from the files when needed, so opening the app reads only notes that changed.
-- **Pins, Archive and Trash**, kept as folders and a small `.vbnotes/meta.json` beside your notes.
+- **Pins, bookmarks and Trash.** Bookmarked notes sit under Bookmarks in the sidebar. Trash is a
+  folder; pins and bookmarks live in a small `.vbnotes/meta.json` beside your notes.
 - **Themes.** Ink and Paper (with a lime "Volt" accent) plus Bear-style themes: Red Graphite,
   High Contrast, Solarized, Nord, Dracula, Gruvbox, Catppuccin, Rosé Pine, Tokyo Night and more.
 

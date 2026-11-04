@@ -118,7 +118,8 @@ const edited = (ms: number) => {
 /** Above the open note: when it was edited, and the phone's note actions. */
 function EditorBar({ path }: { path: string }) {
   const note = useNote(path);
-  const { section, togglePin, archive, trash, restore, deleteForever } = useNotes.getState();
+  const { section, togglePin, toggleBookmark, trash, restore, deleteForever } = useNotes.getState();
+  const marked = useNotes((s) => s.bookmarks.includes(path));
   const act = (fn: (p: string) => Promise<unknown>) => async () => { await openEditor.flush(); await fn(path); };
   const styles = useStyleBar();
   const aiOn = useAi((s) => !!s.view?.enabled);
@@ -147,7 +148,7 @@ function EditorBar({ path }: { path: string }) {
           <button className={`icon-btn${note?.pinned ? ' on' : ''}`} onClick={act(togglePin)} title={note?.pinned ? 'Unpin' : 'Pin to top'}><Icon name="pin" /></button>
           {section === 'archive'
             ? <button className="icon-btn" onClick={act(restore)} title="Move to Notes"><Icon name="restore" /></button>
-            : <button className="icon-btn" onClick={act(archive)} title="Archive"><Icon name="archive" /></button>}
+            : <button className={`icon-btn${marked ? ' on' : ''}`} onClick={act(toggleBookmark)} title={marked ? 'Remove bookmark' : 'Bookmark'}><Icon name="bookmark" filled={marked} /></button>}
           <button className="icon-btn" onClick={act(trash)} title="Move to Trash"><Icon name="trash" /></button>
         </>
       )}

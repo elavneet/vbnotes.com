@@ -64,7 +64,7 @@ const greet = (name) => \`Hello, \${name}!\`;
 |---|---|
 | Find a note | ${mod}O, or ${mod}F to search the list |
 | Link to a note | Type [[ and pick one |
-| Pin, archive or delete a note | Use the buttons above it |
+| Pin, bookmark or delete a note | Use the buttons above it |
 | Change the look | Settings, ${mod}, |
 
 ## Search by meaning

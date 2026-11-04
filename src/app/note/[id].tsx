@@ -21,7 +21,8 @@ export default function NoteScreen() {
   const [infoOpen, setInfoOpen] = useState(false);
   const [info, setInfo] = useState<{ md: string; created: number | null }>({ md: '', created: null });
   const editor = useRef<EditorBridge | null>(null);
-  const { togglePin, archive, trash, restore, deleteForever, getText, loadText } = useNotes.getState();
+  const { togglePin, toggleBookmark, trash, restore, deleteForever, getText, loadText } = useNotes.getState();
+  const marked = useNotes((s) => s.bookmarks.includes(path));
   const section = sectionOf(path);
   const aiOn = useAi((s) => s.enabled);
 
@@ -44,7 +45,7 @@ export default function NoteScreen() {
     [
       ...(section === 'notes' ? [{ label: note?.pinned ? 'Unpin' : 'Pin to top', icon: 'pin-outline' as const, onPress: () => void togglePin(path) }] : []),
       section === 'notes'
-        ? { label: 'Archive', icon: 'archive-outline', onPress: () => { void archive(path); back(); } }
+        ? { label: marked ? 'Remove bookmark' : 'Bookmark', icon: marked ? 'bookmark' : 'bookmark-outline', onPress: () => void toggleBookmark(path) }
         : { label: 'Move to Notes', icon: 'arrow-undo-outline', onPress: () => { void restore(path); back(); } },
     ],
     [

@@ -9,7 +9,7 @@ export const WELCOME_PICTURE = 'attachments/welcome-mountains.png';
  * Its version, kept in the folder's meta (`welcome`) so the phone and the desktop app agree on which
  * copy is newer. Raise it when either text changes; copies written before it was kept count as 1.
  */
-export const WELCOME_VERSION = 2;
+export const WELCOME_VERSION = 3;
 
 /**
  * What the first launch on a device does once its notes folder is chosen: write the welcome note
