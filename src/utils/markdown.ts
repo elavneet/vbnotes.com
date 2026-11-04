@@ -69,6 +69,15 @@ export function fileNameFromTitle(title: string): string {
   return clean || 'Untitled';
 }
 
+/**
+ * Whether a file name already follows its title: the title's own name, or a numbered copy of it
+ * ("Title 2") made because that name was taken. Renaming a numbered copy picked the next free
+ * number, so "Title 2" became "Title 3" and back again each time the note was closed.
+ */
+export function followsTitle(name: string, wanted: string): boolean {
+  return name === wanted || (name.startsWith(`${wanted} `) && /^\d+$/.test(name.slice(wanted.length + 1)));
+}
+
 export function hashText(s: string): string {
   // FNV-1a 32-bit, enough to detect content changes.
   let h = 0x811c9dc5;

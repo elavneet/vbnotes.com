@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { AppState } from 'react-native';
 import { create } from 'zustand';
 import { kvDel } from '@/utils/kv';
-import { fileNameFromTitle, splitTitle } from '@/utils/markdown';
+import { fileNameFromTitle, followsTitle, splitTitle } from '@/utils/markdown';
 import {
   META_PATH, RESERVED_FOLDERS, basename, dirname, folderNotChosen, joinPath, openSavedVault,
   type Vault, type VaultMeta,
@@ -359,7 +359,7 @@ export const useNotes = create<NotesState>((set, get) => {
       const { title } = splitTitle(text);
       const wanted = fileNameFromTitle(title);
       const current = basename(path).replace(/\.(md|markdown|txt)$/i, '');
-      if (!title || wanted === current) return path;
+      if (!title || followsTitle(current, wanted)) return path;
       const target = await uniquePath(vault, dirname(path), wanted);
       return applyMove(path, target);
     },
