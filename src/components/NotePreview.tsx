@@ -1,9 +1,9 @@
 import React, { memo, useMemo } from 'react';
-import { Platform, StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
+import { PixelRatio, Platform, StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
 import { codeFont, textFont, weightIn, type EditorFont, type Theme, type Typography } from '@/theme';
 import { findTags, tagHue } from '@/utils/tags';
 import { highlightCode } from '@/editor/highlight';
-import { EDITOR as E, lineGutter } from '@/editor/editorCss';
+import { EDITOR as E, lineGutter, lineRatio } from '@/editor/editorCss';
 import { marked, type Token, type Tokens } from 'marked';
 
 /**
@@ -207,9 +207,10 @@ function Inline({ text, t, ty, base }: { text: string; t: Theme; ty: Typography;
 }
 
 /**
- * WebKit (the iOS editor) floors line boxes to whole points, rounds the font's
- * ascent and descent up to whole points, and centres them in the line, rounding
- * the top half-leading down. React Native keeps the fractional height, centres the
+ * WebKit (the iOS editor) rounds the font's ascent and descent up to whole points
+ * and centres them in the line. On iOS 26 it also floors line boxes to whole points
+ * and rounds the top half-leading down; iOS 27 keeps both as they are (seen on an
+ * iPhone on 27.2: the lines drifted a point every three lines). React Native keeps the fractional height, centres the
  * exact metrics, and when the line is shorter than the font drops the glyphs to the
  * bottom of the line instead. `cssLine` gives the editor's line height and the `top`
  * nudge that puts React Native's text on the editor's baseline (`top` moves the text
@@ -218,6 +219,12 @@ function Inline({ text, t, ty, base }: { text: string; t: Theme; ty: Typography;
  * font there at sizes 10.5–42 and line heights 1.2–2.
  */
 const IOS = Platform.OS === 'ios';
+const SCALE = PixelRatio.get();
+/**
+ * iOS 26's WebKit floors a line box to whole points and sets SF's heavy title a little tight;
+ * iOS 27's keeps the line height the CSS gives and draws the title as UIKit does.
+ */
+const FLOORS = IOS && parseInt(String(Platform.Version), 10) < 27;
 type Metrics = Pick<EditorFont, 'asc' | 'desc'>;
 
 /**
@@ -235,11 +242,14 @@ function rnBaseline(lineHeight: number, size: number, m: Metrics) {
 
 function cssLine(size: number, ratio: number, m: Metrics) {
   if (!IOS) return { lineHeight: size * ratio, top: 0, baseline: rnBaseline(size * ratio, size, m), asc: size * m.asc, desc: size * m.desc };
-  const lineHeight = Math.floor(size * ratio);
+  // The editor's line height, on whole device pixels (`lineRatio`).
+  const css = size * lineRatio(size, ratio, SCALE);
+  const lineHeight = FLOORS ? Math.floor(css) : css;
   // The epsilon keeps a whole number whole (Avenir Next's ascent is exactly 1 em).
   const asc = Math.ceil(size * m.asc - 1e-6);
   const desc = Math.ceil(size * m.desc - 1e-6);
-  const baseline = Math.floor((lineHeight - asc - desc) / 2) + asc;
+  const half = (lineHeight - asc - desc) / 2;
+  const baseline = (FLOORS ? Math.floor(half) : half) + asc;
   return { lineHeight, top: baseline - rnBaseline(lineHeight, size, m), baseline, asc, desc };
 }
 
@@ -310,7 +320,7 @@ export const NotePreview = memo(function NotePreview({ md, t, ty }: { md: string
       const size = headingSize(b, i, F);
       const hl = cssLine(size, E.headLine, head);
       const title = isTitle(b, i);
-      el = <Inline text={b.text} t={t} ty={ty} base={{ fontFamily: head.rn, fontWeight: weightIn(head, title ? '800' : '700'), fontSize: size, lineHeight: fit(hl.lineHeight), top: hl.top, color: t.colors.text, letterSpacing: -size * (title ? 0.022 + (IOS ? head.titleTrack ?? 0 : 0) : 0.012) }} />;
+      el = <Inline text={b.text} t={t} ty={ty} base={{ fontFamily: head.rn, fontWeight: weightIn(head, title ? '800' : '700'), fontSize: size, lineHeight: fit(hl.lineHeight), top: hl.top, color: t.colors.text, letterSpacing: -size * (title ? 0.022 + (FLOORS ? head.titleTrack ?? 0 : 0) : 0.012) }} />;
     } else if (b.k === 'p') {
       el = <Inline text={b.text} t={t} ty={ty} base={body} />;
     } else if (b.k === 'empty') {
