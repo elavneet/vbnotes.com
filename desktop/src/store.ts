@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { listen } from '@tauri-apps/api/event';
-import { fileNameFromTitle, splitTitle } from '@/utils/markdown';
+import { fileNameFromTitle, followsTitle, splitTitle } from '@/utils/markdown';
 import { META_PATH, RESERVED_FOLDERS, basename, dirname, joinPath, type VaultMeta } from '@/vault/types';
 import { buildTags, cleanHiddenTags, inList, recordFrom, sectionOf, type NoteMeta, type NoteRecord, type Section, type SectionCounts, type TagNode } from '@/store/noteModel';
 import { fuse } from '@/search/fuse';
@@ -256,7 +256,7 @@ export const useNotes = create<NotesState>((set, get) => {
       const { title } = splitTitle(text);
       const wanted = fileNameFromTitle(title);
       const current = basename(path).replace(/\.(md|markdown|txt)$/i, '');
-      if (!title || wanted === current) return path;
+      if (!title || followsTitle(current, wanted)) return path;
       return applyMove(path, await uniquePath(dirname(path), wanted));
     },
 

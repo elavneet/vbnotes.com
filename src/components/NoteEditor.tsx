@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, AppState, Linking, StyleSheet, Text, View } from 'react-native';
+import { Animated, AppState, Linking, PixelRatio, Platform, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import {
   CustomKeyboard, EditorKeyboardAvoidingView, PlaceholderBridge, RichText, TenTapStartKit, useEditorBridge, useKeyboard, type EditorBridge,
@@ -76,12 +76,14 @@ export function NoteEditor(props: Props) {
 
 /** Editor HTML with the theme baked in, cached per theme and type settings (the bundle is ~800 KB). */
 const pageCache = new Map<string, string>();
+/** Device pixels per point, so the editor's lines land on whole pixels like the preview's (iOS). */
+const SCALE = Platform.OS === 'ios' ? PixelRatio.get() : undefined;
 const pageKey = (t: Theme, ty: Typography) => `${t.id}:${typographyKey(ty)}`;
 function themedPage(t: Theme, ty: Typography) {
   const key = pageKey(t, ty);
   let html = pageCache.get(key);
   if (!html) {
-    const style = `<style data-tag="vbnotes-theme">${editorCss(t, ty)}</style>`;
+    const style = `<style data-tag="vbnotes-theme">${editorCss(t, ty, SCALE)}</style>`;
     html = editorHtml.replace('</head>', `${style}</head>`);
     pageCache.clear();
     pageCache.set(key, html);
@@ -211,7 +213,7 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
 
   // Theme or type changed while open.
   useEffect(() => {
-    if (isReady && pageKey(t, ty) !== page.key) editor.injectCSS(editorCss(t, ty), 'vbnotes-theme');
+    if (isReady && pageKey(t, ty) !== page.key) editor.injectCSS(editorCss(t, ty, SCALE), 'vbnotes-theme');
   }, [t, ty, isReady, editor, page.key]);
 
   // Audio rows in the page play through the app; leaving the note stops the sound.

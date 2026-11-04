@@ -1,5 +1,5 @@
 import type { Theme } from '@/theme';
-import { TYPOGRAPHY, codeFont, textFont, weightIn, type EditorFont, type Typography } from '@/theme/typography';
+import { TYPOGRAPHY, codeFont, cssWeight, textFont, type EditorFont, type Typography } from '@/theme/typography';
 
 /**
  * Sizes and margins of the editor page, in em of the body size unless noted. The line height
@@ -53,6 +53,17 @@ export function lineGutter(ty: Typography) {
   return { size, width, padLeft: width + 12 };
 }
 
+/**
+ * A line height for CSS, as a ratio of the font size, that comes to whole device pixels (`scale`
+ * per point). The native preview stacks its blocks on whole pixels (React Native rounds a text's
+ * height up to the pixel grid), and iOS 27's WebKit keeps a fractional line height where iOS 26
+ * floored it to whole points, so a fraction of a pixel per line added up down the note. Rounded
+ * down, so iOS 26 still floors to the same whole point as before; the thousandth keeps a whole
+ * number whole. Without `scale` (the desktop) the ratio stays as set.
+ */
+export const lineRatio = (size: number, ratio: number, scale?: number) =>
+  scale ? (Math.floor(size * ratio * scale + 1e-6) / scale + 0.001) / size : ratio;
+
 /** Capital height of the editor's fonts, in em (close enough across them for centring). */
 const CAP = 0.7;
 
@@ -68,7 +79,7 @@ function baselineIn(lineHeight: number, size: number, f: EditorFont) {
  * block, one per line). Each sits at the top of its line in the margin, moved down to be centred
  * on that line's text. `--vb-lines` is how the page knows the setting is on.
  */
-function lineNumberCss(theme: Theme, ty: Typography, text: EditorFont, head: EditorFont, mono: EditorFont) {
+function lineNumberCss(theme: Theme, ty: Typography, text: EditorFont, head: EditorFont, mono: EditorFont, scale?: number) {
   const e = EDITOR;
   const g = lineGutter(ty);
   const own = Math.round(g.size * 1.3);
@@ -78,16 +89,17 @@ function lineNumberCss(theme: Theme, ty: Typography, text: EditorFont, head: Edi
   const onto = (size: number, lineHeight: number, f: EditorFont, numberLine = own) =>
     `${(middle(lineHeight, size, f) - middle(numberLine, g.size, mono)).toFixed(1)}px`;
   const F = ty.size;
-  const heading = (k: number) => onto(F * e.h[k], F * e.h[k] * e.headLine, head);
+  const lh = (size: number, ratio: number) => size * lineRatio(size, ratio, scale);
+  const heading = (k: number) => onto(F * e.h[k], lh(F * e.h[k], e.headLine), head);
   const codeSize = F * e.code;
-  const codeLine = codeSize * e.codeLine;
+  const codeLine = lh(codeSize, e.codeLine);
   return `
   :root { --vb-lines: 1; }
   .ProseMirror { padding-left: ${g.padLeft}px; }
   .ProseMirror :where([data-ln]:not(.is-editor-empty))::before, .ProseMirror .vb-cb[data-lns]::before {
     content: attr(data-ln); position: absolute; left: 0; width: ${g.width}px; text-align: right; white-space: pre;
     font: 400 ${g.size}px/${own}px ${mono.css}; letter-spacing: 0; color: ${theme.colors.textMuted}; opacity: 0.7;
-    margin-top: ${onto(F, F * ty.line, text)}; pointer-events: none; user-select: none; -webkit-user-select: none;
+    margin-top: ${onto(F, lh(F, ty.line), text)}; pointer-events: none; user-select: none; -webkit-user-select: none;
   }
   /* An empty first line in a note that has text takes its number over the placeholder; an empty note keeps the placeholder. */
   .ProseMirror p.is-empty:first-child[data-ln]:not(.is-editor-empty)::before { content: attr(data-ln); float: none; height: auto; }
@@ -95,7 +107,7 @@ function lineNumberCss(theme: Theme, ty: Typography, text: EditorFont, head: Edi
   .ProseMirror h2[data-ln]::before { margin-top: ${heading(2)}; }
   .ProseMirror h3[data-ln]::before { margin-top: ${heading(3)}; }
   .ProseMirror :is(h4, h5, h6)[data-ln]::before { margin-top: ${heading(4)}; }
-  .ProseMirror > h1:first-child[data-ln]::before { margin-top: ${onto(F * e.title, F * e.title * e.headLine, head)}; }
+  .ProseMirror > h1:first-child[data-ln]::before { margin-top: ${onto(F * e.title, lh(F * e.title, e.headLine), head)}; }
   /* A code block lists its numbers in one column with the code's line height, under the border and padding. */
   .ProseMirror .vb-cb[data-lns]::before { content: attr(data-lns); line-height: ${codeLine}px; margin-top: calc(13px + ${onto(codeSize, codeLine, mono, codeLine)}); }
   .ProseMirror .vb-cb.vb-has-diagram:not(.vb-cb-active)::before { display: none; }
@@ -104,10 +116,15 @@ function lineNumberCss(theme: Theme, ty: Typography, text: EditorFont, head: Edi
   `;
 }
 
-/** CSS injected into the editor WebView: the theme's colours and the chosen type. */
-export function editorCss(theme: Theme, ty: Typography = TYPOGRAPHY): string {
+/**
+ * CSS injected into the editor WebView: the theme's colours and the chosen type. `scale` (device
+ * pixels per point, iOS only) puts line heights on whole pixels; see `lineRatio`.
+ */
+export function editorCss(theme: Theme, ty: Typography = TYPOGRAPHY, scale?: number): string {
   const c = theme.colors;
   const e = EDITOR;
+  const F = ty.size;
+  const lr = (size: number, ratio: number) => lineRatio(size, ratio, scale);
   const text = textFont(ty.text);
   const head = textFont(ty.head);
   const code = codeFont(ty.code).css;
@@ -119,20 +136,20 @@ export function editorCss(theme: Theme, ty: Typography = TYPOGRAPHY): string {
   html, body { background: ${c.bg}; margin: 0; padding: 0; -webkit-text-size-adjust: 100%; }
   body { font-family: ${text.css}; -webkit-font-smoothing: antialiased; }
   .ProseMirror {
-    color: ${c.text}; font-size: ${ty.size}px; line-height: ${ty.line};
+    color: ${c.text}; font-size: ${ty.size}px; line-height: ${lr(F, ty.line)};
     padding: ${e.padTop}px ${e.padX}px 160px ${e.padX}px;
     outline: none; caret-color: ${c.accent}; word-wrap: break-word;
   }
   .ProseMirror ::selection { background: ${c.volt}${dark ? '4D' : '99'}; }
   .ProseMirror p { margin: 0 0 ${ty.para}em 0; }
   .ProseMirror h1, .ProseMirror h2, .ProseMirror h3, .ProseMirror h4, .ProseMirror h5, .ProseMirror h6 {
-    font-family: ${head.css}; color: ${c.text}; font-weight: 700; line-height: ${e.headLine}; margin: ${e.headTop}em 0 ${e.headBottom}em 0; letter-spacing: -0.012em;
+    font-family: ${head.css}; color: ${c.text}; font-weight: 700; margin: ${e.headTop}em 0 ${e.headBottom}em 0; letter-spacing: -0.012em;
   }
-  .ProseMirror h1 { font-size: ${e.h[1]}em; }
-  .ProseMirror h2 { font-size: ${e.h[2]}em; }
-  .ProseMirror h3 { font-size: ${e.h[3]}em; }
-  .ProseMirror h4, .ProseMirror h5, .ProseMirror h6 { font-size: ${e.h[4]}em; }
-  .ProseMirror > h1:first-child { margin-top: ${e.titleTop}em; font-size: ${e.title}em; font-weight: ${weightIn(head, '800')}; letter-spacing: -0.022em; }
+  .ProseMirror h1 { font-size: ${e.h[1]}em; line-height: ${lr(F * e.h[1], e.headLine)}; }
+  .ProseMirror h2 { font-size: ${e.h[2]}em; line-height: ${lr(F * e.h[2], e.headLine)}; }
+  .ProseMirror h3 { font-size: ${e.h[3]}em; line-height: ${lr(F * e.h[3], e.headLine)}; }
+  .ProseMirror h4, .ProseMirror h5, .ProseMirror h6 { font-size: ${e.h[4]}em; line-height: ${lr(F * e.h[4], e.headLine)}; }
+  .ProseMirror > h1:first-child { margin-top: ${e.titleTop}em; font-size: ${e.title}em; line-height: ${lr(F * e.title, e.headLine)}; font-weight: ${cssWeight(head, '800')}; letter-spacing: -0.022em; }
   .ProseMirror a { color: ${c.accent}; text-decoration: underline; text-decoration-color: ${c.accent}66; text-underline-offset: 3px; }
   .ProseMirror strong { font-weight: 700; }
   .ProseMirror code {
@@ -141,7 +158,7 @@ export function editorCss(theme: Theme, ty: Typography = TYPOGRAPHY): string {
   }
   /* The block takes the code's own font and size, so its lines are code lines (no taller body-text strut). */
   .ProseMirror pre {
-    font-family: ${code}; font-size: ${e.code}em; line-height: ${e.codeLine};
+    font-family: ${code}; font-size: ${e.code}em; line-height: ${lr(F * e.code, e.codeLine)};
     background: ${c.codeBg}; border-radius: 12px; padding: 12px 14px; overflow-x: auto; margin: 0 0 ${e.blockBottom / e.code}em 0;
     border: 1px solid ${c.border};
   }
@@ -183,7 +200,7 @@ export function editorCss(theme: Theme, ty: Typography = TYPOGRAPHY): string {
   }
   .ProseMirror tr > *:last-child { border-right: 0; }
   .ProseMirror tr:last-child > * { border-bottom: 0; }
-  .ProseMirror th { font-weight: ${weightIn(text, '600')}; background: ${c.surface}; }
+  .ProseMirror th { font-weight: ${cssWeight(text, '600')}; background: ${c.surface}; }
   .ProseMirror tr:first-child > *:first-child { border-top-left-radius: 11px; }
   .ProseMirror tr:first-child > *:last-child { border-top-right-radius: 11px; }
   .ProseMirror th p, .ProseMirror td p { margin: 0; }
@@ -235,8 +252,8 @@ export function editorCss(theme: Theme, ty: Typography = TYPOGRAPHY): string {
   .vb-tag {
     padding-top: ${e.pillTop}px; padding-bottom: ${e.pillBottom}px; -webkit-box-decoration-break: clone; box-decoration-break: clone;
   }
-  .vb-tag-hash { border-radius: 999px 0 0 999px; padding-left: ${e.pillLeft}px; font-weight: ${weightIn(text, '600')}; }
-  .vb-tag-name { border-radius: 0 999px 999px 0; padding-right: ${e.pillRight}px; font-weight: ${weightIn(text, '500')}; }
+  .vb-tag-hash { border-radius: 999px 0 0 999px; padding-left: ${e.pillLeft}px; font-weight: ${cssWeight(text, '600')}; }
+  .vb-tag-name { border-radius: 0 999px 999px 0; padding-right: ${e.pillRight}px; font-weight: ${cssWeight(text, '500')}; }
   /* A stray \`/\` or \`-\` after a tag (\`#work/\`), once the caret has moved on. */
   .vb-tag-tail { display: none; }
   ${hues}
@@ -274,6 +291,6 @@ export function editorCss(theme: Theme, ty: Typography = TYPOGRAPHY): string {
   .is-editor-empty:first-child::before, p.is-empty:first-child::before {
     color: ${c.textMuted}; content: attr(data-placeholder); float: left; height: 0; pointer-events: none;
   }
-  ${ty.lines ? lineNumberCss(theme, ty, text, head, codeFont(ty.code)) : ''}
+  ${ty.lines ? lineNumberCss(theme, ty, text, head, codeFont(ty.code), scale) : ''}
   `;
 }

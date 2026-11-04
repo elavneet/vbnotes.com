@@ -15,6 +15,8 @@ function headingStart(state: EditorState) {
  * Headings as Bear shows them: with the caret at the start of a heading its `#`s appear in front of
  * it, Backspace there takes them away (the line becomes text), and typing `# ` at the start of a
  * line makes it a heading again (Tiptap's input rule), its `#`s hidden once the caret moves on.
+ * Only while the note is being edited: an opened note's selection sits at the start of its title,
+ * and the `#` showed there before anyone had tapped the note.
  */
 export const HeadingMarks = Extension.create({
   name: 'vbHeadingMarks',
@@ -27,11 +29,20 @@ export const HeadingMarks = Extension.create({
   },
   addProseMirrorPlugins() {
     return [
-      new Plugin({
+      new Plugin<boolean>({
         key,
+        // Whether the editor has focus, set by its focus and blur events.
+        state: {
+          init: () => false,
+          apply: (tr, focused) => (tr.getMeta(key) as boolean | undefined) ?? focused,
+        },
         props: {
+          handleDOMEvents: {
+            focus: (view) => { view.dispatch(view.state.tr.setMeta(key, true)); return false; },
+            blur: (view) => { view.dispatch(view.state.tr.setMeta(key, false)); return false; },
+          },
           decorations: (state) => {
-            const at = headingStart(state);
+            const at = key.getState(state) ? headingStart(state) : null;
             // An empty heading shows its placeholder instead.
             if (!at || !at.parent.content.size) return null;
             const level = at.parent.attrs.level as number;
