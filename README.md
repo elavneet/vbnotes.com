@@ -4,6 +4,7 @@ Markdown notes for iPhone, Android, Mac, Windows and Linux, with search that und
 runs on the device.
 
 <a href="https://apps.apple.com/app/vb-notes/id6829176804"><img src="docs/app-store-badge.svg" alt="Download on the App Store" height="48"></a>
+<a href="https://play.google.com/store/apps/details?id=com.lavneet.vbnotes"><img src="docs/google-play-badge.svg" alt="Get it on Google Play" height="48"></a>
 
 Your notes are plain `.md` files in a folder you choose. Put that folder in iCloud Drive, or let a sync
 app such as Syncthing or FolderSync keep it in step, and the phone and the desktop app show the same
@@ -37,9 +38,10 @@ files stay yours to open in any editor.
 
 **Website:** [vbnotes.com](https://vbnotes.com), with a short guide and the blog.
 
-**Download:** the iPhone app is on the [App Store](https://apps.apple.com/app/vb-notes/id6829176804).
-See [Releases](https://github.com/elavneet/vbnotes.com/releases) for macOS, Windows, Linux and Android
-builds; Android is coming to Google Play.
+**Download:** the iPhone app is on the [App Store](https://apps.apple.com/app/vb-notes/id6829176804) and
+the Android app on [Google Play](https://play.google.com/store/apps/details?id=com.lavneet.vbnotes). See
+[Releases](https://github.com/elavneet/vbnotes.com/releases) for macOS, Windows and Linux builds, and the
+Android APK.
 
 ## Phone
 
