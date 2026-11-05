@@ -43,6 +43,12 @@ the Android app on [Google Play](https://play.google.com/store/apps/details?id=c
 [Releases](https://github.com/elavneet/vbnotes.com/releases) for macOS, Windows and Linux builds, and the
 Android APK.
 
+On a Mac you can also install it with [Homebrew](https://brew.sh), and `brew upgrade` brings each new version:
+
+```sh
+brew install --cask elavneet/vbnotes/vb-notes
+```
+
 ## Phone
 
 | Notes | A note | Library | Search by meaning | Settings |
@@ -161,4 +167,6 @@ Open a folder from the command line with `vbnotes ~/Notes` (macOS: `open -a "VB 
 
 Pushing a tag like `v0.1.0` builds Windows, Linux and Android in GitHub Actions
 (`.github/workflows/release.yml`) and adds them to the release. The macOS app is signed with a
-Developer ID and notarized on a Mac, then uploaded to the same release.
+Developer ID and notarized on a Mac, then uploaded to the same release. The Homebrew cask in
+[elavneet/homebrew-vbnotes](https://github.com/elavneet/homebrew-vbnotes) then moves to the new
+version and its checksum, so `brew upgrade` finds it.
