@@ -3,7 +3,7 @@
  * pinned down: from React Native starting to the notes list being laid out, and how much of that
  * went into opening the notes folder (a picked iCloud Drive folder is reopened from its bookmark).
  */
-export const launch: { folderMs?: number; listMs?: number } = {};
+export const launch: { folderMs?: number; listMs?: number; scanMs?: number } = {};
 
 /** Runs the notes folder's opening at launch and times it. */
 export function timeFolder<T>(open: () => T): T {
@@ -13,6 +13,13 @@ export function timeFolder<T>(open: () => T): T {
   } finally {
     launch.folderMs = Date.now() - started;
   }
+}
+
+/** Times the first folder scan, which runs once the list is on screen. */
+export async function timeScan(scan: () => Promise<void>) {
+  const started = Date.now();
+  await scan();
+  launch.scanMs ??= Date.now() - started;
 }
 
 /** The notes list is laid out. */
@@ -27,9 +34,12 @@ export function markListReady() {
   }
 }
 
-/** "0.31 s, folder 0.12 s", or null before the list has shown. */
+/** "0.31 s, folder 0.12 s, scan 0.05 s", or null before the list has shown. */
 export function launchSummary(): string | null {
   if (launch.listMs === undefined) return null;
   const s = (ms: number) => `${(ms / 1000).toFixed(2)} s`;
-  return launch.folderMs === undefined ? s(launch.listMs) : `${s(launch.listMs)}, folder ${s(launch.folderMs)}`;
+  const parts = [s(launch.listMs)];
+  if (launch.folderMs !== undefined) parts.push(`folder ${s(launch.folderMs)}`);
+  if (launch.scanMs !== undefined) parts.push(`scan ${s(launch.scanMs)}`);
+  return parts.join(', ');
 }

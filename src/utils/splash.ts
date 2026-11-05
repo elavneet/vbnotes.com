@@ -16,12 +16,16 @@ SplashScreen.setOptions({ fade: true, duration: 180 });
 // menu, search, the Volt +) draws as nothing. Loading starts here, the first thing the app does.
 const icons = Font.loadAsync(Ionicons.font).catch(() => {});
 
+let gone: () => void = () => {};
+/** Resolves once the splash is gone: launch work that can wait (the folder scan) starts then, not under it. */
+export const splashGone = new Promise<void>((resolve) => { gone = resolve; });
+
 let hidden = false;
 const hide = () => {
   if (hidden) return;
   hidden = true;
   // One frame later, so what was just laid out is on screen under the splash.
-  requestAnimationFrame(() => SplashScreen.hide());
+  requestAnimationFrame(() => { SplashScreen.hide(); gone(); });
   // The note toolbar's icons, ready before the first note opens.
   void Font.loadAsync(MaterialCommunityIcons.font).catch(() => {});
 };

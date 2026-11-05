@@ -5,6 +5,8 @@ interface FolderAccessModule {
   bookmark(uri: string): string | null;
   /** Opens a saved folder: its URL now, and the bookmark to keep. Null when it is gone. */
   open(bookmark: string): { uri: string; bookmark: string } | null;
+  /** Every file and folder under `uri` (paths relative to it), hidden folders left out. Missing in builds before 0.4.11. */
+  listFolder?(uri: string): Promise<{ path: string; dir: boolean; mtime: number; size: number }[]>;
   /** Asks iCloud to download files that are only in the cloud; resolves with how many. */
   downloadFromCloud(uri: string): Promise<number>;
   /** Signed in to iCloud with iCloud Drive on. Missing in builds before 0.4. */

@@ -12,7 +12,7 @@ import { WebViewWarmup } from '@/editor/WebViewWarmup';
 import { useSharedIn } from '@/media/useSharedIn';
 import { useUpdateCheck } from '@/store/appUpdate';
 import { FolderChoice } from '@/components/FolderChoice';
-import '@/utils/splash';
+import { splashGone } from '@/utils/splash';
 
 export const unstable_settings = { anchor: 'index' };
 
@@ -51,7 +51,9 @@ function Shell() {
 
 export default function RootLayout() {
   const boot = useNotes((s) => s.boot);
-  useEffect(() => { void boot(); }, [boot]);
+  // The list shows last time's index at once; the folder scan, which reads every file's date, waits
+  // until it is on screen. Run before, it held the splash up by a second or more with 900 notes.
+  useEffect(() => { void splashGone.then(boot); }, [boot]);
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

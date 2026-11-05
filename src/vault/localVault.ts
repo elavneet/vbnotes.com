@@ -2,6 +2,24 @@ import { Directory, File, Paths } from 'expo-file-system';
 import { FolderAccess } from './folderAccess';
 import { basename, dirname, isMarkdown, joinPath, type Vault, type VaultEntry, type VaultKind } from './types';
 
+/** The vault's entries from a native listing, read as `LocalVault.list` reads a folder. */
+function entriesFrom(listed: { path: string; dir: boolean; mtime: number; size: number }[]): VaultEntry[] {
+  const out: VaultEntry[] = [];
+  for (const it of listed) {
+    const name = basename(it.path);
+    if (name.startsWith('.')) {
+      // iCloud stands in for a note not on the phone yet (or removed to save space) with `.Name.md.icloud`.
+      const real = /^\.(.+)\.icloud$/.exec(name)?.[1];
+      if (real && isMarkdown(real) && !it.dir) out.push({ path: joinPath(dirname(it.path), real), name: real, isDir: false, mtime: 0, size: 0, cloud: true });
+    } else if (it.dir) {
+      out.push({ path: it.path, name, isDir: true, mtime: 0, size: 0 });
+    } else if (isMarkdown(name)) {
+      out.push({ path: it.path, name, isDir: false, mtime: it.mtime, size: it.size });
+    }
+  }
+  return out;
+}
+
 /**
  * Native vault on top of a real folder. Default root is <Documents>/VBNotes, which
  * iOS exposes in the Files app ("On My iPhone / VBNotes") thanks to file sharing in app.json.
@@ -20,6 +38,13 @@ export class LocalVault implements Vault {
   private dir(path: string) { return path ? new Directory(this.root, ...path.split('/')) : this.root; }
 
   async list(): Promise<VaultEntry[]> {
+    // Listed in Swift when the build has it (iOS 0.4.11 on), so the app doesn't freeze while a big folder is read.
+    const listed = await FolderAccess?.listFolder?.(this.root.uri).catch(() => null);
+    return listed ? entriesFrom(listed) : this.walkHere();
+  }
+
+  /** The listing through expo-file-system, for builds without `listFolder` (and Android). */
+  private walkHere(): VaultEntry[] {
     const out: VaultEntry[] = [];
     const walk = (dir: Directory, rel: string) => {
       let items: (Directory | File)[] = [];

@@ -53,7 +53,8 @@ export function App() {
   // The close button saves the open note first; it hides the window instead with the tray on.
   useWindowClose();
 
-  if (!booted) return <div className="app" />;
+  // The list shows from last time's index as soon as the folder is open; the scan finishes behind it.
+  if (!booted && !folder) return <div className="app" />;
   if (!folder) return <Welcome error={error} />;
   return <Main />;
 }

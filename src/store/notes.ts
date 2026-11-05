@@ -11,7 +11,7 @@ import { openNoteDb, type NoteDb } from './noteDb';
 import { welcomeOnce } from './welcome';
 import { WELCOME_TITLE, WELCOME_VERSION } from './welcomeNote';
 import { BOOKMARKS, buildTags, byDate, cleanHiddenTags, recordFrom, sectionOf, type NoteMeta, type NoteRecord, type Section, type SectionCounts, type TagNode } from './noteModel';
-import { timeFolder } from '@/utils/launchTiming';
+import { timeFolder, timeScan } from '@/utils/launchTiming';
 
 export { BOOKMARKS, UNTAGGED, sectionOf, tagOf, type NoteMeta, type Section, type SectionCounts, type TagNode } from './noteModel';
 
@@ -203,7 +203,7 @@ export const useNotes = create<NotesState>((set, get) => {
       if (!vault || needsFolder) return;
       try {
         void kvDel(OLD_CACHE_KEY);
-        await get().refresh();
+        await timeScan(get().refresh);
         if (await welcomeOnce(vault, await readMeta(vault), () => uniquePath(vault, RESERVED_FOLDERS.trash, WELCOME_TITLE))) {
           await writeMeta(vault, { welcome: WELCOME_VERSION });
           await get().refresh();
