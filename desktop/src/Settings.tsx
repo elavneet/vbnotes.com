@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { getVersion } from '@tauri-apps/api/app';
 import { open } from '@tauri-apps/plugin-dialog';
 import type { ThemeName } from '@/theme/tokens';
-import { CODE_FONTS, TEXT_FONTS, codeFont, textFont, type Typography } from '@/theme/typography';
+import { CODE_FONTS, DIAGRAM_SIZES, TEXT_FONTS, codeFont, textFont, type DiagramSize, type Typography } from '@/theme/typography';
 import { api } from './api';
 import { useMeaning } from './meaning';
 import { useNotes } from './store';
@@ -153,6 +153,15 @@ export function Settings() {
                   <span>Line numbers</span>
                   <input type="checkbox" className="switch" checked={ty.lines} onChange={(e) => setTy({ lines: e.target.checked })} />
                 </label>
+              </Group>
+              <Group title="Diagrams" footer="How big Mermaid diagrams are drawn, never wider than the note. Double-click one to zoom.">
+                <div className="row-setting row-wide">
+                  <div className="segmented">
+                    {(Object.keys(DIAGRAM_SIZES) as DiagramSize[]).map((d) => (
+                      <button key={d} className={ty.diagrams === d ? 'on' : undefined} onClick={() => setTy({ diagrams: d })}>{DIAGRAM_SIZES[d].label}</button>
+                    ))}
+                  </div>
+                </div>
               </Group>
             </>
           ) : null}

@@ -4,7 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CODE_FONTS, TEXT_FONTS, THEMES, codeFont, textFont, themeFor, useTheme, type ThemeName, type Typography } from '@/theme';
+import { CODE_FONTS, DIAGRAM_SIZES, TEXT_FONTS, THEMES, codeFont, textFont, themeFor, useTheme, type DiagramSize, type ThemeName, type Typography } from '@/theme';
 import { useSettings, type ThemePref } from '@/store/settings';
 import { useNotes } from '@/store/notes';
 import { semanticIndex } from '@/search';
@@ -22,6 +22,7 @@ import { ModelPicker } from '@/components/ModelPicker';
 import { launchSummary } from '@/utils/launchTiming';
 
 type Page = 'main' | 'appearance' | 'typography' | 'folder' | 'hidden' | 'search' | 'ai';
+const DIAGRAM_OPTIONS = (Object.keys(DIAGRAM_SIZES) as DiagramSize[]).map((d) => [d, DIAGRAM_SIZES[d].label] as [DiagramSize, string]);
 
 export default function SettingsScreen() {
   const t = useTheme();
@@ -241,6 +242,13 @@ export default function SettingsScreen() {
             <View style={styles.row}>
               <Text style={[styles.label, { color: t.colors.text }]}>Line numbers</Text>
               <Switch value={ty.lines} onValueChange={(lines) => settings.setTypography({ lines })} trackColor={{ true: t.colors.volt, false: t.colors.surface2 }} thumbColor="#fff" accessibilityLabel="Line numbers" />
+            </View>
+          </Section>
+        ) : null}
+        {page === 'typography' ? (
+          <Section title="Diagrams" footer="How big Mermaid diagrams are drawn, never wider than the note. Tap one twice or pinch it to zoom.">
+            <View style={styles.cell}>
+              <Segmented<DiagramSize> value={ty.diagrams} onChange={(diagrams) => settings.setTypography({ diagrams })} options={DIAGRAM_OPTIONS} />
             </View>
           </Section>
         ) : null}

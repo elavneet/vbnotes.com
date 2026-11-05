@@ -7,6 +7,9 @@ import Foundation
 public class VbFolderModule: Module {
   /// The folder whose access this module opened; closed when another one is opened.
   private var current: URL?
+  /// Expo runs every module's async functions on one shared queue, so asking iCloud about each note
+  /// (about 2 s for 950 notes on an iPhone) held up file reads and saves all over the app.
+  private let cloudQueue = DispatchQueue(label: "com.lavneet.vbnotes.cloud", qos: .utility)
 
   public func definition() -> ModuleDefinition {
     Name("VbFolder")
@@ -59,6 +62,27 @@ public class VbFolderModule: Module {
       return (try? url.setResourceValues(values)) != nil
     }
 
+    /// Everything under a folder, with each file's date (ms, as expo-file-system reports it) and
+    /// size, for the notes scan at launch. Hidden folders are skipped; hidden files are kept, so
+    /// iCloud's `.name.icloud` stand-ins show up. Off the JS thread: listing about 950 notes through
+    /// expo-file-system took 0.6 s on a simulator, with the app frozen meanwhile.
+    AsyncFunction("listFolder") { (uri: String) -> [[String: Any]] in
+      guard let root = URL(string: uri), let walker = FileManager.default.enumerator(atPath: root.path) else { return [] }
+      var out: [[String: Any]] = []
+      while let path = walker.nextObject() as? String {
+        let attrs = walker.fileAttributes ?? [:]
+        let isDir = (attrs[.type] as? FileAttributeType) == .typeDirectory
+        if isDir && (path as NSString).lastPathComponent.hasPrefix(".") {
+          walker.skipDescendants()
+          continue
+        }
+        let mtime = (attrs[.modificationDate] as? Date).map { Int64($0.timeIntervalSince1970 * 1000) } ?? 0
+        out.append(["path": path, "dir": isDir, "mtime": mtime, "size": (attrs[.size] as? NSNumber)?.int64Value ?? 0])
+      }
+      return out
+    }
+    .runOnQueue(.global(qos: .userInitiated))
+
     /// Asks iCloud to bring down files that are only in the cloud (they show as hidden
     /// `.name.icloud` placeholders until then). Returns how many it asked for.
     AsyncFunction("downloadFromCloud") { (uri: String) -> Int in
@@ -82,5 +106,6 @@ public class VbFolderModule: Module {
       }
       return asked
     }
+    .runOnQueue(cloudQueue)
   }
 }

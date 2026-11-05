@@ -352,14 +352,14 @@ fn open_folder(app: AppHandle, open: State<'_, Open>, path: String) -> Res<()> {
     Ok(())
 }
 
+/// Every note in the folder, walked without holding it, so the list answers from the index meanwhile.
 #[tauri::command]
 async fn scan(open: State<'_, Open>) -> Res<Vec<Entry>> {
-    with(&open, |f| {
-        let (mut out, mut away) = (Vec::new(), Vec::new());
-        walk(&f.root, "", &mut out, &mut away);
-        download_from_icloud(away);
-        Ok(out)
-    })
+    let root = with(&open, |f| Ok(f.root.clone()))?;
+    let (mut out, mut away) = (Vec::new(), Vec::new());
+    walk(&root, "", &mut out, &mut away);
+    download_from_icloud(away);
+    Ok(out)
 }
 
 /// The texts of `paths`; `None` for one that can't be read. Read without holding the folder: a note
