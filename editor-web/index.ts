@@ -1,6 +1,6 @@
 import { TenTapStartKit, startTenTap } from './tentap';
 import { MarkdownBridge } from '../src/editor/markdownBridge';
-import { MediaBridge } from '../src/editor/mediaBridge';
+import { MediaAction, MediaBridge } from '../src/editor/mediaBridge';
 import { EditBridge } from '../src/editor/editBridge';
 import { WikiBridge } from '../src/editor/wikiBridge';
 import { HorizontalRule } from '@tiptap/extension-horizontal-rule';
@@ -8,7 +8,7 @@ import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { PlainTable } from './plainTable';
 import { TagPills } from './tagPills';
 import { RichCodeBlock } from './codeBlocks';
-import { MediaViews } from './media';
+import { MediaViews, askApp, mediaFetch } from './media';
 import { LinkTaps, withPlainLinks } from './links';
 import { CodePaste } from './codePaste';
 import { WordTaps } from './wordTaps';
@@ -22,6 +22,9 @@ import { AppPastedMedia } from './mediaPaste';
 declare global {
   interface Window { contentInjected: boolean | undefined }
 }
+
+// A picture still in iCloud: the app asks for it and waits up to two minutes (`fetchMissing`).
+mediaFetch.from = (src) => askApp(MediaAction.Fetch, { src }, 125_000);
 
 // Android injects the boot config after load; wait for it before making the editor.
 const interval = setInterval(() => {

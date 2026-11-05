@@ -22,7 +22,7 @@ import { FormatActions, FormatKeyboard } from './FormatKeyboard';
 import { NotePreview } from './NotePreview';
 import { ActionSheet, type SheetAction } from './ActionSheet';
 import { VoiceRecorder } from './VoiceRecorder';
-import { pickAudioFile, pickPhotos, savePasted, takePhoto } from '@/media/attachments';
+import { fetchMissing, pickAudioFile, pickPhotos, savePasted, takePhoto } from '@/media/attachments';
 
 const WEBVIEW_ORIGINS = ['about:*', 'file://*'];
 const KEYBOARDS = [FormatKeyboard];
@@ -226,9 +226,11 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
       else if (m.type === MediaAction.Seek) seek(src, url(src), m.payload.fraction, report);
       else probe(src, url(src), report);
     };
-    // Pictures pasted in the page are saved here and go in where they were pasted.
+    // Pictures pasted in the page are saved here and go in where they were pasted; one the page
+    // can't load is fetched from iCloud.
     mediaHost.paste = savePasted;
-    return () => { mediaHost.handle = undefined; mediaHost.paste = undefined; release(); };
+    mediaHost.fetch = fetchMissing;
+    return () => { mediaHost.handle = undefined; mediaHost.paste = undefined; mediaHost.fetch = undefined; release(); };
   }, []);
 
   // Links tapped in the page open in the browser (or mail, phone…).

@@ -1,7 +1,7 @@
 import { Extension, type Editor } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
-import { sendMessage } from '@10play/tentap-editor';
-import { MediaAction, pasteReplies } from '../src/editor/mediaBridge';
+import { MediaAction } from '../src/editor/mediaBridge';
+import { askApp } from './media';
 
 /** Pictures and sounds a paste can bring, by type, with the extension they are saved under. */
 const TYPES: Record<string, string> = {
@@ -58,7 +58,6 @@ export function pastedMedia(save: (file: File, ext: string) => Promise<string | 
   });
 }
 
-let pasteId = 0;
 /** The phone: the page sends the file to the app, which saves it (`mediaHost.paste`) and answers with its path. */
 export const AppPastedMedia = pastedMedia(async (file, ext) => {
   const data = await new Promise<string>((resolve, reject) => {
@@ -67,10 +66,5 @@ export const AppPastedMedia = pastedMedia(async (file, ext) => {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
-  const id = ++pasteId;
-  return new Promise<string | null>((resolve) => {
-    pasteReplies.set(id, resolve);
-    sendMessage({ type: MediaAction.Paste, payload: { id, data, ext } } as never);
-    setTimeout(() => { if (pasteReplies.delete(id)) resolve(null); }, 30000);
-  });
+  return askApp(MediaAction.Paste, { data, ext }, 30000);
 });

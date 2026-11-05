@@ -4,7 +4,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 import type { EditorView, NodeView } from '@tiptap/pm/view';
 import { sendMessage } from '@10play/tentap-editor';
 import { isAudio } from '../src/utils/media';
-import { MEDIA_STATUS_EVENT, MediaAction } from '../src/editor/mediaBridge';
+import { MEDIA_STATUS_EVENT, MediaAction, replies } from '../src/editor/mediaBridge';
 import type { PlayStatus } from '../src/media/player';
 
 const ICON_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>';
@@ -71,20 +71,48 @@ class AudioView implements NodeView {
  */
 export const mediaSrc = { resolve: (src: string) => src };
 
-/** A picture; a broken link says which file is missing instead of showing nothing. */
+/**
+ * Where a picture that didn't load can come from: on the phone the app fetches one iCloud hasn't
+ * brought down yet and hands it back as a data URL (`index.ts`). Nothing comes elsewhere.
+ */
+export const mediaFetch = { from: (_src: string): Promise<string | null> => Promise.resolve(null) };
+
+let asks = 0;
+/** Sends the app a request and resolves with its answer (`MediaAction.Reply`), or null after `ms`. */
+export function askApp(type: MediaAction, payload: object, ms: number) {
+  const id = ++asks;
+  return new Promise<string | null>((resolve) => {
+    replies.set(id, resolve);
+    sendMessage({ type, payload: { id, ...payload } } as never);
+    setTimeout(() => { if (replies.delete(id)) resolve(null); }, ms);
+  });
+}
+
+/** A picture; a broken link says which file is missing instead of showing nothing, until it turns up. */
 class ImageView implements NodeView {
   dom: HTMLElement;
   constructor(node: PMNode) {
+    const src = String(node.attrs.src);
     this.dom = document.createElement('div');
     this.dom.className = 'vb-image';
     const img = document.createElement('img');
-    img.src = mediaSrc.resolve(String(node.attrs.src));
+    img.src = mediaSrc.resolve(src);
     img.alt = node.attrs.alt ?? '';
     img.draggable = false;
     img.decoding = 'async';
+    let asked = false;
     img.addEventListener('error', () => {
       this.dom.classList.add('vb-missing');
-      this.dom.textContent = `Missing image: ${String(node.attrs.src).split('/').pop()}`;
+      this.dom.textContent = `Missing image: ${src.split('/').pop()}`;
+      if (asked) return;
+      asked = true;
+      void mediaFetch.from(src).then((url) => {
+        if (!url) return;
+        this.dom.classList.remove('vb-missing');
+        this.dom.textContent = '';
+        img.src = url;
+        this.dom.appendChild(img);
+      });
     });
     this.dom.appendChild(img);
   }
