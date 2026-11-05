@@ -5,6 +5,7 @@ runs on the device.
 
 <a href="https://apps.apple.com/app/vb-notes/id6829176804"><img src="docs/app-store-badge.svg" alt="Download on the App Store" height="48"></a>
 <a href="https://play.google.com/store/apps/details?id=com.lavneet.vbnotes"><img src="docs/google-play-badge.svg" alt="Get it on Google Play" height="48"></a>
+<a href="https://www.linuxlinks.com/vb-notes-markdown-note-taking-app/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/linuxlinks-badge-black.png"><img src="docs/linuxlinks-badge-white.png" alt="Featured on LinuxLinks" height="48"></picture></a>
 
 Your notes are plain `.md` files in a folder you choose. Put that folder in iCloud Drive, or let a sync
 app such as Syncthing or FolderSync keep it in step, and the phone and the desktop app show the same
