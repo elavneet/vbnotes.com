@@ -1,5 +1,5 @@
 import type { Theme } from '@/theme';
-import { TYPOGRAPHY, codeFont, cssWeight, textFont, type EditorFont, type Typography } from '@/theme/typography';
+import { DIAGRAM_SIZES, TYPOGRAPHY, codeFont, cssWeight, textFont, type EditorFont, type Typography } from '@/theme/typography';
 
 /**
  * Sizes and margins of the editor page, in em of the body size unless noted. The line height
@@ -166,7 +166,7 @@ export function editorCss(theme: Theme, ty: Typography = TYPOGRAPHY, scale?: num
   ${syntax}
   .vb-syn-comment { font-style: italic; }
   /* A \`\`\`mermaid block: the drawing, with its code only while the caret is inside (see editor-web/codeBlocks.ts). */
-  .ProseMirror .vb-diagram { display: none; }
+  .ProseMirror .vb-diagram { display: none; --vb-diagram: ${(DIAGRAM_SIZES[ty.diagrams] ?? DIAGRAM_SIZES.medium).scale}; }
   .ProseMirror .vb-cb.vb-has-diagram .vb-diagram {
     display: block; position: relative; background: ${c.codeBg}; border: 1px solid ${c.border}; border-radius: 12px;
     padding: 12px; margin: 0 0 ${e.blockBottom}em 0; overflow: auto; -webkit-overflow-scrolling: touch;

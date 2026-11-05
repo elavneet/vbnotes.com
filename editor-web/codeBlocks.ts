@@ -83,16 +83,19 @@ function zoomable(box: HTMLElement, art: HTMLElement) {
   const apply = () => {
     const svg = art.querySelector('svg');
     if (!svg) return;
+    const natural = svg.viewBox?.baseVal?.width || svg.getBoundingClientRect().width;
     if (scale <= 1.01) {
       scale = 1;
+      // Mermaid's own size times Settings › Typography › Diagrams (`--vb-diagram`, from the editor
+      // stylesheet). Its svg is 100% wide, so without this cap a small diagram filled the note.
       svg.style.width = '';
-      svg.style.maxWidth = '';
+      svg.style.maxWidth = natural ? `calc(${natural}px * var(--vb-diagram, 1))` : '';
       box.classList.remove('zoomed');
       return;
     }
-    const natural = svg.viewBox?.baseVal?.width || svg.getBoundingClientRect().width;
+    const size = parseFloat(getComputedStyle(box).getPropertyValue('--vb-diagram')) || 1;
     svg.style.maxWidth = 'none';
-    svg.style.width = `${Math.round(Math.min(natural, box.clientWidth - 24) * scale)}px`;
+    svg.style.width = `${Math.round(Math.min(natural * size, box.clientWidth - 24) * scale)}px`;
     box.classList.add('zoomed');
   };
   const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);

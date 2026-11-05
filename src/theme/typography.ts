@@ -65,9 +65,20 @@ export interface Typography {
   code: CodeFontId;
   /** A number beside each line, as in a code editor (`editor-web/lineNumbers.ts`). */
   lines: boolean;
+  /** How big Mermaid diagrams are drawn, against their own size (`DIAGRAM_SIZES`). */
+  diagrams: DiagramSize;
 }
 
-export const TYPOGRAPHY: Typography = { size: 17, line: 1.55, para: 0.75, text: 'system', head: 'system', code: 'menlo', lines: false };
+export type DiagramSize = 'small' | 'medium' | 'large' | 'xlarge';
+/** Each diagram size: its name in Settings and how many times Mermaid's own size it is drawn (never wider than the note). */
+export const DIAGRAM_SIZES: Record<DiagramSize, { label: string; scale: number }> = {
+  small: { label: 'Small', scale: 0.75 },
+  medium: { label: 'Medium', scale: 1 },
+  large: { label: 'Large', scale: 1.5 },
+  xlarge: { label: 'X-Large', scale: 2 },
+};
+
+export const TYPOGRAPHY: Typography = { size: 17, line: 1.55, para: 0.75, text: 'system', head: 'system', code: 'menlo', lines: false, diagrams: 'medium' };
 
 export const textFont = (id: string): EditorFont => TEXT_FONTS[id as TextFontId] ?? TEXT_FONTS.system;
 export const codeFont = (id: string): EditorFont => CODE_FONTS[id as CodeFontId] ?? CODE_FONTS.menlo;
@@ -77,4 +88,4 @@ export const cssWeight = (font: EditorFont, w: Weight): number => {
   const named = weightIn(font, w);
   return font.wght?.[named] ?? Number(named);
 };
-export const typographyKey = (ty: Typography) => [ty.size, ty.line, ty.para, ty.text, ty.head, ty.code, ty.lines ? 'lines' : ''].join(':');
+export const typographyKey = (ty: Typography) => [ty.size, ty.line, ty.para, ty.text, ty.head, ty.code, ty.lines ? 'lines' : '', ty.diagrams].join(':');
