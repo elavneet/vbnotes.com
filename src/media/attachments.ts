@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { getDocumentAsync } from 'expo-document-picker';
 import { useNotes } from '@/store/notes';
+import { dirname } from '@/vault/types';
 import { attachmentName } from './attachmentName';
 
 export { ATTACH_DIR } from './attachmentName';
@@ -49,6 +50,32 @@ export async function savePasted(data: string, ext: string): Promise<string> {
   } finally {
     tmp.delete();
   }
+}
+
+const PICTURES: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', heic: 'image/heic' };
+
+/**
+ * A picture the editor page couldn't load, mostly one iCloud hasn't brought to the phone yet (a
+ * screenshot pasted on the Mac a minute ago is a `.name.png.icloud` stand-in): asks iCloud for the
+ * files in its folder, waits up to two minutes for it to land and hands it over as a data URL, which
+ * the page can show whatever it may read itself.
+ */
+export async function fetchMissing(src: string): Promise<string | null> {
+  const v = useNotes.getState().vault;
+  const rel = src.replace(/^\.?\//, '');
+  const type = PICTURES[rel.split('.').pop()?.toLowerCase() ?? ''];
+  if (!v || !type || /^[a-z][a-z0-9+.-]*:/i.test(src)) return null;
+  const file = new File(v.baseUrl + rel);
+  if (!file.exists) {
+    let folder: string;
+    try { folder = dirname(decodeURI(rel)); } catch { return null; }
+    if (!(await v.fetchFromCloud?.(folder))) return null;
+    for (let waited = 0; !file.exists; waited += 1000) {
+      if (waited >= 120_000) return null;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+  return `data:${type};base64,${await file.base64()}`;
 }
 
 export async function pickPhotos(): Promise<string[]> {

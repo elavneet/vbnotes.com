@@ -46,8 +46,8 @@ export interface Vault {
   created?(path: string): number | null;
   /** Optional change watcher; returns an unsubscribe. */
   watch?(cb: () => void): () => void;
-  /** Asks the cloud for files that are not on the phone yet; resolves with how many. */
-  fetchFromCloud?(): Promise<number>;
+  /** Asks the cloud for files that are not on the phone yet (in `folder`, else everywhere); resolves with how many. */
+  fetchFromCloud?(folder?: string): Promise<number>;
 }
 
 export const RESERVED_FOLDERS = { archive: 'Archive', trash: 'Trash' } as const;
