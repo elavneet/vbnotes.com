@@ -48,6 +48,8 @@ export const api = {
   search: (q: string, section: Section, limit: number, tag = '', hidden: string[] = []) => invoke<Hit[]>('db_search', { q, section, limit, tag, hidden }),
   titles: (q: string, limit: number) => invoke<NoteMeta[]>('db_titles', { q, limit }),
   importFile: (from: string, to: string) => invoke<Stat>('import_file', { from, to }),
+  /** A pasted picture or sound, saved as `to` in the folder (never over a file). */
+  saveFile: (to: string, bytes: Uint8Array) => invoke<Stat>('save_file', bytes, { headers: { path: to } }),
   welcomePicture: (to: string) => invoke<Stat>('welcome_picture', { to }),
   /** Paths dropped on the window: a folder, a file, or null when it can't be read. */
   pathKinds: (paths: string[]) => invoke<('dir' | 'file' | null)[]>('path_kinds', { paths }),

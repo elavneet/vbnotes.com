@@ -546,6 +546,19 @@ async fn import_file(open: State<'_, Open>, from: String, to: String) -> Res<Sta
     })
 }
 
+/// A picture or sound pasted into a note: the request's body saved as its `path` header in the
+/// folder, never over a file already there.
+#[tauri::command]
+async fn save_file(open: State<'_, Open>, request: tauri::ipc::Request<'_>) -> Res<Stat> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else { return Err("Nothing was pasted".into()) };
+    let to = request.headers().get("path").and_then(|v| v.to_str().ok()).ok_or("No name for the pasted file")?;
+    with(&open, |f| {
+        let dest = new_file(&f.root, to)?;
+        fs::write(&dest, bytes).map_err(text)?;
+        stat_of(&dest).ok_or_else(|| format!("{to} was not saved"))
+    })
+}
+
 /// The welcome note's picture, the phone app's own (`assets/welcome`), built into the app.
 #[tauri::command]
 async fn welcome_picture(open: State<'_, Open>, to: String) -> Res<Stat> {
@@ -613,7 +626,7 @@ fn main() {
         .manage(meaning::Meaning::default())
         .invoke_handler(tauri::generate_handler![
             folder_places, make_place, launch_folder, open_folder, scan, read_files, write_file, move_file, copy_folder, remove_file, exists,
-            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, welcome_picture, path_kinds, import_folder, opened_files, set_tray, quit, window_ready,
+            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, save_file, welcome_picture, path_kinds, import_folder, opened_files, set_tray, quit, window_ready,
             ai::ai_settings, ai::ai_save, ai::ai_models, ai::ai_chat, ai::ai_cancel, ai::ai_key_usage,
             meaning::meaning_enable, meaning::meaning_status, meaning::meaning_stale, meaning::meaning_set, meaning::meaning_search
         ])

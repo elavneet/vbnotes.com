@@ -22,7 +22,7 @@ import { FormatActions, FormatKeyboard } from './FormatKeyboard';
 import { NotePreview } from './NotePreview';
 import { ActionSheet, type SheetAction } from './ActionSheet';
 import { VoiceRecorder } from './VoiceRecorder';
-import { pickAudioFile, pickPhotos, takePhoto } from '@/media/attachments';
+import { pickAudioFile, pickPhotos, savePasted, takePhoto } from '@/media/attachments';
 
 const WEBVIEW_ORIGINS = ['about:*', 'file://*'];
 const KEYBOARDS = [FormatKeyboard];
@@ -226,7 +226,9 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
       else if (m.type === MediaAction.Seek) seek(src, url(src), m.payload.fraction, report);
       else probe(src, url(src), report);
     };
-    return () => { mediaHost.handle = undefined; release(); };
+    // Pictures pasted in the page are saved here and go in where they were pasted.
+    mediaHost.paste = savePasted;
+    return () => { mediaHost.handle = undefined; mediaHost.paste = undefined; release(); };
   }, []);
 
   // Links tapped in the page open in the browser (or mail, phone…).

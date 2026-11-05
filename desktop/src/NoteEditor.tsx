@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { EditorContent, PlaceholderBridge, TenTapStartKit, useEditor } from '@10play/tentap-editor';
 import { Extension, type AnyExtension, type Editor } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
@@ -18,6 +18,8 @@ import { MergeFormats } from '../../editor-web/mergeFormats';
 import { WikiLinks, wikiSource } from '../../editor-web/wikiLinks';
 import { LineNumbers } from '../../editor-web/lineNumbers';
 import { HeadingMarks } from '../../editor-web/headingMarks';
+import { addFiles, useFileDrop } from './fileDrop';
+import { MEDIA, PastedMedia, dropMedia } from './noteMedia';
 import { onContentsChanged, useNotes } from './store';
 import { StyleBar, StyleKeys } from './StyleBar';
 
@@ -98,7 +100,7 @@ const EXTENSIONS: AnyExtension[] = (() => {
     const { config, extendConfig } = b as unknown as { config?: unknown; extendConfig?: unknown };
     b.configureTiptapExtensionsOnRunTime(config, extendConfig).forEach(add);
   }
-  [TagPills, WikiLinks, LinkTaps, LinkClicks, BrowserReturn, StyleKeys, CodePaste, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers, HeadingMarks].forEach(add);
+  [TagPills, WikiLinks, LinkTaps, LinkClicks, BrowserReturn, StyleKeys, PastedMedia, CodePaste, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers, HeadingMarks].forEach(add);
   return out;
 })();
 
@@ -181,9 +183,19 @@ function Pane({ path, initial }: { path: string; initial: string }) {
     });
   }), [editor, path]);
 
+  // Pictures and sounds dropped on the note go in where they land; other files come in as notes, as on the list.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const onDrop = useCallback(async (paths: string[], at: { x: number; y: number }) => {
+    const media = paths.filter((p) => MEDIA.test(p));
+    if (editor && media.length) await dropMedia(editor, media, editor.view.posAtCoords({ left: at.x, top: at.y })?.pos ?? editor.state.selection.to);
+    const rest = paths.filter((p) => !MEDIA.test(p));
+    if (rest.length) await addFiles(rest);
+  }, [editor]);
+  const dropping = useFileDrop(scrollRef, onDrop);
+
   return (
     <>
-      <div className="editor-scroll">
+      <div className={`editor-scroll${dropping ? ' dropping' : ''}`} ref={scrollRef}>
         <EditorContent editor={editor} className="editor" />
       </div>
       <StyleBar editor={editor} />

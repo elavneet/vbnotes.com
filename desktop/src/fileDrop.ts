@@ -8,10 +8,8 @@ import { RESERVED_FOLDERS, isMarkdown } from '@/vault/types';
 import { openNote } from './actions';
 import { api } from './api';
 import { openEditor } from './NoteEditor';
+import { MEDIA } from './noteMedia';
 import { uniquePath, useNotes } from './store';
-
-/** What a note shows from `![](…)`: pictures, and sound as a small player. */
-const MEDIA = /\.(png|jpe?g|gif|webp|heic|m4a|mp3|wav|aac)$/i;
 
 const slashes = (p: string) => p.replace(/\\/g, '/');
 const nameOf = (p: string) => slashes(p).split('/').filter(Boolean).pop() ?? '';
@@ -61,8 +59,8 @@ export async function addFiles(paths: string[]) {
   if (last) await openNote(last);
 }
 
-/** Whether files are being dragged over `target`; dropping them there adds them (`addFiles`). */
-export function useFileDrop(target: RefObject<HTMLElement | null>) {
+/** Whether files are being dragged over `target`; dropping them there hands their paths to `onDrop` (`addFiles` by default). */
+export function useFileDrop(target: RefObject<HTMLElement | null>, onDrop: (paths: string[], at: { x: number; y: number }) => Promise<void> = addFiles) {
   const [over, setOver] = useState(false);
   useEffect(() => {
     // The window reports physical pixels.
@@ -74,9 +72,12 @@ export function useFileDrop(target: RefObject<HTMLElement | null>) {
     const off = getCurrentWebview().onDragDropEvent(({ payload: e }) => {
       if (e.type === 'leave') return setOver(false);
       setOver(e.type !== 'drop' && hit(e.position));
-      if (e.type === 'drop' && hit(e.position)) void addFiles(e.paths).catch((err) => console.warn('adding dropped files failed', err));
+      if (e.type === 'drop' && hit(e.position)) {
+        const at = { x: e.position.x / devicePixelRatio, y: e.position.y / devicePixelRatio };
+        void onDrop(e.paths, at).catch((err) => console.warn('adding dropped files failed', err));
+      }
     });
     return () => { void off.then((f) => f()); };
-  }, [target]);
+  }, [target, onDrop]);
   return over;
 }

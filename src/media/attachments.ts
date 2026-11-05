@@ -1,3 +1,5 @@
+import { Image } from 'react-native';
+import { File, Paths } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { getDocumentAsync } from 'expo-document-picker';
@@ -31,6 +33,22 @@ export async function saveImage(uri: string, width?: number, height?: number): P
   const img = await ctx.renderAsync();
   const out = await img.saveAsync({ format: SaveFormat.JPEG, compress: 0.82 });
   return saveFile(out.uri, 'jpg');
+}
+
+/**
+ * A picture or sound pasted into a note (base64 from the editor page), saved in `attachments/`.
+ * A JPEG (a photo) is shrunk like the camera's; a screenshot or other picture keeps its file.
+ */
+export async function savePasted(data: string, ext: string): Promise<string> {
+  const tmp = new File(Paths.cache, `pasted-${Date.now()}.${ext}`);
+  await tmp.write(data, { encoding: 'base64' });
+  try {
+    if (ext !== 'jpg') return await saveFile(tmp.uri, ext);
+    const { width, height } = await Image.getSize(tmp.uri);
+    return await saveImage(tmp.uri, width, height);
+  } finally {
+    tmp.delete();
+  }
 }
 
 export async function pickPhotos(): Promise<string[]> {
