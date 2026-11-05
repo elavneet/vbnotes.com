@@ -121,7 +121,8 @@ export class LocalVault implements Vault {
   async importFile(source: string, path: string) {
     const parent = dirname(path);
     if (parent) await this.mkdir(parent);
-    new File(source).copy(this.file(path));
+    // `copy` is async since SDK 58: unawaited, a source deleted next (a pasted picture's temp file) never arrived.
+    await new File(source).copy(this.file(path));
   }
 
   get baseUrl() { return this.root.uri.endsWith('/') ? this.root.uri : `${this.root.uri}/`; }
@@ -137,7 +138,7 @@ export class LocalVault implements Vault {
       if (!to.exists) to.create({ intermediates: true, idempotent: true });
       for (const it of from.list()) {
         if (it instanceof Directory) walk(it, new Directory(to, it.name));
-        else if (!new File(to, it.name).exists) { it.copy(new File(to, it.name)); copied++; }
+        else if (!new File(to, it.name).exists) { it.copySync(new File(to, it.name)); copied++; }
       }
     };
     walk(this.root, dest);
