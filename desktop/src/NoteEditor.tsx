@@ -18,6 +18,8 @@ import { MergeFormats } from '../../editor-web/mergeFormats';
 import { WikiLinks, wikiSource } from '../../editor-web/wikiLinks';
 import { LineNumbers } from '../../editor-web/lineNumbers';
 import { HeadingMarks } from '../../editor-web/headingMarks';
+import { ListTyping } from '../../editor-web/listTyping';
+import { MarkdownClipboard } from '../../editor-web/markdownClipboard';
 import { addFiles, useFileDrop } from './fileDrop';
 import { MEDIA, PastedMedia, dropMedia } from './noteMedia';
 import { onContentsChanged, useNotes } from './store';
@@ -100,7 +102,7 @@ const EXTENSIONS: AnyExtension[] = (() => {
     const { config, extendConfig } = b as unknown as { config?: unknown; extendConfig?: unknown };
     b.configureTiptapExtensionsOnRunTime(config, extendConfig).forEach(add);
   }
-  [TagPills, WikiLinks, LinkTaps, LinkClicks, BrowserReturn, StyleKeys, PastedMedia, CodePaste, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers, HeadingMarks].forEach(add);
+  [TagPills, WikiLinks, LinkTaps, LinkClicks, BrowserReturn, StyleKeys, PastedMedia, CodePaste, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers, HeadingMarks, ListTyping, MarkdownClipboard].forEach(add);
   return out;
 })();
 
