@@ -13,8 +13,9 @@ function headingStart(state: EditorState) {
 
 /**
  * Headings as Bear shows them: with the caret at the start of a heading its `#`s appear in front of
- * it, Backspace there takes them away (the line becomes text), and typing `# ` at the start of a
- * line makes it a heading again (Tiptap's input rule), its `#`s hidden once the caret moves on.
+ * it, `#` there adds one (a smaller heading), Backspace takes them away (the line becomes text),
+ * and typing `# ` at the start of a line makes it a heading again (Tiptap's input rule), its `#`s
+ * hidden once the caret moves on.
  * Only while the note is being edited: an opened note's selection sits at the start of its title,
  * and the `#` showed there before anyone had tapped the note.
  */
@@ -37,6 +38,14 @@ export const HeadingMarks = Extension.create({
           apply: (tr, focused) => (tr.getMeta(key) as boolean | undefined) ?? focused,
         },
         props: {
+          // `#` typed where the marks show adds one, as it would in the file: `## ` becomes `### `.
+          handleTextInput: (view, _from, _to, text) => {
+            const at = text === '#' && key.getState(view.state) ? headingStart(view.state) : null;
+            if (!at) return false;
+            const level = at.parent.attrs.level as number;
+            if (level < 6) view.dispatch(view.state.tr.setNodeAttribute(at.before(), 'level', level + 1));
+            return true;
+          },
           handleDOMEvents: {
             focus: (view) => { view.dispatch(view.state.tr.setMeta(key, true)); return false; },
             blur: (view) => { view.dispatch(view.state.tr.setMeta(key, false)); return false; },
