@@ -5,13 +5,15 @@ runs on the device.
 
 <a href="https://apps.apple.com/app/vb-notes/id6829176804"><img src="docs/app-store-badge.svg" alt="Download on the App Store" height="48"></a>
 <a href="https://play.google.com/store/apps/details?id=com.lavneet.vbnotes"><img src="docs/google-play-badge.svg" alt="Get it on Google Play" height="48"></a>
-<a href="https://www.linuxlinks.com/vb-notes-markdown-note-taking-app/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/linuxlinks-badge-black.png"><img src="docs/linuxlinks-badge-white.png" alt="Featured on LinuxLinks" height="48"></picture></a>
-<a href="https://alternativeto.net/software/vb-notes/about/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/alternativeto-badge-dark.svg"><img src="docs/alternativeto-badge-light.svg" alt="VB Notes on AlternativeTo" height="48"></picture></a>
 
 Your notes are plain `.md` files in a folder you choose. Put that folder in iCloud Drive, or let a sync
 app such as Syncthing or FolderSync keep it in step, and the phone and the desktop app show the same
 notes. There is no account and no server: the search model runs on your phone or computer, and the
 files stay yours to open in any editor.
+
+<a href="https://www.linuxlinks.com/vb-notes-markdown-note-taking-app/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/linuxlinks-badge-black.png"><img src="docs/linuxlinks-badge-white.png" alt="Featured on LinuxLinks" height="36"></picture></a>
+<a href="https://alternativeto.net/software/vb-notes/about/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/alternativeto-badge-dark.svg"><img src="docs/alternativeto-badge-light.svg" alt="VB Notes on AlternativeTo" height="36"></picture></a>
+<a href="https://www.saashub.com/vb-notes"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/saashub-badge-dark.png"><img src="docs/saashub-badge-light.png" alt="Featured on SaaSHub" height="36"></picture></a>
 
 **New in 0.4**
 
