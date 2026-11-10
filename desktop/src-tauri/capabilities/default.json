@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "What the VBNotes window may do: its own commands, closing or hiding itself (the close button saves the note first), the folder picker, opening links.",
+  "description": "What the VBNotes window may do: its own commands, closing or hiding itself (the close button saves the note first), the folder picker and the export dialog, opening links, showing a note in Finder or Explorer.",
   "windows": ["main"],
-  "permissions": ["core:default", "core:window:allow-start-dragging", "core:window:allow-destroy", "core:window:allow-hide", "dialog:allow-open", "opener:default"]
+  "permissions": ["core:default", "core:window:allow-start-dragging", "core:window:allow-destroy", "core:window:allow-hide", "dialog:allow-open", "dialog:allow-save", "opener:default", "opener:allow-reveal-item-in-dir"]
 }

@@ -10,6 +10,7 @@ import { useNotes } from './store';
 import { themesOf, useThemePrefs, type ThemePref } from './theme';
 import { TRAY_OFFERED, useTray } from './windowClose';
 import { useCountUse } from './usage';
+import { useUpdates } from './updates';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { PROVIDERS, chatModels, preferredModel, providerOf, useAi, useSpend } from './ai';
 import { formatCost, keyUsageFrom, showsSpend, spentThisMonth, type KeyUsage } from '@/ai/spend';
@@ -39,6 +40,7 @@ export function Settings() {
   const loadAi = useAi((s) => s.load);
   const tray = useTray((s) => s.on);
   const counting = useCountUse();
+  const updates = useUpdates();
   // A folder just picked, waiting for: copy the notes there, or open it as it is.
   const [picked, setPicked] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
@@ -120,8 +122,20 @@ export function Settings() {
                   <NavRow label="Window" value={tray ? 'Keeps running in the tray' : 'Closing quits'} onClick={() => setPage('window')} />
                 </Group>
               ) : null}
-              <Group title="About" footer="Once a day VB Notes tells our server it was used, with only the kind of computer and the app version: no id, nothing about you or your notes.">
-                <div className="row-setting"><span>Version</span><span className="value">{version}</span></div>
+              <Group title="About" footer={updates.on ? 'VB Notes asks GitHub for the newest version a few times a day and tells you when one is out.' : 'VB Notes doesn’t look for new versions.'}>
+                <div className="row-setting">
+                  <span>Version</span>
+                  <span className="value">
+                    {version}
+                    {updates.latest ? <button className="text-btn" onClick={() => void openUrl(updates.latest!.url)}>Get {updates.latest.version}</button> : null}
+                  </span>
+                </div>
+                <label className="row-setting">
+                  <span>Tell me about updates</span>
+                  <input type="checkbox" className="switch" checked={updates.on} onChange={(e) => updates.setOn(e.target.checked)} />
+                </label>
+              </Group>
+              <Group footer="Once a day VB Notes tells our server it was used, with only the kind of computer and the app version: no id, nothing about you or your notes.">
                 <label className="row-setting">
                   <span>Count me as a user</span>
                   <input type="checkbox" className="switch" checked={counting.on} onChange={(e) => counting.set(e.target.checked)} />

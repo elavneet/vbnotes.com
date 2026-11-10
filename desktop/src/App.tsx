@@ -12,6 +12,8 @@ import { Icon, type IconName } from './Icon';
 import { NoteEditor, openEditor } from './NoteEditor';
 import { startMeaning } from './meaning';
 import { NoteList } from './NoteList';
+import { NoteMenu } from './NoteMenu';
+import { printNote } from './noteExport';
 import { QuickOpen, useQuickOpen } from './QuickOpen';
 import { Settings, useSettingsOpen } from './Settings';
 import { Sidebar, useDrawer } from './Sidebar';
@@ -20,6 +22,7 @@ import { savedFolder, useNote, useNotes } from './store';
 import { useApplyTheme, useTheme } from './theme';
 import { useWindowClose } from './windowClose';
 import { useUsageCount } from './usage';
+import { useUpdateCheck } from './updates';
 import { welcomeOnce } from './welcome';
 
 export function App() {
@@ -54,6 +57,7 @@ export function App() {
   // The close button saves the open note first; it hides the window instead with the tray on.
   useWindowClose();
   useUsageCount();
+  useUpdateCheck();
 
   // The list shows from last time's index as soon as the folder is open; the scan finishes behind it.
   if (!booted && !folder) return <div className="app" />;
@@ -77,6 +81,11 @@ function Main() {
       else if (k === 'o') { e.preventDefault(); useQuickOpen.getState().toggle(); }
       else if (k === 'f' && !e.shiftKey) { e.preventDefault(); searchRef.current?.focus(); searchRef.current?.select(); }
       else if (k === 's') { e.preventDefault(); void openEditor.flush(); }
+      else if (k === 'p' && !e.shiftKey) {
+        e.preventDefault();
+        const open = useNotes.getState().selected;
+        if (open) void printNote(open).catch((err) => console.warn('print failed', err));
+      }
       else if (k === ',') { e.preventDefault(); useSettingsOpen.getState().set(true); }
       else if (k === 'y' && e.shiftKey) { e.preventDefault(); useStyleBar.getState().toggle(); }
       else if (k === 'j' && e.shiftKey && useAi.getState().view?.enabled) {
@@ -155,6 +164,7 @@ function EditorBar({ path }: { path: string }) {
           <button className="icon-btn" onClick={act(trash)} title="Move to Trash"><Icon name="trash" /></button>
         </>
       )}
+      <NoteMenu path={path} />
     </div>
   );
 }

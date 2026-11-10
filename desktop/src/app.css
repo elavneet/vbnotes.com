@@ -38,6 +38,11 @@ input, select { font: inherit; color: inherit; }
 .tag-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 100%; text-align: left; }
 .hash { width: 20px; height: 20px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex: none; }
 .side-bottom { border-top: 1px solid var(--border); padding-top: 8px; margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+.update-card { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 6px 10px; margin: 0 2px 6px; padding: 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
+.update-badge { width: 26px; height: 26px; border-radius: 13px; display: inline-flex; align-items: center; justify-content: center; background: var(--volt); color: var(--onVolt); }
+.update-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.update-actions { grid-column: 2; display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
+.update-get { height: 26px; padding: 0 12px; border-radius: 13px; background: var(--volt); color: var(--onVolt); font-size: 13px; font-weight: 600; }
 
 /* Notes list */
 .list-pane { position: relative; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border); background: var(--bg); }
@@ -81,6 +86,21 @@ input, select { font: inherit; color: inherit; }
 .menu button:hover { background: var(--volt); color: var(--onVolt); }
 .menu button.danger { color: var(--danger); }
 .menu button.danger:hover { background: var(--danger); color: #fff; }
+.menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 6px; }
+.menu-sub { position: relative; }
+.menu .menu-has-sub { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.menu-sub > .menu { display: none; position: absolute; right: calc(100% - 2px); top: -6px; }
+.menu-sub:hover > .menu { display: block; }
+.menu-sub:hover > .menu-has-sub { background: var(--volt); color: var(--onVolt); }
+.note-menu { min-width: 200px; }
+
+/* Print… and Export › PDF (`noteExport.ts`): the page prints only the note put in #print-root. */
+#print-root { display: none; }
+@media print {
+  html, body { height: auto !important; overflow: visible !important; background: #fff !important; }
+  #root { display: none !important; }
+  #print-root { display: block; }
+}
 
 /* Editor */
 .editor-pane { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg); }
@@ -173,6 +193,7 @@ input, select { font: inherit; color: inherit; }
 .row-setting select { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; min-width: 160px; }
 .row-setting .path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--textSecondary); font-size: 13px; direction: rtl; text-align: left; }
 .value { color: var(--textSecondary); font-variant-numeric: tabular-nums; }
+.value .text-btn { margin-left: 8px; }
 .text-input { flex: 1; min-width: 0; background: none; border: 0; outline: none; color: var(--text); user-select: text; -webkit-user-select: text; }
 .text-input::placeholder { color: var(--textMuted); }
 .text-btn:disabled { opacity: 0.4; }

@@ -327,12 +327,39 @@ fn quit(app: AppHandle) {
 /// Where usage counts go (`COUNT_URL` in `src/utils/usage.ts`).
 const COUNT_URL: &str = "https://stats.appmox.com/api/count";
 
+/// The newest release, for "Tell me about updates" (`src/updates.ts`).
+const RELEASES_URL: &str = "https://api.github.com/repos/elavneet/vbnotes.com/releases/latest";
+
+/// A client for the two small requests below; the page itself can't reach other sites.
+fn web() -> ureq::Agent {
+    ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(20))).build().into()
+}
+
 /// One usage count event, built by the page (`src/utils/usage.ts`).
 #[tauri::command]
 async fn count_use(body: String) -> Res<()> {
     tauri::async_runtime::spawn_blocking(move || {
-        let agent: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(20))).build().into();
-        agent.post(COUNT_URL).header("Content-Type", "application/json").send(&body).map(|_| ()).map_err(|e| e.to_string())
+        web().post(COUNT_URL).header("Content-Type", "application/json").send(&body).map(|_| ()).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[derive(Serialize)]
+struct Release {
+    version: String,
+    url: String,
+}
+
+/// The newest VB Notes on GitHub: its version without the `v`, and its release page.
+#[tauri::command]
+async fn latest_release() -> Res<Release> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let res = web().get(RELEASES_URL).header("Accept", "application/vnd.github+json").header("User-Agent", "VB Notes").call().map_err(|e| e.to_string())?;
+        let json: serde_json::Value = serde_json::from_str(&res.into_body().read_to_string().map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+        let tag = json["tag_name"].as_str().ok_or_else(|| "GitHub gave no release".to_string())?;
+        let url = json["html_url"].as_str().unwrap_or("https://github.com/elavneet/vbnotes.com/releases/latest");
+        Ok(Release { version: tag.trim_start_matches('v').to_string(), url: url.to_string() })
     })
     .await
     .map_err(|e| e.to_string())?
@@ -573,6 +600,33 @@ async fn save_file(open: State<'_, Open>, request: tauri::ipc::Request<'_>) -> R
     })
 }
 
+/// Export (`src/noteExport.ts`): the note as `text` to `to`, a file picked in the save dialog, with
+/// the files it links (`attachments/...`) copied beside it at the same paths, never over a file.
+#[tauri::command]
+async fn export_note(open: State<'_, Open>, to: String, text: String, attachments: Vec<String>) -> Res<()> {
+    let linked: Vec<(String, PathBuf)> = with(&open, |f| Ok(attachments.iter().filter_map(|a| inside(&f.root, a).ok().map(|p| (a.clone(), p))).collect()))?;
+    let to = PathBuf::from(to);
+    fs::write(&to, text).map_err(self::text)?;
+    let dir = to.parent().ok_or("No folder to export to")?;
+    for (rel, from) in linked {
+        let dest = dir.join(&rel);
+        if dest.exists() || !from.is_file() {
+            continue;
+        }
+        if let Some(parent) = dest.parent() {
+            fs::create_dir_all(parent).map_err(self::text)?;
+        }
+        fs::copy(&from, &dest).map_err(self::text)?;
+    }
+    Ok(())
+}
+
+/// Print… and Export › PDF: the system's print dialog for the page, which prints only the note then.
+#[tauri::command]
+fn print_page(window: tauri::WebviewWindow) -> Res<()> {
+    window.print().map_err(text)
+}
+
 /// The welcome note's picture, the phone app's own (`assets/welcome`), built into the app.
 #[tauri::command]
 async fn welcome_picture(open: State<'_, Open>, to: String) -> Res<Stat> {
@@ -640,7 +694,7 @@ fn main() {
         .manage(meaning::Meaning::default())
         .invoke_handler(tauri::generate_handler![
             folder_places, make_place, launch_folder, open_folder, scan, read_files, write_file, move_file, copy_folder, remove_file, exists,
-            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, save_file, welcome_picture, path_kinds, import_folder, opened_files, set_tray, quit, window_ready, count_use,
+            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, save_file, welcome_picture, path_kinds, import_folder, opened_files, set_tray, quit, window_ready, count_use, latest_release, export_note, print_page,
             ai::ai_settings, ai::ai_save, ai::ai_models, ai::ai_chat, ai::ai_cancel, ai::ai_key_usage,
             meaning::meaning_enable, meaning::meaning_status, meaning::meaning_stale, meaning::meaning_set, meaning::meaning_search
         ])
