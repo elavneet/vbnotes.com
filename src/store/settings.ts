@@ -15,11 +15,14 @@ interface SettingsState {
   searchMode: SearchMode;
   searchModel: SearchModelId;
   typography: Typography;
+  /** Count this device as a user, once a day, with no id (`src/utils/usage.ts`). */
+  countUse: boolean;
   setTheme: (t: ThemePref) => void;
   setThemeFor: (name: ThemeName, id: string) => void;
   setSearchMode: (m: SearchMode) => void;
   setSearchModel: (m: SearchModelId) => void;
   setTypography: (patch: Partial<Typography>) => void;
+  setCountUse: (on: boolean) => void;
 }
 
 const KEY = 'settings.v1';
@@ -33,8 +36,8 @@ function saved() {
 
 export const useSettings = create<SettingsState>((set, get) => {
   const persist = () => {
-    const { theme, lightTheme, darkTheme, searchMode, searchModel, typography } = get();
-    void kvSet(KEY, { theme, lightTheme, darkTheme, searchMode, searchModel, typography });
+    const { theme, lightTheme, darkTheme, searchMode, searchModel, typography, countUse } = get();
+    void kvSet(KEY, { theme, lightTheme, darkTheme, searchMode, searchModel, typography, countUse });
   };
   return {
     theme: 'system',
@@ -42,11 +45,13 @@ export const useSettings = create<SettingsState>((set, get) => {
     darkTheme: 'ink',
     searchMode: 'smart',
     searchModel: DEFAULT_SEARCH_MODEL,
+    countUse: true,
     ...saved(),
     setTheme: (theme) => { set({ theme }); persist(); },
     setThemeFor: (name, id) => { set(name === 'light' ? { lightTheme: id } : { darkTheme: id }); persist(); },
     setSearchMode: (searchMode) => { set({ searchMode }); persist(); },
     setSearchModel: (searchModel) => { set({ searchModel }); persist(); },
     setTypography: (patch) => { set({ typography: { ...get().typography, ...patch } }); persist(); },
+    setCountUse: (countUse) => { set({ countUse }); persist(); },
   };
 });

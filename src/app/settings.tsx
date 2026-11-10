@@ -21,6 +21,8 @@ import { CONSENT_TEXT, CONSENT_TITLE } from '@/ai/prompt';
 import { ModelPicker } from '@/components/ModelPicker';
 import { launchSummary } from '@/utils/launchTiming';
 
+const USAGE_NOTE = 'Once a day VB Notes tells our server it was used, with only the kind of device and the app version: no id, nothing about you or your notes.';
+
 type Page = 'main' | 'appearance' | 'typography' | 'folder' | 'hidden' | 'search' | 'ai';
 const DIAGRAM_OPTIONS = (Object.keys(DIAGRAM_SIZES) as DiagramSize[]).map((d) => [d, DIAGRAM_SIZES[d].label] as [DiagramSize, string]);
 
@@ -210,9 +212,13 @@ export default function SettingsScreen() {
               <PickRow label="Local search" value={smart ? (status === 'ready' && !semanticIndex.pending ? 'By meaning' : searchStatus) : 'Exact words'} hint="Search by meaning" onPress={() => setPage('search')} />
               <PickRow label="AI chat" value={aiOn ? providerOf(aiProvider).name : 'Off'} hint="Chat with AI about your notes" onPress={() => setPage('ai')} />
             </Section>
-            <Section title="About">
+            <Section title="About" footer={USAGE_NOTE}>
               <Row label="Version" value={Constants.expoConfig?.version ?? '–'} />
               {launchSummary() ? <Row label="Last start" value={launchSummary()!} /> : null}
+              <View style={styles.row}>
+                <Text style={[styles.label, { color: t.colors.text }]}>Count me as a user</Text>
+                <Switch value={settings.countUse} onValueChange={settings.setCountUse} trackColor={{ true: t.colors.volt, false: t.colors.surface2 }} thumbColor="#fff" accessibilityLabel="Count me as a user" />
+              </View>
             </Section>
           </>
         ) : null}

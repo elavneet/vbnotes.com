@@ -9,6 +9,7 @@ import { useMeaning } from './meaning';
 import { useNotes } from './store';
 import { themesOf, useThemePrefs, type ThemePref } from './theme';
 import { TRAY_OFFERED, useTray } from './windowClose';
+import { useCountUse } from './usage';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { PROVIDERS, chatModels, preferredModel, providerOf, useAi, useSpend } from './ai';
 import { formatCost, keyUsageFrom, showsSpend, spentThisMonth, type KeyUsage } from '@/ai/spend';
@@ -37,6 +38,7 @@ export function Settings() {
   const ai = useAi((s) => s.view);
   const loadAi = useAi((s) => s.load);
   const tray = useTray((s) => s.on);
+  const counting = useCountUse();
   // A folder just picked, waiting for: copy the notes there, or open it as it is.
   const [picked, setPicked] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
@@ -118,8 +120,12 @@ export function Settings() {
                   <NavRow label="Window" value={tray ? 'Keeps running in the tray' : 'Closing quits'} onClick={() => setPage('window')} />
                 </Group>
               ) : null}
-              <Group title="About">
+              <Group title="About" footer="Once a day VB Notes tells our server it was used, with only the kind of computer and the app version: no id, nothing about you or your notes.">
                 <div className="row-setting"><span>Version</span><span className="value">{version}</span></div>
+                <label className="row-setting">
+                  <span>Count me as a user</span>
+                  <input type="checkbox" className="switch" checked={counting.on} onChange={(e) => counting.set(e.target.checked)} />
+                </label>
               </Group>
             </>
           ) : null}

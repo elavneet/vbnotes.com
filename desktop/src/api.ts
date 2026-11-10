@@ -59,6 +59,8 @@ export const api = {
   /** The tray icon behind "Keep running in the tray" (Windows). */
   setTray: (on: boolean) => invoke<void>('set_tray', { on }),
   quit: () => invoke<void>('quit'),
+  /** One usage count event (`src/utils/usage.ts`), posted by Rust: the page itself can't reach other sites. */
+  countUse: (body: string) => invoke<void>('count_use', { body }),
   /** The page is drawn in its theme: the hidden window takes `background` and shows. */
   windowReady: (background: string) => invoke<void>('window_ready', { background }),
   aiSettings: () => invoke<AiView>('ai_settings'),
