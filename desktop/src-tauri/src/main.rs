@@ -324,6 +324,20 @@ fn quit(app: AppHandle) {
     app.exit(0);
 }
 
+/// Where usage counts go (`COUNT_URL` in `src/utils/usage.ts`).
+const COUNT_URL: &str = "https://stats.appmox.com/api/count";
+
+/// One usage count event, built by the page (`src/utils/usage.ts`).
+#[tauri::command]
+async fn count_use(body: String) -> Res<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let agent: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(20))).build().into();
+        agent.post(COUNT_URL).header("Content-Type", "application/json").send(&body).map(|_| ()).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 fn opened_files(opened: State<'_, Opened>) -> Vec<String> {
     opened.0.lock().map(|mut o| std::mem::take(&mut *o)).unwrap_or_default()
@@ -626,7 +640,7 @@ fn main() {
         .manage(meaning::Meaning::default())
         .invoke_handler(tauri::generate_handler![
             folder_places, make_place, launch_folder, open_folder, scan, read_files, write_file, move_file, copy_folder, remove_file, exists,
-            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, save_file, welcome_picture, path_kinds, import_folder, opened_files, set_tray, quit, window_ready,
+            db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, save_file, welcome_picture, path_kinds, import_folder, opened_files, set_tray, quit, window_ready, count_use,
             ai::ai_settings, ai::ai_save, ai::ai_models, ai::ai_chat, ai::ai_cancel, ai::ai_key_usage,
             meaning::meaning_enable, meaning::meaning_status, meaning::meaning_stale, meaning::meaning_set, meaning::meaning_search
         ])

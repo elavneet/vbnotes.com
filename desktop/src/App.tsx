@@ -19,6 +19,7 @@ import { useStyleBar } from './StyleBar';
 import { savedFolder, useNote, useNotes } from './store';
 import { useApplyTheme, useTheme } from './theme';
 import { useWindowClose } from './windowClose';
+import { useUsageCount } from './usage';
 import { welcomeOnce } from './welcome';
 
 export function App() {
@@ -52,6 +53,7 @@ export function App() {
 
   // The close button saves the open note first; it hides the window instead with the tray on.
   useWindowClose();
+  useUsageCount();
 
   // The list shows from last time's index as soon as the folder is open; the scan finishes behind it.
   if (!booted && !folder) return <div className="app" />;

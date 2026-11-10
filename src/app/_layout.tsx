@@ -11,6 +11,7 @@ import { useIndexing } from '@/search/useIndexing';
 import { WebViewWarmup } from '@/editor/WebViewWarmup';
 import { useSharedIn } from '@/media/useSharedIn';
 import { useUpdateCheck } from '@/store/appUpdate';
+import { useUsageCount } from '@/store/usageCount';
 import { FolderChoice } from '@/components/FolderChoice';
 import { splashGone } from '@/utils/splash';
 
@@ -22,6 +23,7 @@ function Shell() {
   useIndexing();
   useSharedIn();
   useUpdateCheck();
+  useUsageCount();
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(t.colors.bg);
   }, [t]);
