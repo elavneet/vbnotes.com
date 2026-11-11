@@ -515,6 +515,15 @@ async fn exists(open: State<'_, Open>, path: String) -> Res<bool> {
     with(&open, |f| Ok(inside(&f.root, &path)?.exists()))
 }
 
+/// When the note's file was made (ms), for the ⓘ panel; None where the file system doesn't keep it.
+#[tauri::command]
+async fn created(open: State<'_, Open>, path: String) -> Res<Option<i64>> {
+    with(&open, |f| {
+        let m = fs::metadata(inside(&f.root, &path)?).map_err(text)?;
+        Ok(m.created().ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|d| d.as_millis() as i64))
+    })
+}
+
 #[tauri::command]
 async fn db_known(open: State<'_, Open>) -> Res<Vec<Known>> {
     with(&open, |f| f.index.known())
@@ -693,7 +702,7 @@ fn main() {
         })
         .manage(meaning::Meaning::default())
         .invoke_handler(tauri::generate_handler![
-            folder_places, make_place, launch_folder, open_folder, scan, read_files, write_file, move_file, copy_folder, remove_file, exists,
+            folder_places, make_place, launch_folder, open_folder, scan, read_files, write_file, move_file, copy_folder, remove_file, exists, created,
             db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, save_file, welcome_picture, path_kinds, import_folder, opened_files, set_tray, quit, window_ready, count_use, latest_release, export_note, print_page,
             ai::ai_settings, ai::ai_save, ai::ai_models, ai::ai_chat, ai::ai_cancel, ai::ai_key_usage,
             meaning::meaning_enable, meaning::meaning_status, meaning::meaning_stale, meaning::meaning_set, meaning::meaning_search

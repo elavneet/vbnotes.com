@@ -20,6 +20,10 @@ import { HeadingMarks } from './headingMarks';
 import { ListTyping } from './listTyping';
 import { MarkdownClipboard } from './markdownClipboard';
 import { AppPastedMedia } from './mediaPaste';
+import { EditingKeys, EditingStyles } from './editingKeys';
+import { withNoteSyntax } from './markSyntax';
+import { Callouts } from './callouts';
+import { Folding } from './folding';
 
 declare global {
   interface Window { contentInjected: boolean | undefined }
@@ -36,7 +40,7 @@ const interval = setInterval(() => {
   const holder = document.createElement('div');
   document.getElementById('root')!.appendChild(holder);
   startTenTap(holder, {
-    bridges: [...withPlainLinks(TenTapStartKit), MarkdownBridge, MediaBridge, EditBridge, WikiBridge],
+    bridges: [...withNoteSyntax(withPlainLinks(TenTapStartKit)), MarkdownBridge, MediaBridge, EditBridge, WikiBridge],
     // Toolbar state does not need every keystroke; fewer messages keep typing smooth.
     stateUpdateDebounceMs: 60,
     tiptapOptions: {
@@ -44,7 +48,7 @@ const interval = setInterval(() => {
       contentType: 'markdown',
       // TenTapStartKit has no code block, rule or table; without them the markdown parser drops
       // ``` blocks, --- and | tables |, and the next save would delete them from the file.
-      extensions: [MarkdownPush, TagPills, WikiLinks, LinkTaps, AppPastedMedia, CodePaste, WordTaps, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers, HeadingMarks, ListTyping, MarkdownClipboard],
+      extensions: [MarkdownPush, TagPills, WikiLinks, LinkTaps, AppPastedMedia, CodePaste, WordTaps, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers, HeadingMarks, ListTyping, MarkdownClipboard, EditingKeys, EditingStyles, Callouts, Folding],
       editorProps: { attributes: { spellcheck: 'true', autocapitalize: 'sentences' } },
     },
   });

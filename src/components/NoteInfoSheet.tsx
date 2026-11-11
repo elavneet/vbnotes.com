@@ -3,52 +3,33 @@ import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWind
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
-import { stripInline, toPlainText } from '@/utils/markdown';
+import { headingsOf, longDate, statsOf } from '@/utils/noteStats';
 import { IconButton, type IconName } from './IconButton';
 
-type Heading = { level: number; text: string };
-
-function statsOf(md: string) {
-  const plain = toPlainText(md).trim();
-  const words = plain ? plain.split(/\s+/).length : 0;
-  const paragraphs = md.split(/\n\s*\n/).filter((b) => b.trim()).length;
-  const seconds = Math.round((words / 230) * 60);
-  return {
-    words,
-    characters: plain.replace(/\n+/g, ' ').length,
-    paragraphs,
-    read: seconds < 60 ? `${seconds}s` : `${Math.round(seconds / 60)} min`,
-  };
-}
-
-/** `#` headings outside code blocks, in order: the same ones the editor counts for `goToHeading`. */
-function headingsOf(md: string): Heading[] {
-  const out: Heading[] = [];
-  let fence = false;
-  for (const line of md.split('\n')) {
-    if (/^\s*(```|~~~)/.test(line)) { fence = !fence; continue; }
-    const m = fence ? null : /^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);
-    if (m) out.push({ level: m[1].length, text: stripInline(m[2]) });
-  }
-  return out;
-}
-
-function longDate(ms: number) {
-  const d = new Date(ms);
-  return `${d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })} at ${d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
-}
-
 /** The (i) sheet, as in Bear: counts and dates, or the note's headings to jump to. */
-export function NoteInfoSheet({ visible, onClose, md, modified, created, onHeading }: {
+type Link = { path: string; title: string };
+
+export function NoteInfoSheet({ visible, onClose, md, modified, created, onHeading, findBacklinks, onOpenNote }: {
   visible: boolean; onClose: () => void; md: string; modified?: number; created?: number | null; onHeading: (index: number) => void;
+  /** Notes with a [[link]] to this one, looked up when the Backlinks tab opens. */
+  findBacklinks: () => Promise<Link[]>;
+  onOpenNote: (path: string) => void;
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
-  const [tab, setTab] = useState<'stats' | 'outline'>('stats');
+  const [tab, setTab] = useState<'stats' | 'outline' | 'links'>('stats');
+  const [links, setLinks] = useState<Link[] | null>(null);
   const stats = useMemo(() => statsOf(md), [md]);
   const heads = useMemo(() => headingsOf(md), [md]);
   const [rise] = useState(() => new Animated.Value(1));
+  useEffect(() => {
+    if (!visible || tab !== 'links') return;
+    let live = true;
+    findBacklinks().then((l) => { if (live) setLinks(l); }, () => { if (live) setLinks([]); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once each time the tab opens.
+  }, [visible, tab]);
   useEffect(() => {
     if (!visible) return;
     rise.setValue(1);
@@ -75,7 +56,7 @@ export function NoteInfoSheet({ visible, onClose, md, modified, created, onHeadi
       >
         <View style={styles.top}>
           <IconButton name="close" filled color={t.colors.text} onPress={onClose} label="Close" />
-          <Text style={[styles.title, { color: t.colors.text }]}>{tab === 'stats' ? 'Statistics' : 'Outline'}</Text>
+          <Text style={[styles.title, { color: t.colors.text }]}>{tab === 'stats' ? 'Statistics' : tab === 'outline' ? 'Outline' : 'Backlinks'}</Text>
           <View style={styles.side} />
         </View>
         {tab === 'stats' ? (
@@ -103,6 +84,20 @@ export function NoteInfoSheet({ visible, onClose, md, modified, created, onHeadi
               ))}
             </View>
           </View>
+        ) : tab === 'links' ? (
+          <ScrollView style={styles.outline} contentContainerStyle={styles.body}>
+            {links === null ? <Text style={[styles.none, { color: t.colors.textMuted }]}>Looking…</Text>
+              : links.length ? links.map((l) => (
+                <Pressable
+                  key={l.path}
+                  accessibilityRole="button"
+                  onPress={() => { onClose(); onOpenNote(l.path); }}
+                  style={({ pressed }) => [styles.head, { paddingLeft: 14 }, pressed && { backgroundColor: t.colors.surface }]}
+                >
+                  <Text numberOfLines={1} style={[styles.headText, { color: t.colors.text }]}>{l.title || 'Untitled'}</Text>
+                </Pressable>
+              )) : <Text style={[styles.none, { color: t.colors.textMuted }]}>No notes link here yet.</Text>}
+          </ScrollView>
         ) : (
           <ScrollView style={styles.outline} contentContainerStyle={styles.body}>
             {heads.length ? heads.map((h, i) => (
@@ -118,18 +113,18 @@ export function NoteInfoSheet({ visible, onClose, md, modified, created, onHeadi
           </ScrollView>
         )}
         <View style={[styles.tabs, { bottom: insets.bottom + 12, backgroundColor: t.colors.surface, borderColor: t.colors.border }]}>
-          {(['stats', 'outline'] as const).map((id) => {
+          {(['stats', 'outline', 'links'] as const).map((id) => {
             const on = tab === id;
             return (
               <Pressable
                 key={id}
                 accessibilityRole="tab"
-                accessibilityLabel={id === 'stats' ? 'Statistics' : 'Outline'}
+                accessibilityLabel={id === 'stats' ? 'Statistics' : id === 'outline' ? 'Outline' : 'Backlinks'}
                 accessibilityState={{ selected: on }}
-                onPress={() => setTab(id)}
+                onPress={() => { if (id === 'links') setLinks(null); setTab(id); }}
                 style={[styles.tab, on && { backgroundColor: t.colors.surface2 }]}
               >
-                <Ionicons name={id === 'stats' ? 'stats-chart' : 'list'} size={20} color={on ? t.colors.accent : t.colors.textSecondary} />
+                <Ionicons name={id === 'stats' ? 'stats-chart' : id === 'outline' ? 'list' : 'arrow-undo-outline'} size={20} color={on ? t.colors.accent : t.colors.textSecondary} />
               </Pressable>
             );
           })}

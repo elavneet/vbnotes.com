@@ -21,6 +21,21 @@ const PATHS = {
   cloud: 'M7 18a5 5 0 0 1-.9-9.9A6 6 0 0 1 17.6 9 4.5 4.5 0 0 1 17 18z',
   folder: 'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
   computer: 'M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM9 21h6M12 17v4',
+  // The note's ⓘ panel and ⋮ menu (InfoPanel.tsx, NoteMenu.tsx)
+  info: 'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zM12 11v5M12 8h.01',
+  stats: 'M4 20h16M6.5 16v-3M10.5 16V8M14.5 16v-5M18.5 16V5',
+  outline: 'M9 6h11M13 12h7M13 18h7M4.5 6h.01M8.5 12h.01M8.5 18h.01',
+  backlinks: 'M9 14L4 9l5-5M4 9h10a6 6 0 0 1 6 6v5',
+  editorOnly: 'M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z',
+  threePanes: 'M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM8 5v14M13 5v14',
+  export: 'M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7zM14 3v4h4M12 17v-6M9.5 13.5L12 11l2.5 2.5',
+  copy: 'M9 8h10a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zM5 16H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v1',
+  print: 'M7 9V3h10v6M7 18H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M7 14h10v7H7z',
+  dots: 'M5 12h.01M12 12h.01M19 12h.01',
+  check: 'M5 12l5 5L20 7',
+  words: 'M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-9l-5 4v-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8 9h8M8 12.5h5',
+  clock: 'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zM12 7v5l3 2',
+  calendar: 'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM4 10h16M8 3v4M16 3v4M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01',
   // The style bar (StyleBar.tsx)
   heading: 'M6 4v16M18 4v16M6 12h12',
   todo: 'M6 3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zM8 12l3 3 5-6',
@@ -38,6 +53,8 @@ const PATHS = {
   image: 'M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM21 15l-5-5L6 20M8.5 10.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z',
   more: 'M12 5h.01M12 12h.01M12 19h.01',
   down: 'M7 10l5 5 5-5',
+  fold: 'M4 6h16M4 12h16M4 18h16M9 3l3 3 3-3M9 21l3-3 3 3',
+  unfold: 'M4 12h16M9 4l3 3 3-3M9 20l3-3 3 3',
   code: 'M16 18l6-6-6-6M8 6l-6 6 6 6',
   codeBlock: 'M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM10 9l-3 3 3 3M14 9l3 3-3 3',
   hide: 'M3 3l18 18M10.6 5.1C11 5 11.5 5 12 5c5 0 9 4.5 10 7-.5 1.2-1.3 2.4-2.4 3.5M6.6 6.6C4.4 8 2.8 10 2 12c1 2.5 5 7 10 7 2 0 3.9-.6 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2',
@@ -45,11 +62,14 @@ const PATHS = {
 
 export type IconName = keyof typeof PATHS;
 
-/** `filled` paints the inside too, for a button that is on (a closed shape such as `bookmark`). */
-export function Icon({ name, size = 18, className, weight = 1.8, filled }: { name: IconName; size?: number; className?: string; weight?: number; filled?: boolean }) {
+/**
+ * `filled` paints the inside too, for a button that is on (a closed shape such as `bookmark`).
+ * `d` draws a path from elsewhere (the callout icons in `src/editor/noteSyntax.ts`).
+ */
+export function Icon({ name, d, size = 18, className, weight = 1.8, filled, color }: { name?: IconName; d?: string; size?: number; className?: string; weight?: number; filled?: boolean; color?: string }) {
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={weight} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={PATHS[name]} />
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={weight} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={color ? { color } : undefined}>
+      <path d={d ?? (name ? PATHS[name] : '')} />
     </svg>
   );
 }

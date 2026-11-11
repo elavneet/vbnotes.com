@@ -5,6 +5,7 @@ import type {} from '@tiptap/extension-blockquote';
 import type {} from '@tiptap/extension-code';
 import type {} from '@tiptap/extension-code-block';
 import type {} from '@tiptap/extension-list';
+import { toggleWordMark } from './editingKeys';
 
 const LISTS = ['bulletList', 'orderedList', 'taskList'];
 
@@ -92,8 +93,8 @@ export const MergeFormats = Extension.create({
     return {
       toggleCode: () => (props) => {
         const { $from, $to } = props.state.selection;
-        // Within one line, inline code as before.
-        if ($from.sameParent($to) && !$from.parent.type.spec.code) return props.commands.toggleMark('code');
+        // Within one line, inline code, on the word the caret is in.
+        if ($from.sameParent($to) && !$from.parent.type.spec.code) return toggleWordMark('code')(props);
         return codeBlock(props);
       },
       toggleCodeBlock: () => codeBlock,

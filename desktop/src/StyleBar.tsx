@@ -3,6 +3,7 @@ import { Extension, type Editor } from '@tiptap/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { create } from 'zustand';
 import { attachmentName } from '@/media/attachmentName';
+import { CALLOUTS, MENU_HIGHLIGHTS } from '@/editor/noteSyntax';
 import { hrefForText } from '@/utils/links';
 import { api } from './api';
 import { Icon, type IconName } from './Icon';
@@ -31,7 +32,13 @@ function keyLabel(key: string) {
   return [has('Ctrl') || has('Mod') ? 'Ctrl' : '', has('Alt') ? 'Alt' : '', has('Shift') ? 'Shift' : '', k].filter(Boolean).join('+');
 }
 
-type Command = { label: string; icon: IconName | string; key?: string; run: (e: Editor) => unknown; on?: (e: Editor) => boolean };
+type Command = {
+  label: string; icon: IconName | string; key?: string; run: (e: Editor) => unknown; on?: (e: Editor) => boolean;
+  /** A colour dot instead of the icon (the highlighter colours). */
+  swatch?: string;
+  /** An icon path from elsewhere, in its light and dark colours (callouts). */
+  path?: string; tint?: readonly [string, string];
+};
 
 const chain = (e: Editor) => e.chain().focus() as any;
 
@@ -41,7 +48,7 @@ const heading = (level: 1 | 2 | 3 | 4 | 5 | 6): Command => ({
   on: (e) => e.isActive('heading', { level }),
 });
 
-// Bear's shortcuts. ⌘B, ⌘I, ⌘U and ⇧⌘H are the editor's own.
+// The shortcuts, shown in the menus; the keys themselves are `EditingKeys` (editor-web/editingKeys.ts).
 const C = {
   todo: { label: 'Todo', icon: 'todo', key: 'Mod-t', run: (e) => chain(e).toggleTaskList().run(), on: (e) => e.isActive('taskList') },
   list: { label: 'List', icon: 'list', key: 'Mod-l', run: (e) => chain(e).toggleBulletList().run(), on: (e) => e.isActive('bulletList') },
@@ -52,29 +59,56 @@ const C = {
   italic: { label: 'Italic', icon: 'italic', key: 'Mod-i', run: (e) => chain(e).toggleItalic().run(), on: (e) => e.isActive('italic') },
   underline: { label: 'Underline', icon: 'underline', key: 'Mod-u', run: (e) => chain(e).toggleUnderline().run(), on: (e) => e.isActive('underline') },
   strike: { label: 'Strikethrough', icon: 'strike', key: 'Shift-Mod-u', run: (e) => chain(e).toggleStrike().run(), on: (e) => e.isActive('strike') },
-  highlight: { label: 'Highlight', icon: 'highlight', key: 'Shift-Mod-h', run: (e) => chain(e).toggleHighlight().run(), on: (e) => e.isActive('highlight') },
+  highlight: { label: 'Highlight', icon: 'highlight', key: 'Shift-Mod-m', run: (e) => chain(e).toggleHighlight().run(), on: (e) => e.isActive('highlight') },
   code: { label: 'Code', icon: 'code', key: 'Alt-Mod-c', run: (e) => chain(e).toggleCode().run(), on: (e) => e.isActive('code') },
   // ⌃⌘C has no match on Windows and Linux, where Ctrl is ⌘.
   codeBlock: { label: 'Code Block', icon: 'codeBlock', key: MAC ? 'Ctrl-Mod-c' : undefined, run: (e) => chain(e).toggleCodeBlock().run(), on: (e) => e.isActive('codeBlock') },
-  table: { label: 'Table', icon: 'table', run: (e) => chain(e).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
+  table: { label: 'Table', icon: 'table', key: 'Alt-Mod-t', run: (e) => chain(e).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
 } satisfies Record<string, Command>;
 
 const HEADINGS = ([1, 2, 3, 4, 5, 6] as const).map(heading);
 
-/** The bar's shortcuts in the editor. Alt-Mod-c is the editor's code block key; Bear uses it for code. */
+// Folding headings (editor-web/folding.ts).
+const FOLDS: Command[] = [
+  { label: 'Toggle Folding', icon: 'chevron', key: "Mod-'", run: (e) => chain(e).toggleFold().run() },
+  { label: 'Fold All Headings', icon: 'fold', run: (e) => chain(e).foldAll().run() },
+  { label: 'Unfold All Headings', icon: 'unfold', run: (e) => chain(e).unfoldAll().run() },
+];
+
+// The highlighter: the default (Volt) and five colours (editor-web/markSyntax.ts).
+const MARKERS: Command[] = [
+  { label: 'Default', icon: 'highlight', swatch: 'var(--volt)', key: 'Shift-Mod-m', run: (e) => chain(e).toggleHighlight({ color: null }).run(), on: (e) => e.isActive('highlight', { color: null }) },
+  ...MENU_HIGHLIGHTS.map((h): Command => ({
+    label: h.label, icon: 'highlight', swatch: `rgba(${h.rgb}, 0.6)`,
+    run: (e) => chain(e).toggleHighlight({ color: h.color }).run(), on: (e) => e.isActive('highlight', { color: h.color }),
+  })),
+];
+
+// Callouts: Note, Tip, Important, Warning, Caution (editor-web/callouts.ts).
+const CALLOUT_ITEMS: Command[] = CALLOUTS.map((c) => ({
+  label: `${c.label} Callout`, icon: 'quote', path: c.icon, tint: [c.light, c.dark],
+  run: (e) => chain(e).toggleCallout(c.type).run(), on: (e) => e.isActive('blockquote', { callout: c.type }),
+}));
+
+/** ⌘K asks for a link in the bar's popover; the other keys are `EditingKeys`, shared with the phone. */
 export const StyleKeys = Extension.create({
   name: 'vbStyleKeys',
   priority: 200,
   addKeyboardShortcuts() {
-    const keys: Record<string, () => boolean> = { 'Mod-k': () => { useStyleBar.getState().askLink(); return true; } };
-    for (const c of [...HEADINGS, C.todo, C.list, C.ordered, C.quote, C.rule, C.strike, C.code, C.codeBlock]) {
-      if (c.key) keys[c.key] = () => { c.run(this.editor); return true; };
-    }
-    return keys;
+    return {
+      'Mod-k': () => { useStyleBar.getState().askLink(); return true; },
+      // ⇧⌘I is Statistics (App.tsx), not Tiptap's second italic key.
+      'Shift-Mod-i': () => true,
+    };
   },
 });
 
 const glyph = (icon: string, size = 18) => (/^H\d$/.test(icon) ? <span className="sb-h">{icon}</span> : <Icon name={icon as IconName} size={size} />);
+const itemGlyph = (c: Command) => {
+  if (c.swatch) return <span className="sb-swatch" style={{ background: c.swatch }} />;
+  if (c.path) return <Icon d={c.path} size={16} color={c.tint?.[document.documentElement.dataset.theme === 'dark' ? 1 : 0]} />;
+  return glyph(c.icon, 16);
+};
 const tip = (c: Command) => (c.key ? `${c.label} (${keyLabel(c.key)})` : c.label);
 
 /** Pictures (and sounds) picked on disk are copied into the folder's `attachments/`, like the phone's. */
@@ -91,7 +125,7 @@ async function addPictures(editor: Editor) {
   }
 }
 
-type Menu = 'heading' | 'list' | 'more' | 'link' | null;
+type Menu = 'heading' | 'list' | 'marker' | 'more' | 'link' | null;
 
 export function StyleBar({ editor }: { editor: Editor | null }) {
   const { shown, linkAsked, toggle } = useStyleBar();
@@ -128,7 +162,7 @@ export function StyleBar({ editor }: { editor: Editor | null }) {
   );
   const items = (list: (Command | '-')[]) => list.map((c, i) => (c === '-' ? <div key={i} className="sb-sep" /> : (
     <button key={c.label} className={`sb-item${c.on?.(editor) ? ' on' : ''}`} onClick={act(c)} role="menuitem">
-      <span className="sb-item-icon">{glyph(c.icon, 16)}</span>
+      <span className="sb-item-icon">{itemGlyph(c)}</span>
       <span className="sb-item-label">{c.label}</span>
       {c.key ? <span className="sb-key">{keyLabel(c.key)}</span> : null}
     </button>
@@ -144,20 +178,26 @@ export function StyleBar({ editor }: { editor: Editor | null }) {
           <button className={`sb-btn sb-more${level ? ' on' : ''}${menu === 'heading' ? ' open' : ''}`} onClick={flip('heading')} title="Headings" aria-haspopup="menu" aria-expanded={menu === 'heading'}>
             <Icon name="heading" /><Icon name="down" size={12} weight={2.2} />
           </button>
-          {menu === 'heading' ? <div className="sb-pop" role="menu">{items(HEADINGS)}</div> : null}
+          {menu === 'heading' ? <div className="sb-pop" role="menu">{items([...HEADINGS, '-', ...FOLDS])}</div> : null}
         </span>
         {button(C.todo)}
         <span className="sb-anchor">
           <button className={`sb-btn sb-more${menu === 'list' ? ' open' : ''}`} onClick={flip('list')} title="Lists and blocks" aria-haspopup="menu" aria-expanded={menu === 'list'}>
             <Icon name="list" /><Icon name="down" size={12} weight={2.2} />
           </button>
-          {menu === 'list' ? <div className="sb-pop" role="menu">{items([C.list, C.ordered, C.quote, C.todo, '-', C.rule])}</div> : null}
+          {menu === 'list' ? <div className="sb-pop" role="menu">{items([C.list, C.ordered, C.quote, C.todo, '-', ...CALLOUT_ITEMS, '-', C.rule])}</div> : null}
         </span>
       </div>
       <div className="sb-group">
         {button(C.bold)}
         {button(C.italic)}
-        {button(C.highlight)}
+        <span className="sb-anchor">
+          {button(C.highlight)}
+          <button className={`sb-btn sb-caret${menu === 'marker' ? ' open' : ''}`} onClick={flip('marker')} title="Highlighter colours" aria-label="Highlighter colours" aria-haspopup="menu" aria-expanded={menu === 'marker'}>
+            <Icon name="down" size={12} weight={2.2} />
+          </button>
+          {menu === 'marker' ? <div className="sb-pop" role="menu">{items(MARKERS)}</div> : null}
+        </span>
       </div>
       <div className="sb-group">
         <span className="sb-anchor">

@@ -40,6 +40,8 @@ export const api = {
   removeFile: (path: string) => invoke<void>('remove_file', { path }),
   copyFolder: (to: string) => invoke<number>('copy_folder', { to }),
   exists: (path: string) => invoke<boolean>('exists', { path }),
+  /** When the file was made (ms), or null. */
+  created: (path: string) => invoke<number | null>('created', { path }),
   known: () => invoke<{ path: string; mtime: number; size: number }[]>('db_known'),
   put: (records: NoteRecord[], pinned: string[]) => invoke<void>('db_put', { records, pinned }),
   remove: (paths: string[]) => invoke<void>('db_remove', { paths }),

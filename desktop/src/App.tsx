@@ -13,6 +13,8 @@ import { NoteEditor, openEditor } from './NoteEditor';
 import { startMeaning } from './meaning';
 import { NoteList } from './NoteList';
 import { NoteMenu } from './NoteMenu';
+import { InfoButton, useInfo } from './InfoPanel';
+import { useLayout } from './layout';
 import { printNote } from './noteExport';
 import { QuickOpen, useQuickOpen } from './QuickOpen';
 import { Settings, useSettingsOpen } from './Settings';
@@ -24,6 +26,8 @@ import { useWindowClose } from './windowClose';
 import { useUsageCount } from './usage';
 import { useUpdateCheck } from './updates';
 import { welcomeOnce } from './welcome';
+
+const MAC = /Mac/.test(navigator.platform);
 
 export function App() {
   const theme = useTheme();
@@ -69,12 +73,19 @@ function Main() {
   const searchRef = useRef<HTMLInputElement>(null);
   const selected = useNotes((s) => s.selected);
   const drawer = useDrawer();
+  const layout = useLayout((s) => s.layout);
   const chatOpen = useChat((s) => s.open);
   const aiOn = useAi((s) => !!s.view?.enabled);
   useEffect(() => { void useAi.getState().load(); }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // ⌃1, ⌃2, ⌃3: editor only, notes and editor, tags, notes and editor.
+      if (MAC && e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && /^[123]$/.test(e.key)) {
+        e.preventDefault();
+        useLayout.getState().set(e.key === '1' ? 'editor' : e.key === '2' ? 'notes' : 'all');
+        return;
+      }
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
       const k = e.key.toLowerCase();
       if (k === 'n') { e.preventDefault(); void startNote(); }
@@ -88,6 +99,7 @@ function Main() {
       }
       else if (k === ',') { e.preventDefault(); useSettingsOpen.getState().set(true); }
       else if (k === 'y' && e.shiftKey) { e.preventDefault(); useStyleBar.getState().toggle(); }
+      else if (k === 'i' && e.shiftKey && useNotes.getState().selected) { e.preventDefault(); useInfo.getState().toggle(); }
       else if (k === 'j' && e.shiftKey && useAi.getState().view?.enabled) {
         e.preventDefault();
         const chat = useChat.getState();
@@ -101,7 +113,7 @@ function Main() {
   }, []);
 
   return (
-    <div className={`app${selected ? ' reading' : ''}${drawer.open ? ' drawer' : ''}${chatOpen && aiOn ? ' chatting' : ''}`}>
+    <div className={`app${selected ? ' reading' : ''}${drawer.open ? ' drawer' : ''}${chatOpen && aiOn ? ' chatting' : ''}${layout === 'all' ? '' : ` l-${layout}`}`}>
       <Sidebar />
       {drawer.open ? <div className="drawer-scrim" onMouseDown={() => drawer.set(false)} /> : null}
       <NoteList searchRef={searchRef} onCreate={() => void startNote()} />
@@ -130,8 +142,7 @@ const edited = (ms: number) => {
 /** Above the open note: when it was edited, and the phone's note actions. */
 function EditorBar({ path }: { path: string }) {
   const note = useNote(path);
-  const { section, togglePin, toggleBookmark, trash, restore, deleteForever } = useNotes.getState();
-  const marked = useNotes((s) => s.bookmarks.includes(path));
+  const section = useNotes((s) => s.section);
   const act = (fn: (p: string) => Promise<unknown>) => async () => { await openEditor.flush(); await fn(path); };
   const styles = useStyleBar();
   const aiOn = useAi((s) => !!s.view?.enabled);
@@ -145,26 +156,15 @@ function EditorBar({ path }: { path: string }) {
           <Icon name="sparkle" />
         </button>
       ) : null}
-      {section === 'trash' ? null : (
-        <button className={`icon-btn biu${styles.shown ? ' on' : ''}`} onClick={styles.toggle} title={`${styles.shown ? 'Hide' : 'Show'} the style bar (${/Mac/.test(navigator.platform) ? '⇧⌘Y' : 'Ctrl+Shift+Y'})`} aria-pressed={styles.shown}>
-          <b>B</b><i>I</i><u>U</u>
-        </button>
-      )}
-      {section === 'trash' ? (
-        <>
-          <button className="icon-btn" onClick={act(restore)} title="Restore"><Icon name="restore" /></button>
-          <button className="icon-btn danger" onClick={act(deleteForever)} title="Delete forever"><Icon name="trash" /></button>
-        </>
-      ) : (
-        <>
-          <button className={`icon-btn${note?.pinned ? ' on' : ''}`} onClick={act(togglePin)} title={note?.pinned ? 'Unpin' : 'Pin to top'}><Icon name="pin" /></button>
-          {section === 'archive'
-            ? <button className="icon-btn" onClick={act(restore)} title="Move to Notes"><Icon name="restore" /></button>
-            : <button className={`icon-btn${marked ? ' on' : ''}`} onClick={act(toggleBookmark)} title={marked ? 'Remove bookmark' : 'Bookmark'}><Icon name="bookmark" filled={marked} /></button>}
-          <button className="icon-btn" onClick={act(trash)} title="Move to Trash"><Icon name="trash" /></button>
-        </>
-      )}
-      <NoteMenu path={path} />
+      <div className="note-pill">
+        {section === 'trash' ? null : (
+          <button className={`icon-btn biu${styles.shown ? ' on' : ''}`} onClick={styles.toggle} title={`${styles.shown ? 'Hide' : 'Show'} the style bar (${/Mac/.test(navigator.platform) ? '⇧⌘Y' : 'Ctrl+Shift+Y'})`} aria-pressed={styles.shown}>
+            <b>B</b><i>I</i><u>U</u>
+          </button>
+        )}
+        <InfoButton path={path} />
+        <NoteMenu path={path} />
+      </div>
     </div>
   );
 }
