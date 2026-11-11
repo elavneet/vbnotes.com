@@ -82,17 +82,50 @@ input, select { font: inherit; color: inherit; }
 
 /* Right-click menu */
 .menu { position: fixed; z-index: 20; min-width: 180px; padding: 5px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25); }
-.menu button { display: block; width: 100%; text-align: left; padding: 6px 10px; border-radius: 6px; }
+.menu button { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left; padding: 6px 10px; border-radius: 6px; white-space: nowrap; }
+.menu button:disabled { opacity: 0.4; pointer-events: none; }
+.menu .mi-check { width: 14px; display: inline-flex; flex: none; margin-right: -2px; }
+.menu .mi-icon { flex: none; opacity: 0.85; }
+.menu .mi-label { flex: 1; }
+.menu .mi-more { flex: none; opacity: 0.7; }
 .menu button:hover { background: var(--volt); color: var(--onVolt); }
 .menu button.danger { color: var(--danger); }
 .menu button.danger:hover { background: var(--danger); color: #fff; }
 .menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 6px; }
 .menu-sub { position: relative; }
-.menu .menu-has-sub { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .menu-sub > .menu { display: none; position: absolute; right: calc(100% - 2px); top: -6px; }
 .menu-sub:hover > .menu { display: block; }
 .menu-sub:hover > .menu-has-sub { background: var(--volt); color: var(--onVolt); }
-.note-menu { min-width: 200px; }
+.note-menu { min-width: 220px; padding: 6px; border-radius: 12px; }
+.note-menu button { padding: 7px 10px; }
+
+/* BIU, ⓘ and ⋮ in one pill. */
+.note-pill { display: flex; align-items: center; gap: 2px; padding: 2px; margin-left: 4px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); }
+.note-pill .icon-btn { height: 30px; }
+
+/* The ⓘ panel (InfoPanel.tsx): Statistics, Table of Contents and Backlinks. */
+.info-pop { position: fixed; z-index: 21; width: 340px; padding: 14px 14px 16px; border-radius: 16px; background: var(--surface2); border: 1px solid var(--border); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.3); cursor: default; }
+.info-arrow { position: absolute; top: -9px; width: 16px; height: 16px; background: var(--surface2); border-left: 1px solid var(--border); border-top: 1px solid var(--border); transform: rotate(45deg); border-top-left-radius: 3px; }
+.info-pop h3 { margin: 0 0 12px; text-align: center; font-size: 14px; font-weight: 600; color: var(--textSecondary); }
+.info-tabs { margin-bottom: 14px; }
+.info-tabs button { display: inline-flex; align-items: center; justify-content: center; }
+.info-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.info-tile { position: relative; display: flex; flex-direction: column; gap: 22px; padding: 14px 14px 12px; border-radius: 12px; background: var(--surface); }
+.info-tile b { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
+.info-tile span:last-child { font-size: 13px; color: var(--textSecondary); }
+.info-tile > svg, .info-glyph { position: absolute; top: 14px; right: 14px; color: var(--textMuted); }
+.info-glyph { font-size: 17px; line-height: 20px; }
+.info-dates { margin-top: 10px; border-radius: 12px; background: var(--surface); overflow: hidden; }
+.info-dates > div { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; }
+.info-dates > div + div { border-top: 1px solid var(--border); }
+.info-dates b { font-size: 14px; font-weight: 700; color: var(--text); }
+.info-dates span { font-size: 13px; color: var(--textSecondary); }
+.info-dates svg { position: absolute; right: 14px; top: 50%; margin-top: -10px; color: var(--textMuted); }
+.info-list { display: flex; flex-direction: column; max-height: 340px; overflow-y: auto; }
+.info-list button { text-align: left; padding: 7px 10px; border-radius: 8px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.info-list button.top { font-weight: 600; }
+.info-list button:hover { background: var(--surface); }
+.info-empty { margin: 18px 0; text-align: center; color: var(--textMuted); }
 
 /* Print… and Export › PDF (`noteExport.ts`): the page prints only the note put in #print-root. */
 #print-root { display: none; }
@@ -254,6 +287,8 @@ input, select { font: inherit; color: inherit; }
 .sb-btn:hover, .sb-btn.open { background: var(--surface2); color: var(--text); }
 .sb-btn.on { color: var(--accent); }
 .sb-more svg:last-child { margin-right: -3px; color: var(--textMuted); }
+.sb-caret { min-width: 18px; width: 18px; padding: 0; margin-left: -3px; color: var(--textMuted); }
+.sb-swatch { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12); }
 .sb-h { font: 700 11px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; letter-spacing: 0.02em; }
 .sb-pop { position: absolute; bottom: calc(100% + 10px); left: -4px; z-index: 11; min-width: 236px; padding: 5px; border-radius: 12px; background: var(--surface2); border: 1px solid var(--border); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28); }
 .sb-pop.right { left: auto; right: -4px; }
@@ -347,3 +382,23 @@ input, select { font: inherit; color: inherit; }
   .app.chatting { grid-template-columns: 1fr; }
 }
 
+
+/* The three layouts (layout.ts), on windows wide enough for more than one column. */
+@media (min-width: 721px) {
+  .app.l-notes { grid-template-columns: 340px 1fr; }
+  .app.l-editor { grid-template-columns: 1fr; }
+  .app.l-editor .list-pane { display: none; }
+  .app.l-notes .sidebar, .app.l-editor .sidebar { position: fixed; z-index: 30; top: 0; bottom: 0; left: 0; width: 260px; transform: translateX(-100%); transition: transform 0.18s ease; box-shadow: 0 0 40px rgba(0, 0, 0, 0.3); visibility: hidden; }
+  .app.l-notes.drawer .sidebar, .app.l-editor.drawer .sidebar { transform: none; visibility: visible; }
+  .app.l-notes .narrow-only { display: inline-flex; }
+  .app.l-notes .list-head { justify-content: flex-start; gap: 6px; padding-left: 10px; }
+  .app.l-notes .list-head h2 { flex: 1; min-width: 0; }
+  .mac .app.l-notes .list-head, .mac .app.l-editor .editor-bar { padding-left: 80px; }
+}
+@media (min-width: 901px) {
+  .app.chatting.l-notes { grid-template-columns: 340px 1fr 360px; }
+  .app.chatting.l-editor { grid-template-columns: 1fr 360px; }
+}
+@media (min-width: 721px) and (max-width: 900px) {
+  .app.chatting.l-editor { grid-template-columns: 1fr; }
+}

@@ -1,5 +1,6 @@
 import type { Theme } from '@/theme';
 import { DIAGRAM_SIZES, TYPOGRAPHY, codeFont, cssWeight, textFont, type EditorFont, type Typography } from '@/theme/typography';
+import { CALLOUTS, HIGHLIGHTS } from './noteSyntax';
 
 /**
  * Sizes and margins of the editor page, in em of the body size unless noted. The line height
@@ -113,6 +114,10 @@ function lineNumberCss(theme: Theme, ty: Typography, text: EditorFont, head: Edi
   .ProseMirror .vb-cb.vb-has-diagram:not(.vb-cb-active)::before { display: none; }
   .ProseMirror hr[data-ln]::before { margin-top: ${-Math.round(own / 2) - 1}px; }
   .ProseMirror .vb-audio[data-ln]::before { margin-top: 0; }
+  /* A heading's fold chevron takes its number's place while it shows. */
+  .ProseMirror :is(.vb-folded, .vb-fold-here)[data-ln]::before { visibility: hidden; }
+  @media (hover: hover) { .ProseMirror .vb-foldable:hover[data-ln]::before { visibility: hidden; } }
+  .ProseMirror .vb-fold { margin-left: -${g.padLeft - 4}px; width: ${g.width}px; justify-content: flex-end; }
   `;
 }
 
@@ -131,6 +136,8 @@ export function editorCss(theme: Theme, ty: Typography = TYPOGRAPHY, scale?: num
   const dark = theme.name === 'dark';
   const hues = theme.tags.map((h, i) => `.vb-tag[data-hue="${i}"] { background: ${h.bg}; color: ${h.fg}; }`).join('\n  ');
   const syntax = Object.entries(theme.syntax).map(([role, color]) => `.vb-syn-${role} { color: ${color}; }`).join('\n  ');
+  const marks = HIGHLIGHTS.map((h) => `.ProseMirror mark[data-color="${h.color}"] { background: rgba(${h.rgb}, ${dark ? 0.4 : 0.32}) !important; }`).join('\n  ');
+  const callouts = CALLOUTS.map((k) => `.ProseMirror blockquote[data-callout="${k.type}"] { --vb-co: ${dark ? k.dark : k.light}; --vb-co-bg: ${dark ? k.dark : k.light}${dark ? '1F' : '12'}; }`).join('\n  ');
   return `
   :root { color-scheme: ${theme.name}; }
   html, body { background: ${c.bg}; margin: 0; padding: 0; -webkit-text-size-adjust: 100%; }
@@ -229,6 +236,34 @@ export function editorCss(theme: Theme, ty: Typography = TYPOGRAPHY, scale?: num
   .ProseMirror .vb-time { flex: 0 0 auto; font-size: 13px; font-variant-numeric: tabular-nums; color: ${c.textSecondary}; }
   .ProseMirror .vb-audio.vb-missing .vb-play { opacity: 0.4; }
   .ProseMirror mark { background: ${c.volt}${dark ? '59' : 'B3'} !important; color: inherit; border-radius: 3px; padding: 0 2px; }
+  /* Highlighter colours, ==🟢text== (editor-web/markSyntax.ts). */
+  ${marks}
+  /* Callouts, > [!NOTE] (editor-web/callouts.ts): tinted in their type's colour, its icon and name on top. */
+  .ProseMirror blockquote.vb-callout {
+    border-left-color: var(--vb-co); background: var(--vb-co-bg); color: ${c.text}; border-radius: 0 10px 10px 0; padding: 9px 14px 9px 14px;
+  }
+  .ProseMirror blockquote.vb-callout > :last-child { margin-bottom: 0; }
+  ${callouts}
+  .vb-callout-head {
+    display: flex; align-items: center; gap: 7px; margin: 0 0 3px; color: var(--vb-co); font-weight: ${cssWeight(text, '600')};
+    user-select: none; -webkit-user-select: none; cursor: default;
+  }
+  .vb-callout-head svg { flex: none; width: 1.05em; height: 1.05em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  /* Folded headings (editor-web/folding.ts): what they fold is hidden; a chevron left of the heading, "…" after it. */
+  .ProseMirror .vb-hidden { display: none !important; }
+  .ProseMirror .vb-fold {
+    position: absolute; display: inline-flex; align-items: center; justify-content: center; margin-left: -21px; width: 18px; height: ${e.headLine}em;
+    color: ${c.textMuted}; opacity: 0; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; transition: opacity 0.12s;
+  }
+  .ProseMirror .vb-fold svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; transform: rotate(90deg); transition: transform 0.15s; }
+  .ProseMirror .vb-folded .vb-fold svg { transform: none; }
+  .ProseMirror :is(.vb-folded, .vb-fold-here) .vb-fold { opacity: 1; }
+  @media (hover: hover) { .ProseMirror .vb-foldable:hover .vb-fold { opacity: 1; } .ProseMirror .vb-fold:hover { color: ${c.text}; } }
+  .ProseMirror .vb-fold-pill {
+    display: inline-block; margin-left: 0.45em; padding: 0 0.55em; border-radius: 0.4em; background: ${c.surface2}; color: ${c.textMuted};
+    font-size: 0.62em; line-height: 1.5; vertical-align: 0.18em; font-weight: 700; letter-spacing: 0.05em; cursor: pointer;
+    user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+  }
   .ProseMirror s { color: ${c.textMuted}; }
   /* Tentap's own task-list CSS loads after this sheet; the .ProseMirror prefix keeps ours on top. */
   .ProseMirror ul[data-type="taskList"] { list-style: none; padding-left: 0.2em; }

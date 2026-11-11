@@ -65,13 +65,21 @@ const PlainMarkdown = Markdown.extend({
       // A bare address is written back as is (see editor-web/links.ts); escaping would break it.
       const link = (node?.marks ?? []).find((m: any) => m?.type === 'link');
       if (link && isBareLink(text, String(link.attrs?.href ?? ''))) return text;
-      return text
+      return escapeTildes(text)
         .replace(/([`*])/g, '\\$1')
-        .replace(/~~/g, '\\~\\~')
         .replace(/(^|[^A-Za-z0-9])_|_(?=[^A-Za-z0-9]|$)/g, (m) => m.replace('_', '\\_'));
     };
   },
 });
+
+/**
+ * `~` and `~~` around words are underline and strikethrough, so typed tildes
+ * that could pair up are escaped. A lone one ("about ~5 min") stays as typed.
+ */
+function escapeTildes(text: string) {
+  if (text.indexOf('~') === text.lastIndexOf('~')) return text;
+  return text.replace(/~/g, (t, i: number) => (/\s/.test(text[i - 1] ?? ' ') && /\s/.test(text[i + 1] ?? ' ') ? t : '\\~'));
+}
 
 // A `#tag` (letters, digits, `_`, `-`, `/`) ending right at the caret, at a line start or after a space.
 const TAG_AT_CARET = /(?:^|\s)#([A-Za-z0-9_\u00C0-\uFFFF][A-Za-z0-9_\u00C0-\uFFFF\-/]*)$/;

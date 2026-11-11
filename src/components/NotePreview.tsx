@@ -4,6 +4,7 @@ import { codeFont, textFont, weightIn, type EditorFont, type Theme, type Typogra
 import { findTags, tagHue } from '@/utils/tags';
 import { highlightCode } from '@/editor/highlight';
 import { EDITOR as E, lineGutter, lineRatio } from '@/editor/editorCss';
+import { CALLOUT_HEAD, FOLD_AT_END, HIGHLIGHTS } from '@/editor/noteSyntax';
 import { marked, type Token, type Tokens } from 'marked';
 
 /**
@@ -89,7 +90,28 @@ function paragraph(text: string): Block {
 }
 
 const isMedia = (tok: Token) =>
-  (tok.type === 'code' && /^mermaid\b/i.test((tok as Tokens.Code).lang ?? '')) || /!\[[^\]]*\]\(/.test(tok.raw ?? '');
+  (tok.type === 'code' && /^mermaid\b/i.test((tok as Tokens.Code).lang ?? '')) || /!\[[^\]]*\]\(/.test(tok.raw ?? '')
+  // A callout's head is drawn by the editor alone, too.
+  || (tok.type === 'blockquote' && CALLOUT_HEAD.test(tok.raw ?? ''));
+
+/**
+ * Leaves out what folded headings hide, as the editor does (editor-web/folding.ts): everything
+ * after one, up to the next heading of its level or above. The marker comes off the heading.
+ */
+function unfolded(tokens: Token[]): Token[] {
+  const out: Token[] = [];
+  let hideTo = 0;
+  for (const tok of tokens) {
+    const level = tok.type === 'heading' ? (tok as Tokens.Heading).depth : 0;
+    if (hideTo && (!level || level > hideTo)) continue;
+    hideTo = 0;
+    if (level && FOLD_AT_END.test((tok as Tokens.Heading).text)) {
+      out.push({ ...tok, text: (tok as Tokens.Heading).text.replace(FOLD_AT_END, '') } as Token);
+      hideTo = level;
+    } else out.push(tok);
+  }
+  return out;
+}
 
 function parse(md: string): Block[] {
   let src = md.replace(/^\uFEFF/, '');
@@ -101,6 +123,7 @@ function parse(md: string): Block[] {
   try { tokens = withBlankLines(marked.lexer(src)); } catch { return [{ k: 'p', text: src.slice(0, 2000) }]; }
   // Diagrams, images and audio only exist in the editor: the preview stops above the first one
   // rather than draw something the editor then replaces with a different height.
+  tokens = unfolded(tokens);
   const media = tokens.findIndex(isMedia);
   if (media !== -1) tokens = tokens.slice(0, media);
   const solid = tokens.map((tok, i) => (tok.type === 'space' ? -1 : i)).filter((i) => i >= 0);
@@ -198,7 +221,12 @@ function Inline({ text, t, ty, base }: { text: string; t: Theme; ty: Typography;
     }
     else if (m[4] !== undefined || m[8] !== undefined) parts.push(<Text key={key++} style={{ color: t.colors.accent, textDecorationLine: 'underline', textDecorationColor: t.colors.accent + '66' }}>{keepSlashes(m[4] ?? m[8])}</Text>);
     else if (m[5] !== undefined) parts.push(<Text key={key++} style={{ fontStyle: 'italic' }}>{keepSlashes(m[5])}</Text>);
-    else if (m[6] !== undefined) parts.push(<Text key={key++} style={{ backgroundColor: t.colors.volt + (t.name === 'dark' ? '59' : 'B3') }}>{keepSlashes(m[6])}</Text>);
+    else if (m[6] !== undefined) {
+      // `==🟢text==` in colour (editor-web/markSyntax.ts), plain `==text==` in Volt.
+      const color = HIGHLIGHTS.find((h) => m![6].startsWith(h.emoji));
+      const bg = color ? `rgba(${color.rgb}, ${t.name === 'dark' ? 0.4 : 0.32})` : t.colors.volt + (t.name === 'dark' ? '59' : 'B3');
+      parts.push(<Text key={key++} style={{ backgroundColor: bg }}>{keepSlashes(color ? m[6].slice(color.emoji.length).trim() : m[6])}</Text>);
+    }
     else if (m[7] !== undefined) parts.push(<Text key={key++} style={{ color: t.colors.textMuted, textDecorationLine: 'line-through' }}>{keepSlashes(m[7])}</Text>);
     last = re.lastIndex;
   }

@@ -20,6 +20,10 @@ import { LineNumbers } from '../../editor-web/lineNumbers';
 import { HeadingMarks } from '../../editor-web/headingMarks';
 import { ListTyping } from '../../editor-web/listTyping';
 import { MarkdownClipboard } from '../../editor-web/markdownClipboard';
+import { EditingKeys, EditingStyles } from '../../editor-web/editingKeys';
+import { withNoteSyntax } from '../../editor-web/markSyntax';
+import { Callouts } from '../../editor-web/callouts';
+import { Folding } from '../../editor-web/folding';
 import { addFiles, useFileDrop } from './fileDrop';
 import { MEDIA, PastedMedia, dropMedia } from './noteMedia';
 import { onContentsChanged, useNotes } from './store';
@@ -92,7 +96,7 @@ const BrowserReturn = Extension.create({
  */
 const EXTENSIONS: AnyExtension[] = (() => {
   const bridges = [
-    ...withPlainLinks(TenTapStartKit.map((b) => (b.name === 'placeholder' ? PlaceholderBridge.configureExtension({ placeholder: 'Start writing…' }) : b))),
+    ...withNoteSyntax(withPlainLinks(TenTapStartKit.map((b) => (b.name === 'placeholder' ? PlaceholderBridge.configureExtension({ placeholder: 'Start writing…' }) : b)))),
     MarkdownBridge,
   ];
   const out: AnyExtension[] = [];
@@ -102,12 +106,26 @@ const EXTENSIONS: AnyExtension[] = (() => {
     const { config, extendConfig } = b as unknown as { config?: unknown; extendConfig?: unknown };
     b.configureTiptapExtensionsOnRunTime(config, extendConfig).forEach(add);
   }
-  [TagPills, WikiLinks, LinkTaps, LinkClicks, BrowserReturn, StyleKeys, PastedMedia, CodePaste, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers, HeadingMarks, ListTyping, MarkdownClipboard].forEach(add);
+  [TagPills, WikiLinks, LinkTaps, LinkClicks, BrowserReturn, StyleKeys, PastedMedia, CodePaste, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers, HeadingMarks, ListTyping, MarkdownClipboard, EditingKeys, EditingStyles, Callouts, Folding].forEach(add);
   return out;
 })();
 
-/** Saves the open note at once; toolbar actions call it before moving the note. */
-export const openEditor = { flush: async () => {} };
+/** The open note's editor: `flush` saves it at once (toolbar actions call it before moving the note). */
+export const openEditor = { flush: async () => {}, editor: null as Editor | null };
+
+/** Puts the caret at the end of the note's n-th heading and scrolls to it (the ⓘ panel's outline). */
+export function goToHeading(index: number) {
+  const editor = openEditor.editor;
+  if (!editor) return;
+  let seen = 0;
+  let at = -1;
+  editor.state.doc.descendants((node, pos) => {
+    if (at >= 0) return false;
+    if (node.type.name === 'heading' && seen++ === index) at = pos + node.nodeSize - 1;
+    return node.isBlock;
+  });
+  if (at >= 0) editor.chain().focus().setTextSelection(at).scrollIntoView().run();
+}
 
 export function NoteEditor({ path }: { path: string }) {
   const readText = useNotes((s) => s.readText);
@@ -176,6 +194,10 @@ function Pane({ path, initial }: { path: string; initial: string }) {
     },
   } as Parameters<typeof useEditor>[0]);
   editorRef.current = editor;
+  useEffect(() => {
+    openEditor.editor = editor;
+    return () => { if (openEditor.editor === editor) openEditor.editor = null; };
+  }, [editor]);
 
   // The file changed elsewhere (the phone, through iCloud): show the new text unless there are unsaved edits here.
   useEffect(() => onContentsChanged((changed) => {

@@ -1,5 +1,9 @@
 /** Plain-text helpers over raw markdown. Fast and regex-only; no parser. */
+import { HIGHLIGHT_EMOJI } from '../editor/noteSyntax';
 import { isTagLine } from './tags';
+
+// `==🟢text==`: the colour emoji goes with the marks.
+const HIGHLIGHTED = new RegExp(`==(?:${HIGHLIGHT_EMOJI})?(.*?)==`, 'g');
 
 export function splitTitle(md: string): { title: string; body: string } {
   const text = md.replace(/^﻿/, '');
@@ -24,7 +28,9 @@ export function stripInline(s: string): string {
     .replace(/\*(.*?)\*/g, '$1')
     .replace(/(^|[^A-Za-z0-9])_(.*?)_(?![A-Za-z0-9])/g, '$1$2')
     .replace(/~~(.*?)~~/g, '$1')
-    .replace(/==(.*?)==/g, '$1')
+    .replace(HIGHLIGHTED, '$1')
+    // HTML comments, such as the fold marker on a heading: <!-- {"fold":"true"} -->
+    .replace(/<!--[\s\S]*?-->/g, '')
     .trim();
 }
 
@@ -35,6 +41,7 @@ export function toPlainText(md: string): string {
       l
         .replace(/^\s{0,3}#{1,6}\s+/, '')
         .replace(/^\s*>\s?/, '')
+        .replace(/^\[!(note|tip|important|warning|caution)\]\s*/i, '')
         .replace(/^\s*[-*+]\s+\[[ xX]\]\s+/, '')
         .replace(/^\s*[-*+]\s+/, '')
         .replace(/^\s*\d+\.\s+/, '')
