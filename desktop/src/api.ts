@@ -19,6 +19,9 @@ export interface MeaningStatus {
 
 import type { ChatMessage } from '@/ai/prompt';
 
+/** The newest VB Notes on GitHub: its version ("0.4.15") and release page. */
+export interface Release { version: string; url: string }
+
 /** AI chat settings as Rust keeps them (`src-tauri/src/ai.rs`); the API key itself never comes back. */
 export interface AiSettings { enabled: boolean; provider: string; model: string; baseUrl: string }
 export interface AiView extends AiSettings { hasKey: boolean; needsKey: boolean }
@@ -61,6 +64,11 @@ export const api = {
   quit: () => invoke<void>('quit'),
   /** One usage count event (`src/utils/usage.ts`), posted by Rust: the page itself can't reach other sites. */
   countUse: (body: string) => invoke<void>('count_use', { body }),
+  latestRelease: () => invoke<Release>('latest_release'),
+  /** Export: `text` to `to` (picked in the save dialog), with the linked `attachments` copied beside it. */
+  exportNote: (to: string, text: string, attachments: string[]) => invoke<void>('export_note', { to, text, attachments }),
+  /** The system's print dialog for the page (`printNote` in `noteExport.ts`). */
+  printPage: () => invoke<void>('print_page'),
   /** The page is drawn in its theme: the hidden window takes `background` and shows. */
   windowReady: (background: string) => invoke<void>('window_ready', { background }),
   aiSettings: () => invoke<AiView>('ai_settings'),

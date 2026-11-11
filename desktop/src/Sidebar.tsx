@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { create } from 'zustand';
 import { BOOKMARKS, UNTAGGED, type Section, type TagNode } from '@/store/noteModel';
 import { tagHue } from '@/utils/tags';
 import { Icon, type IconName } from './Icon';
 import { useSettingsOpen } from './Settings';
 import { useBookmarked, useNotes } from './store';
+import { useUpdates } from './updates';
 
 /** In a narrow window (half the screen, a snap group) the library slides over the list instead. */
 export const useDrawer = create<{ open: boolean; set: (open: boolean) => void }>((set) => ({ open: false, set: (open) => set({ open }) }));
@@ -26,6 +28,7 @@ export function Sidebar() {
         {tags.map((n) => <TagRow key={n.path} node={n} depth={0} active={section === 'notes' ? tag : ''} onPick={(t) => show('notes', t)} />)}
       </div>
       <div className="side-bottom">
+        <UpdateNotice />
         {/* Notes can't be archived any more; the row stays while older archived notes are there to restore. */}
         {counts.archive || at('archive') ? <Item icon="archive" label="Archive" count={counts.archive} active={at('archive')} onClick={() => show('archive')} /> : null}
         <Item icon="trash" label="Trash" count={counts.trash} active={at('trash')} onClick={() => show('trash')} />
@@ -35,6 +38,22 @@ export function Sidebar() {
         </button>
       </div>
     </nav>
+  );
+}
+
+/** A newer version is out (`updates.ts`): Download opens its release page, Later hides this card. */
+function UpdateNotice() {
+  const { latest, dismissed, later } = useUpdates();
+  if (!latest || dismissed) return null;
+  return (
+    <div className="update-card" role="status">
+      <span className="update-badge"><Icon name="send" size={14} /></span>
+      <span className="update-title">VB Notes {latest.version} is out</span>
+      <span className="update-actions">
+        <button className="text-btn" onClick={later}>Later</button>
+        <button className="update-get" onClick={() => void openUrl(latest.url)}>Download</button>
+      </span>
+    </div>
   );
 }
 
