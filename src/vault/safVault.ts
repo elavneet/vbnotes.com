@@ -137,6 +137,10 @@ export class SafVault extends LocalVault {
     this.put(this.fileAt(path) ?? this.newFile(path), text);
   }
 
+  override writeSync(path: string, text: string) {
+    this.put(this.fileAt(path) ?? this.newFile(path), text);
+  }
+
   override async remove(path: string) {
     this.find(path)?.delete();
     this.nodes.delete(path);

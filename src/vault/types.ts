@@ -27,6 +27,8 @@ export interface Vault {
   /** Same as `read`, at once: the editor's first frame needs the text. */
   readSync?(path: string): string;
   write(path: string, text: string): Promise<void>;
+  /** Same as `write`, at once: a new note opens without waiting for reads queued before it. */
+  writeSync?(path: string, text: string): void;
   remove(path: string): Promise<void>;
   move(from: string, to: string): Promise<void>;
   mkdir(path: string): Promise<void>;
