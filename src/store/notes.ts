@@ -330,7 +330,9 @@ export const useNotes = create<NotesState>((set, get) => {
       // A note made with its title (from the finder) is named after it at once.
       const path = await uniquePath(vault, '', fileNameFromTitle(splitTitle(initial).title));
       wrote();
-      await vault.write(path, initial);
+      // Written at once: an async write waits behind every file read already queued (a folder scan
+      // or the meaning index reading notes), and the new note's screen waited with it.
+      if (vault.writeSync) vault.writeSync(path, initial); else await vault.write(path, initial);
       contents.set(path, initial);
       const { mtime, size } = statOf(vault, path, initial);
       db.put([recordFrom(path, mtime, size, initial)], new Set(get().pinned));

@@ -90,6 +90,15 @@ export class LocalVault implements Vault {
     await this.file(path).write(text);
   }
 
+  writeSync(path: string, text: string) {
+    const parent = dirname(path);
+    if (parent) {
+      const d = this.dir(parent);
+      if (!d.exists) d.create({ intermediates: true, idempotent: true });
+    }
+    this.file(path).writeSync(text);
+  }
+
   async remove(path: string) {
     const f = this.file(path);
     if (f.exists) { f.delete(); return; }

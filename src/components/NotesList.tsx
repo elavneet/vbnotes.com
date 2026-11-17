@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -22,18 +22,36 @@ export function noteRoute(path: string) { return `/note/${encodeURIComponent(pat
 
 type Group = { title: string; data: NoteMeta[] };
 
+/** A new note is being made or its screen is opening (see `startNote`). */
+let starting = 0;
+/** Kept while the note's screen is opening; the notes list showing again frees it sooner. */
+const NEW_NOTE_HOLD_MS = 3000;
+
 /**
  * Makes a note and opens it. A note made while a tag is picked starts with that tag under the
  * title; one made in Bookmarks is bookmarked. A titled note ends in an empty line for the caret (the editor reads the last blank pair
  * as an empty paragraph).
+ *
+ * One note at a time: taps that come before its screen is up (a busy phone hands them all over at
+ * once) are dropped. Each used to make its own blank note and open its own screen.
  */
 export async function startNote(title: string, wide: boolean) {
-  const { tag, select } = useUi.getState();
-  const tagLine = tagOf(tag) ? formatTag(tag) : '';
-  const initial = title ? `# ${title}\n\n${tagLine ? `${tagLine}\n\n` : ''}` : tagLine ? `# \n\n${tagLine} ` : '';
-  const path = await useNotes.getState().createNote(initial);
-  if (tag === BOOKMARKS) await useNotes.getState().toggleBookmark(path);
-  if (wide) select(path); else router.push({ pathname: '/note/[id]', params: { id: encodeURIComponent(path), new: '1' } });
+  if (starting) return;
+  const run = (starting = Date.now());
+  const done = () => { if (starting === run) starting = 0; };
+  try {
+    const { tag, select } = useUi.getState();
+    const tagLine = tagOf(tag) ? formatTag(tag) : '';
+    const initial = title ? `# ${title}\n\n${tagLine ? `${tagLine}\n\n` : ''}` : tagLine ? `# \n\n${tagLine} ` : '';
+    const path = await useNotes.getState().createNote(initial);
+    if (tag === BOOKMARKS) void useNotes.getState().toggleBookmark(path);
+    if (wide) { select(path); done(); return; }
+    router.push({ pathname: '/note/[id]', params: { id: encodeURIComponent(path), new: '1' } });
+    setTimeout(done, NEW_NOTE_HOLD_MS);
+  } catch (e) {
+    done();
+    throw e;
+  }
 }
 
 /** Rows read from the index at a time; scrolling near the end reads the next ones. */
@@ -72,6 +90,9 @@ export function NotesList({ wide, onLibrary }: { wide: boolean; onLibrary?: () =
   const open = useCallback((n: NoteMeta) => {
     if (wide) select(n.path); else router.push(noteRoute(n.path));
   }, [wide, select]);
+
+  // Back on the list from the new note: the next tap makes another.
+  useFocusEffect(useCallback(() => { starting = 0; }, []));
 
   const onAdd = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
