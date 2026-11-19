@@ -10,7 +10,7 @@ import {
 import { openNoteDb, type NoteDb } from './noteDb';
 import { welcomeOnce } from './welcome';
 import { WELCOME_TITLE, WELCOME_VERSION } from './welcomeNote';
-import { BOOKMARKS, buildTags, byDate, cleanHiddenTags, recordFrom, sectionOf, type NoteMeta, type NoteRecord, type Section, type SectionCounts, type TagNode } from './noteModel';
+import { BOOKMARKS, buildTags, byDate, cleanHiddenTags, hasNewText, recordFrom, sectionOf, type NoteMeta, type NoteRecord, type Section, type SectionCounts, type TagNode } from './noteModel';
 import { timeFolder, timeScan } from '@/utils/launchTiming';
 
 export { BOOKMARKS, UNTAGGED, sectionOf, tagOf, type NoteMeta, type Section, type SectionCounts, type TagNode } from './noteModel';
@@ -38,6 +38,13 @@ interface NotesState {
   hiddenTags: string[];
   /** Goes up whenever a note changes; lists read the index again. */
   revision: number;
+  /**
+   * A new note opened by + with nothing typed in it yet: it has no file. `path` is the name it will
+   * take, `base` the name to number if that is taken by then, `initial` what it opened with (a tag
+   * line), `bookmark` when it was made in Bookmarks. Its first text makes the file (`saveNote`);
+   * left empty, it is dropped (`closeNote`).
+   */
+  draft: Draft | null;
 
   boot: () => Promise<void>;
   setVault: (v: Vault) => Promise<void>;
@@ -50,6 +57,13 @@ interface NotesState {
   /** Reads a note without keeping it, for the meaning index going through every note. */
   readText: (path: string) => Promise<string>;
   createNote: (initial?: string) => Promise<string>;
+  /** Opens a new, empty note without making its file (see `draft`). */
+  openDraft: (initial: string, bookmark: boolean) => Promise<string>;
+  /**
+   * The editor left the note. `draft` is the new note it opened as, if any: dropped when nothing
+   * was typed in it; any other note is renamed after its title. Returns where the note is now.
+   */
+  closeNote: (path: string, draft: Draft | null) => Promise<string>;
   saveNote: (path: string, md: string) => Promise<void>;
   syncTitle: (path: string) => Promise<string>;
   moveTo: (path: string, folder: string) => Promise<string>;
@@ -62,6 +76,8 @@ interface NotesState {
   setTagIcon: (tag: string, icon: string | null) => Promise<void>;
   setHiddenTags: (names: string[]) => Promise<void>;
 }
+
+export interface Draft { path: string; base: string; initial: string; bookmark: boolean }
 
 /** Texts of notes opened this session; the rest stay in their files. */
 const contents = new Map<string, string>();
@@ -194,6 +210,7 @@ export const useNotes = create<NotesState>((set, get) => {
     tagIcons: {},
     hiddenTags: [],
     revision: 0,
+    draft: null,
     needsFolder: false,
     ...openAtLaunch(),
 
@@ -267,7 +284,7 @@ export const useNotes = create<NotesState>((set, get) => {
           const read = await Promise.all(stale.slice(i, i + SCAN_BATCH).map(async (e) => {
             try {
               const text = await vault.read(e.path);
-              if (contents.has(e.path)) contents.set(e.path, text);
+              if (contents.has(e.path) && get().draft?.path !== e.path) contents.set(e.path, text);
               return recordFrom(e.path, e.mtime, e.size, text);
             } catch (err) {
               console.warn('read failed', e.path, err);
@@ -340,8 +357,46 @@ export const useNotes = create<NotesState>((set, get) => {
       return path;
     },
 
+    openDraft: async (initial, bookmark) => {
+      const { vault } = open();
+      const base = fileNameFromTitle(splitTitle(initial).title);
+      const path = await uniquePath(vault, '', base);
+      contents.set(path, initial);
+      set({ draft: { path, base, initial, bookmark } });
+      return path;
+    },
+
+    closeNote: async (path, draft) => {
+      if (draft && get().draft === draft) {
+        contents.delete(path);
+        set({ draft: null });
+        return path;
+      }
+      const { db } = get();
+      return get().syncTitle(db?.get(path) ? path : resolvePath(path) || path);
+    },
+
     saveNote: async (requested, md) => {
       const { vault, db } = open();
+      const draft = get().draft;
+      if (draft?.path === requested) {
+        if (!hasNewText(draft.initial, md)) return;
+        // The first text in a new note: its file is made now, under the name it opened with unless
+        // another device took that name meanwhile (later saves follow it through `movedTo`).
+        set({ draft: null });
+        const to = (await vault.exists(requested)) ? await uniquePath(vault, '', draft.base) : requested;
+        if (to !== requested) movedTo.set(requested, to);
+        wrote();
+        if (vault.writeSync) vault.writeSync(to, md); else await vault.write(to, md);
+        contents.delete(requested);
+        contents.set(to, md);
+        const { mtime, size } = statOf(vault, to, md);
+        db.put([recordFrom(to, mtime, size, md)], new Set(get().pinned));
+        set((s) => ({ ...summary(db, get().hiddenTags), revision: s.revision + 1 }));
+        if (draft.bookmark) await get().toggleBookmark(to);
+        emit([to]);
+        return;
+      }
       const path = db.get(requested) || !movedTo.has(requested) ? requested : resolvePath(requested);
       if (!path) return; // deleted while the editor was closing
       if (contents.get(path) === md) return;
@@ -372,6 +427,12 @@ export const useNotes = create<NotesState>((set, get) => {
     },
 
     moveTo: async (path, folder) => {
+      // A new note with nothing in it has no file to move: it just goes.
+      if (get().draft?.path === path) {
+        contents.delete(path);
+        set({ draft: null });
+        return path;
+      }
       const { vault } = open();
       const base = basename(path).replace(/\.(md|markdown|txt)$/i, '');
       const target = await uniquePath(vault, folder, base);

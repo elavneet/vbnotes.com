@@ -152,15 +152,19 @@ export function NoteEditor({ path }: { path: string }) {
 function Pane({ path, initial }: { path: string; initial: string }) {
   const fresh = useNotes((s) => s.fresh === path);
   const editorRef = useRef<Editor | null>(null);
-  const state = useRef({ dirty: false, timer: null as ReturnType<typeof setTimeout> | null });
+  const state = useRef({ dirty: false, timer: null as ReturnType<typeof setTimeout> | null, saving: Promise.resolve() });
 
-  const flush = async () => {
+  // One save at a time, each waiting for the one before: a new note's first save makes its file.
+  const flush = (): Promise<void> => {
     const s = state.current;
     if (s.timer) { clearTimeout(s.timer); s.timer = null; }
     const editor = editorRef.current;
-    if (!editor || !s.dirty) return;
+    if (!editor || !s.dirty) return s.saving;
     s.dirty = false;
-    await useNotes.getState().saveNote(path, editor.getMarkdown());
+    const md = editor.getMarkdown();
+    const run = s.saving.then(() => useNotes.getState().saveNote(path, md));
+    s.saving = run.catch((e) => console.warn('save failed', e));
+    return run;
   };
 
   // Declared before `useEditor`, so on leaving the note it runs while the editor still exists:
@@ -169,7 +173,7 @@ function Pane({ path, initial }: { path: string; initial: string }) {
     openEditor.flush = flush;
     return () => {
       openEditor.flush = async () => {};
-      void flush().then(() => useNotes.getState().syncTitle(path));
+      void flush().catch(() => {}).then(() => useNotes.getState().closeNote(path));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per note (this component is keyed by path).
   }, []);
@@ -189,8 +193,10 @@ function Pane({ path, initial }: { path: string; initial: string }) {
       const s = state.current;
       s.dirty = true;
       if (s.timer) clearTimeout(s.timer);
-      // Written 1 s after typing stops, like the phone.
-      s.timer = setTimeout(() => void flush(), 1000);
+      // A new note's file is made with its first text, at once; after that, notes are written 1 s
+      // after typing stops, like the phone.
+      if (useNotes.getState().draft?.path === path) void flush();
+      else s.timer = setTimeout(() => void flush(), 1000);
     },
   } as Parameters<typeof useEditor>[0]);
   editorRef.current = editor;
@@ -201,7 +207,7 @@ function Pane({ path, initial }: { path: string; initial: string }) {
 
   // The file changed elsewhere (the phone, through iCloud): show the new text unless there are unsaved edits here.
   useEffect(() => onContentsChanged((changed) => {
-    if (!editor || !changed.includes(path) || state.current.dirty) return;
+    if (!editor || !changed.includes(path) || state.current.dirty || useNotes.getState().draft?.path === path) return;
     void useNotes.getState().readText(path).then((md) => {
       if (md !== editor.getMarkdown()) editor.commands.setContent(md, { contentType: 'markdown', emitUpdate: false } as never);
     });

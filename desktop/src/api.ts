@@ -40,6 +40,8 @@ export const api = {
   removeFile: (path: string) => invoke<void>('remove_file', { path }),
   copyFolder: (to: string) => invoke<number>('copy_folder', { to }),
   exists: (path: string) => invoke<boolean>('exists', { path }),
+  /** `base` + `ext` in `folder`, numbered ("base 2") past names that are taken. */
+  freePath: (folder: string, base: string, ext: string) => invoke<string>('free_path', { folder, base, ext }),
   /** When the file was made (ms), or null. */
   created: (path: string) => invoke<number | null>('created', { path }),
   known: () => invoke<{ path: string; mtime: number; size: number }[]>('db_known'),

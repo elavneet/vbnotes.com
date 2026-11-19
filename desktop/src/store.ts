@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { listen } from '@tauri-apps/api/event';
 import { fileNameFromTitle, followsTitle, splitTitle } from '@/utils/markdown';
-import { META_PATH, RESERVED_FOLDERS, basename, dirname, joinPath, type VaultMeta } from '@/vault/types';
-import { BOOKMARKS, buildTags, byDate, cleanHiddenTags, inList, recordFrom, sectionOf, type NoteMeta, type NoteRecord, type Section, type SectionCounts, type TagNode } from '@/store/noteModel';
+import { META_PATH, RESERVED_FOLDERS, basename, dirname, type VaultMeta } from '@/vault/types';
+import { BOOKMARKS, buildTags, byDate, cleanHiddenTags, hasNewText, inList, recordFrom, sectionOf, type NoteMeta, type NoteRecord, type Section, type SectionCounts, type TagNode } from '@/store/noteModel';
 import { fuse } from '@/search/fuse';
 import { api } from './api';
 import { MODEL, meaningReady, syncMeaning } from './meaning';
@@ -36,11 +36,22 @@ interface NotesState {
   selected: string | null;
   /** A note just made: its editor takes the focus. */
   fresh: string | null;
+  /**
+   * A new note opened by + or ⌘N before anything is written in it: there is no file yet. `path` is
+   * the name it will take, `base` the name to number if that is taken by then, `initial` what it
+   * opened with (a tag line), `bookmark` when it was made in Bookmarks. Its first text makes the
+   * file (`saveNote`); left empty, it is dropped.
+   */
+  draft: { path: string; base: string; initial: string; bookmark: boolean } | null;
 
   openFolder: (path: string) => Promise<void>;
   refresh: () => Promise<void>;
   readText: (path: string) => Promise<string>;
   createNote: (initial?: string) => Promise<string>;
+  /** Opens a new, empty note without making its file (see `draft`). */
+  openDraft: (initial: string, bookmark: boolean) => Promise<string>;
+  /** The editor left the note: an empty new note is dropped, another is named after its title. */
+  closeNote: (path: string) => Promise<void>;
   saveNote: (path: string, md: string) => Promise<void>;
   syncTitle: (path: string) => Promise<string>;
   moveTo: (path: string, folder: string) => Promise<string>;
@@ -83,11 +94,8 @@ const summary = async (hidden = useNotes.getState().hiddenTags) => {
   return { counts, tags: buildTags(rows) };
 };
 
-export async function uniquePath(folder: string, base: string, ext = '.md'): Promise<string> {
-  let candidate = joinPath(folder, base + ext);
-  let n = 2;
-  while (await api.exists(candidate)) candidate = joinPath(folder, `${base} ${n++}${ext}`);
-  return candidate;
+export function uniquePath(folder: string, base: string, ext = '.md'): Promise<string> {
+  return api.freePath(folder, base, ext);
 }
 
 let lastSelfWrite = 0;
@@ -138,6 +146,7 @@ export const useNotes = create<NotesState>((set, get) => {
     tag: '',
     selected: null,
     fresh: null,
+    draft: null,
 
     openFolder: async (path) => {
       try {
@@ -186,7 +195,7 @@ export const useNotes = create<NotesState>((set, get) => {
           part.forEach((e, j) => {
             const text = texts[j];
             if (text == null) return;
-            if (contents.has(e.path)) contents.set(e.path, text);
+            if (contents.has(e.path) && get().draft?.path !== e.path) contents.set(e.path, text);
             batch.push(recordFrom(e.path, e.mtime, e.size, text));
           });
           await api.put(batch, meta.pinned);
@@ -234,14 +243,52 @@ export const useNotes = create<NotesState>((set, get) => {
       wrote();
       const { mtime, size } = await api.writeFile(path, initial);
       contents.set(path, initial);
+      // Opened at once; the list and counts follow.
+      set({ section: 'notes', selected: path, fresh: path });
       await api.put([recordFrom(path, mtime, size, initial)], get().pinned);
       const sum = await summary();
-      set((s) => ({ ...sum, revision: s.revision + 1, section: 'notes', selected: path, fresh: path }));
+      set((s) => ({ ...sum, revision: s.revision + 1 }));
       void syncMeaning();
       return path;
     },
 
+    openDraft: async (initial, bookmark) => {
+      const base = fileNameFromTitle(splitTitle(initial).title);
+      const path = await uniquePath('', base);
+      contents.set(path, initial);
+      set({ section: 'notes', selected: path, fresh: path, draft: { path, base, initial, bookmark } });
+      return path;
+    },
+
+    closeNote: async (path) => {
+      const { draft, selected } = get();
+      // Still empty, and not opened again by another +.
+      if (draft?.path === path) {
+        if (selected !== path) { contents.delete(path); set({ draft: null }); }
+        return;
+      }
+      await get().syncTitle(path);
+    },
+
     saveNote: async (path, md) => {
+      const draft = get().draft;
+      if (draft?.path === path) {
+        if (!hasNewText(draft.initial, md)) return;
+        // The first text in a new note: its file is made now, under the name it was opened with
+        // unless another device took that name meanwhile.
+        set({ draft: null });
+        const to = (await api.exists(path)) ? await uniquePath('', draft.base) : path;
+        wrote();
+        const { mtime, size } = await api.writeFile(to, md);
+        contents.delete(path);
+        contents.set(to, md);
+        await api.put([recordFrom(to, mtime, size, md)], get().pinned);
+        if (draft.bookmark) await get().toggleBookmark(to);
+        const sum = await summary();
+        set((s) => ({ ...sum, revision: s.revision + 1, ...(to !== path && s.selected === path ? { selected: to, fresh: to } : null) }));
+        void syncMeaning();
+        return;
+      }
       const before = await api.get(path);
       // Moved to Trash or deleted while the editor was closing; or nothing changed.
       if (!before || contents.get(path) === md) return;
@@ -268,6 +315,12 @@ export const useNotes = create<NotesState>((set, get) => {
     },
 
     moveTo: async (path, folder) => {
+      // A new note with nothing in it has no file to move: it just goes.
+      if (get().draft?.path === path) {
+        contents.delete(path);
+        set((s) => ({ draft: null, selected: s.selected === path ? null : s.selected }));
+        return path;
+      }
       const base = basename(path).replace(/\.(md|markdown|txt)$/i, '');
       return applyMove(path, await uniquePath(folder, base));
     },

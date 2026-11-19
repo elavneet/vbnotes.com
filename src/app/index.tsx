@@ -24,7 +24,10 @@ export default function HomeScreen() {
   const openLibrary = isDesktop ? undefined : () => drawer.current?.openDrawer();
   // A rename after leaving a note must not steal the selection from the note picked next.
   const onRenamed = (from: string, to: string) => { if (useUi.getState().selectedPath === from) select(to); };
-  const selected = useNote(isWide ? selectedPath : null);
+  const note = useNote(isWide ? selectedPath : null);
+  // A new note with nothing typed in it yet isn't in the index; it opens all the same.
+  const draftOpen = useNotes((s) => !!selectedPath && s.draft?.path === selectedPath);
+  const open = note?.path ?? (draftOpen ? selectedPath : null);
 
   if (!isWide) return <LibraryDrawer drawerRef={drawer} fullSwipe><NotesList wide={false} onLibrary={openLibrary} /></LibraryDrawer>;
 
@@ -35,8 +38,8 @@ export default function HomeScreen() {
         <NotesList wide onLibrary={openLibrary} />
       </View>
       <View style={styles.editorPane}>
-        {selected ? (
-          <EditorPane key={selected.path} path={selected.path} onPathChange={onRenamed} onClose={() => select(null)} />
+        {open ? (
+          <EditorPane key={open} path={open} onPathChange={onRenamed} onClose={() => select(null)} />
         ) : (
           <View style={styles.emptyPane}>
             <Ionicons name="document-text-outline" size={36} color={t.colors.textMuted} />
@@ -53,18 +56,19 @@ function EditorPane({ path, onPathChange, onClose }: { path: string; onPathChang
   const note = useNote(path);
   const { togglePin, toggleBookmark, trash } = useNotes.getState();
   const marked = useNotes((s) => s.bookmarks.includes(path));
+  const draft = useNotes((s) => s.draft?.path === path);
   return (
     <View style={styles.editorPane}>
       <Header
         inset={false}
         title=""
-        right={
+        right={draft ? null : (
           <>
             <IconButton name={note?.pinned ? 'pin' : 'pin-outline'} onPress={() => void togglePin(path)} label={note?.pinned ? 'Unpin' : 'Pin'} active={note?.pinned} />
             <IconButton name={marked ? 'bookmark' : 'bookmark-outline'} onPress={() => void toggleBookmark(path)} label={marked ? 'Remove bookmark' : 'Bookmark'} active={marked} />
             <IconButton name="trash-outline" onPress={() => { void trash(path); onClose(); }} label="Move to Trash" />
           </>
-        }
+        )}
       />
       <View style={styles.page}>
         <Suspense fallback={null}>
