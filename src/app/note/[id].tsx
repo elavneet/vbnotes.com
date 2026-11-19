@@ -26,6 +26,8 @@ export default function NoteScreen() {
   const editor = useRef<EditorBridge | null>(null);
   const { togglePin, toggleBookmark, trash, restore, deleteForever, getText, loadText } = useNotes.getState();
   const marked = useNotes((s) => s.bookmarks.includes(path));
+  // A new note with nothing typed in it yet has no file to show or act on.
+  const draft = useNotes((s) => s.draft?.path === path);
   const section = sectionOf(path);
   const aiOn = useAi((s) => s.enabled);
 
@@ -81,8 +83,12 @@ export default function NoteScreen() {
         right={
           <View style={[styles.pill, { backgroundColor: t.colors.surface }]}>
             {aiOn ? <IconButton name="sparkles-outline" size={21} color={t.colors.text} onPress={() => router.push({ pathname: '/chat', params: { path } })} label="Chat with AI about this note" /> : null}
-            <IconButton name="information-circle-outline" size={24} color={t.colors.text} onPress={() => void openInfo()} label="Note info" />
-            <IconButton name="ellipsis-vertical" size={20} color={t.colors.text} onPress={() => setMenu(true)} label="More" />
+            {draft ? null : (
+              <>
+                <IconButton name="information-circle-outline" size={24} color={t.colors.text} onPress={() => void openInfo()} label="Note info" />
+                <IconButton name="ellipsis-vertical" size={20} color={t.colors.text} onPress={() => setMenu(true)} label="More" />
+              </>
+            )}
           </View>
         }
       />

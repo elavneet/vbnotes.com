@@ -36,6 +36,17 @@ export const BOOKMARKS = ':bookmarks';
 /** The tag a list filter names: '' for every note, Untagged and Bookmarks. */
 export const tagOf = (filter: string) => (filter === UNTAGGED || filter === BOOKMARKS ? '' : filter);
 /** Pinned first, then newest first, as every list orders its notes. */
+/**
+ * Whether a new note's text has something typed in it beyond what it opened with (its tag line):
+ * its file is made then. The title line the editor adds on its own doesn't count, nor does a note
+ * emptied again.
+ */
+export function hasNewText(initial: string, md: string): boolean {
+  const bare = (s: string) => s.replace(/^#{1,6}\s*$/gm, '').replace(/\s+/g, '');
+  const now = bare(md);
+  return now !== '' && now !== bare(initial);
+}
+
 export const byDate = (notes: NoteMeta[]) => [...notes].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.mtime - a.mtime);
 
 /**

@@ -515,6 +515,23 @@ async fn exists(open: State<'_, Open>, path: String) -> Res<bool> {
     with(&open, |f| Ok(inside(&f.root, &path)?.exists()))
 }
 
+/// A name no file has yet in `folder`: `base` + `ext`, else `base 2`, `base 3`… In one call: a
+/// folder with 90 "Untitled" notes took 90 calls from the page for each new note.
+#[tauri::command]
+async fn free_path(open: State<'_, Open>, folder: String, base: String, ext: String) -> Res<String> {
+    let name = |n: u32| {
+        let file = if n < 2 { format!("{base}{ext}") } else { format!("{base} {n}{ext}") };
+        if folder.is_empty() { file } else { format!("{folder}/{file}") }
+    };
+    with(&open, |f| {
+        let mut n = 1;
+        while inside(&f.root, &name(n))?.exists() {
+            n += 1;
+        }
+        Ok(name(n))
+    })
+}
+
 /// When the note's file was made (ms), for the ⓘ panel; None where the file system doesn't keep it.
 #[tauri::command]
 async fn created(open: State<'_, Open>, path: String) -> Res<Option<i64>> {
@@ -702,7 +719,7 @@ fn main() {
         })
         .manage(meaning::Meaning::default())
         .invoke_handler(tauri::generate_handler![
-            folder_places, make_place, launch_folder, open_folder, scan, read_files, write_file, move_file, copy_folder, remove_file, exists, created,
+            folder_places, make_place, launch_folder, open_folder, scan, read_files, write_file, move_file, copy_folder, remove_file, exists, free_path, created,
             db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, save_file, welcome_picture, path_kinds, import_folder, opened_files, set_tray, quit, window_ready, count_use, latest_release, export_note, print_page,
             ai::ai_settings, ai::ai_save, ai::ai_models, ai::ai_chat, ai::ai_cancel, ai::ai_key_usage,
             meaning::meaning_enable, meaning::meaning_status, meaning::meaning_stale, meaning::meaning_set, meaning::meaning_search

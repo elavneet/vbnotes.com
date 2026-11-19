@@ -28,9 +28,10 @@ let starting = 0;
 const NEW_NOTE_HOLD_MS = 3000;
 
 /**
- * Makes a note and opens it. A note made while a tag is picked starts with that tag under the
- * title; one made in Bookmarks is bookmarked. A titled note ends in an empty line for the caret (the editor reads the last blank pair
- * as an empty paragraph).
+ * Opens a new note. One made while a tag is picked starts with that tag under the title; one made
+ * in Bookmarks is bookmarked. A titled note (Search's "Create" row) is made at once and ends in an
+ * empty line for the caret (the editor reads the last blank pair as an empty paragraph); an
+ * untitled one (+) has no file until something is typed in it.
  *
  * One note at a time: taps that come before its screen is up (a busy phone hands them all over at
  * once) are dropped. Each used to make its own blank note and open its own screen.
@@ -40,11 +41,19 @@ export async function startNote(title: string, wide: boolean) {
   const run = (starting = Date.now());
   const done = () => { if (starting === run) starting = 0; };
   try {
-    const { tag, select } = useUi.getState();
+    const { tag, select, selectedPath } = useUi.getState();
+    // + again beside a new note that is still empty stays on it.
+    if (!title && wide && selectedPath && useNotes.getState().draft?.path === selectedPath) { done(); return; }
     const tagLine = tagOf(tag) ? formatTag(tag) : '';
     const initial = title ? `# ${title}\n\n${tagLine ? `${tagLine}\n\n` : ''}` : tagLine ? `# \n\n${tagLine} ` : '';
-    const path = await useNotes.getState().createNote(initial);
-    if (tag === BOOKMARKS) void useNotes.getState().toggleBookmark(path);
+    const notes = useNotes.getState();
+    let path: string;
+    if (title) {
+      path = await notes.createNote(initial);
+      if (tag === BOOKMARKS) void notes.toggleBookmark(path);
+    } else {
+      path = await notes.openDraft(initial, tag === BOOKMARKS);
+    }
     if (wide) { select(path); done(); return; }
     router.push({ pathname: '/note/[id]', params: { id: encodeURIComponent(path), new: '1' } });
     setTimeout(done, NEW_NOTE_HOLD_MS);

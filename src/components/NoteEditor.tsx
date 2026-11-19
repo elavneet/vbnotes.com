@@ -133,7 +133,7 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
   const t = useTheme();
   const ty = useSettings((s) => s.typography);
   const saveNote = useNotes((s) => s.saveNote);
-  const syncTitle = useNotes((s) => s.syncTitle);
+  const closeNote = useNotes((s) => s.closeNote);
   const { isKeyboardUp } = useKeyboard();
 
   const bridges = useMemo(() => [...TenTapStartKit, PlaceholderBridge.configureExtension({ placeholder: 'Start writing…' }), MarkdownBridge, MediaBridge, LinkOpenBridge, EditBridge, WikiBridge], []);
@@ -145,6 +145,8 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
   });
   // The newest markdown the page sent (see `markdownListeners`), saved 1 s after typing stops.
   const latest = useRef({ path, dirty: false, md: initial });
+  // Opened as a new note with no file yet: the first text typed makes it (see `draft` in the store).
+  const [draft] = useState(() => { const d = useNotes.getState().draft; return d?.path === path ? d : null; });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const editor = useEditorBridge({
@@ -186,7 +188,9 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
       latest.current.md = md;
       latest.current.dirty = true;
       if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => void flush(), SAVE_DEBOUNCE_MS);
+      // A new note's file is made with its first text, at once.
+      if (useNotes.getState().draft?.path === latest.current.path) void flush();
+      else timer.current = setTimeout(() => void flush(), SAVE_DEBOUNCE_MS);
     });
     return () => { markdownListeners.delete(editor); };
   }, [editor, flush]);
@@ -255,12 +259,13 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
     return () => sub.remove();
   }, [flush]);
 
-  // Leaving the note: save what is pending, then rename the file after the title.
+  // Leaving the note: save what is pending, then rename the file after the title (a new note left
+  // empty is dropped instead).
   useEffect(() => {
     const state = latest.current;
     return () => {
       const p = state.path;
-      const finish = () => void syncTitle(p).then((next) => { if (next !== p) onPathChange?.(next); });
+      const finish = () => void closeNote(p, draft).then((next) => { if (next !== p) onPathChange?.(next); });
       void flush().then(finish);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

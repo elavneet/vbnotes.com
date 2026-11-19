@@ -88,7 +88,8 @@ function Main() {
       }
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
       const k = e.key.toLowerCase();
-      if (k === 'n') { e.preventDefault(); void startNote(); }
+      // A held ⌘N repeats; it makes one note.
+      if (k === 'n') { e.preventDefault(); if (!e.repeat) void startNote(); }
       else if (k === 'o') { e.preventDefault(); useQuickOpen.getState().toggle(); }
       else if (k === 'f' && !e.shiftKey) { e.preventDefault(); searchRef.current?.focus(); searchRef.current?.select(); }
       else if (k === 's') { e.preventDefault(); void openEditor.flush(); }
@@ -143,6 +144,7 @@ const edited = (ms: number) => {
 function EditorBar({ path }: { path: string }) {
   const note = useNote(path);
   const section = useNotes((s) => s.section);
+  const draft = useNotes((s) => s.draft?.path === path);
   const act = (fn: (p: string) => Promise<unknown>) => async () => { await openEditor.flush(); await fn(path); };
   const styles = useStyleBar();
   const aiOn = useAi((s) => !!s.view?.enabled);
@@ -162,8 +164,8 @@ function EditorBar({ path }: { path: string }) {
             <b>B</b><i>I</i><u>U</u>
           </button>
         )}
-        <InfoButton path={path} />
-        <NoteMenu path={path} />
+        {/* A new note with nothing in it yet has no file to show or act on. */}
+        {draft ? null : <><InfoButton path={path} /><NoteMenu path={path} /></>}
       </div>
     </div>
   );
