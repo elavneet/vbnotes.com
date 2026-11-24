@@ -1,6 +1,6 @@
 [package]
 name = "vbnotes"
-version = "0.4.19"
+version = "0.4.20"
 description = "VBNotes for the desktop: markdown notes in a plain folder"
 authors = ["Lavneet Sharma"]
 edition = "2021"
@@ -30,9 +30,10 @@ ureq = { version = "=3.5.0", default-features = false, features = ["rustls"] }
 sha2 = "=0.10.9"
 
 # Voice typing: cpal hears the microphone and NVIDIA's Parakeet model (ONNX) turns speech into text
-# on this computer. ONNX Runtime has no build for Intel Macs, so voice typing is left out there.
+# on this computer. ONNX Runtime has no build for Intel Macs, and its Linux build needs a newer
+# glibc than the release is built with, so voice typing is left out of both for now.
 # ort stays at rc.13: rc.14 and later need Rust 1.92.
-[target.'cfg(not(all(target_os = "macos", target_arch = "x86_64")))'.dependencies]
+[target.'cfg(any(windows, all(target_os = "macos", target_arch = "aarch64")))'.dependencies]
 transcribe-rs = { version = "=0.3.12", default-features = false, features = ["onnx"] }
 ort = "=2.0.0-rc.13"
 ort-sys = "=2.0.0-rc.13"

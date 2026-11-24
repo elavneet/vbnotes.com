@@ -17,7 +17,7 @@ files stay yours to open in any editor.
 
 **New in 0.4**
 
-- **Voice typing on the desktop.** Press ⌥ Space (Ctrl+Space on Windows and Linux) or the microphone
+- **Voice typing on the desktop.** Press ⌥ Space (Ctrl+Space on Windows) or the microphone
   over a note, talk, and press it again: what you said is typed where the caret is. Hold the shortcut
   to talk only while it is held. The speech is turned into text on your computer, nothing is sent
   anywhere, and a second small model takes out the ums, repeats and false starts and keeps what you
@@ -113,13 +113,13 @@ brew install --cask elavneet/vbnotes/vb-notes
   searched by meaning, mixed with keyword matches. The phone downloads it once (about 190 MB; two
   smaller models are offered, one of them multilingual); the desktop app runs the same model through
   llama.cpp (380 MB, on the GPU with Metal on Apple Silicon).
-- **Voice typing (desktop).** ⌥ Space on a Mac, Ctrl+Space on Windows and Linux, or the microphone
+- **Voice typing (desktop).** ⌥ Space on a Mac, Ctrl+Space on Windows, or the microphone
   over a note: talk, press it again, and the words are typed into the note (in an empty note the
   first sentence becomes the title). Speech is recognised on the computer by NVIDIA's Parakeet TDT
   0.6B v3 (25 European languages, about 670 MB, downloaded once after asking). Clean-up, on by
   default, is "S1-mini" by "Superwhisper" (English, about 480 MB): it removes fillers and repeats and
   applies the corrections you say out loud; switch it off in Settings › Voice typing to get the words
-  exactly as heard. Needs Apple silicon on a Mac.
+  exactly as heard. For Windows and Macs with Apple silicon; not in the Linux app yet.
 - **Drag files in (desktop).** Drop files on the notes list: `.md` and `.txt` files come in as notes,
   a picture or a sound file gets a note of its own, and a folder (an export from Bear, Obsidian or
   another app) comes in with its notes and pictures. Nothing in your folder is overwritten.
@@ -171,7 +171,7 @@ npm run editor:build        # editor page → src/editor/editorHtml.js
 npx expo run:ios
 ```
 
-Desktop (needs Rust 1.90+, CMake and, on Linux, `libwebkit2gtk-4.1-dev`, `libclang-dev` and `libasound2-dev`):
+Desktop (needs Rust 1.90+, CMake and, on Linux, `libwebkit2gtk-4.1-dev` and `libclang-dev`):
 
 ```bash
 npm install                 # the desktop page uses the repo's packages
