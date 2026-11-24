@@ -25,6 +25,8 @@ import { useApplyTheme, useTheme } from './theme';
 import { useWindowClose } from './windowClose';
 import { useUsageCount } from './usage';
 import { useUpdateCheck } from './updates';
+import { initVoice, toggleVoice, useVoice, useVoiceKeys, voiceKeyLabel } from './voice';
+import { VoicePill } from './VoicePill';
 import { welcomeOnce } from './welcome';
 
 const MAC = /Mac/.test(navigator.platform);
@@ -54,6 +56,7 @@ export function App() {
     return () => { void off.then((f) => f()); };
   }, [folder]);
   useEffect(() => { void startMeaning(); }, []);
+  useEffect(() => { void initVoice().catch((e) => console.warn('voice typing unavailable', e)); }, []);
   // The window starts hidden; it shows once the theme's colours are on (`useApplyTheme` runs first),
   // and takes the theme's background each time it changes.
   useEffect(() => { void api.windowReady(theme.colors.bg); }, [theme.colors.bg]);
@@ -77,6 +80,9 @@ function Main() {
   const chatOpen = useChat((s) => s.open);
   const aiOn = useAi((s) => !!s.view?.enabled);
   useEffect(() => { void useAi.getState().load(); }, []);
+  // Voice typing's shortcut; its pill takes the style bar's place while it shows.
+  useVoiceKeys();
+  const voicing = useVoice((s) => s.phase !== 'idle');
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -118,7 +124,7 @@ function Main() {
       <Sidebar />
       {drawer.open ? <div className="drawer-scrim" onMouseDown={() => drawer.set(false)} /> : null}
       <NoteList searchRef={searchRef} onCreate={() => void startNote()} />
-      <main className="editor-pane">
+      <main className={`editor-pane${voicing ? ' voicing' : ''}`}>
         {selected ? <EditorBar path={selected} /> : <div className="editor-bar" data-tauri-drag-region />}
         {selected ? <NoteEditor path={selected} /> : (
           <div className="editor-empty">
@@ -127,6 +133,7 @@ function Main() {
             {aiOn ? <button className="text-btn" onClick={() => useChat.getState().show('all')}>Ask your notes</button> : null}
           </div>
         )}
+        <VoicePill />
       </main>
       {aiOn ? <ChatPanel /> : null}
       <Settings />
@@ -149,10 +156,16 @@ function EditorBar({ path }: { path: string }) {
   const styles = useStyleBar();
   const aiOn = useAi((s) => !!s.view?.enabled);
   const chatOpen = useChat((s) => s.open);
+  const voice = useVoice((s) => (s.on && s.status.supported ? s.phase : null));
   return (
     <div className="editor-bar" data-tauri-drag-region>
       <button className="icon-btn single-only" onClick={act(async () => useNotes.getState().select(null))} title="Back to the notes" aria-label="Back to the notes"><Icon name="back" /></button>
       <span className="edited" data-tauri-drag-region>{note ? `Edited ${edited(note.mtime)}` : ''}</span>
+      {voice && section !== 'trash' ? (
+        <button className={`icon-btn${voice === 'listening' || voice === 'starting' ? ' on' : ''}`} onClick={toggleVoice} title={`Voice typing (${voiceKeyLabel()})`} aria-label="Voice typing">
+          <Icon name="mic" />
+        </button>
+      ) : null}
       {aiOn && section !== 'trash' ? (
         <button className={`icon-btn${chatOpen ? ' on' : ''}`} onClick={() => (chatOpen ? useChat.getState().hide() : useChat.getState().show('note'))} title="Chat with AI about this note (⇧⌘J)" aria-label="Chat with AI">
           <Icon name="sparkle" />

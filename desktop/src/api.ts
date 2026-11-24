@@ -17,6 +17,22 @@ export interface MeaningStatus {
   error?: string | null;
 }
 
+/** Voice typing's speech model (`src-tauri/src/voice.rs`): not on Intel Macs (`supported`). */
+export interface VoiceStatus {
+  supported: boolean;
+  model: 'missing' | 'downloading' | 'ready' | 'error';
+  /** The download, 0 to 1. */
+  progress: number;
+  error?: string | null;
+  /** Bytes to download. */
+  size: number;
+  /** The clean-up model (`src-tauri/src/tidy.rs`), the same way. */
+  tidy: 'missing' | 'downloading' | 'ready' | 'error';
+  tidyProgress: number;
+  tidyError?: string | null;
+  tidySize: number;
+}
+
 import type { ChatMessage } from '@/ai/prompt';
 
 /** The newest VB Notes on GitHub: its version ("0.4.15") and release page. */
@@ -91,4 +107,20 @@ export const api = {
   meaningStale: () => invoke<{ path: string; hash: string }[]>('meaning_stale'),
   meaningSet: (notes: { path: string; hash: string; chunks: string[] }[]) => invoke<void>('meaning_set', { notes }),
   meaningSearch: (q: string, section: Section, limit: number) => invoke<MeaningMatch[]>('meaning_search', { q, section, limit }),
+  voiceStatus: () => invoke<VoiceStatus>('voice_status'),
+  /** Progress comes as `voice` events. */
+  voiceDownload: () => invoke<void>('voice_download'),
+  voiceDelete: () => invoke<void>('voice_delete'),
+  voiceTidyDownload: () => invoke<void>('voice_tidy_download'),
+  voiceTidyDelete: () => invoke<void>('voice_tidy_delete'),
+  /**
+   * The microphone on: `voice-level`, `voice-heard`, `voice-deaf` and `voice-failed` events follow.
+   * `tidy`: what was said is cleaned up when it stops.
+   */
+  voiceStart: (tidy: boolean) => invoke<void>('voice_start', { tidy }),
+  /** The microphone off; everything said (cleaned up if asked), once the last of it is written down. */
+  voiceStop: () => invoke<string>('voice_stop'),
+  voiceCancel: () => invoke<void>('voice_cancel'),
+  /** The system's microphone privacy settings. */
+  micSettings: () => invoke<void>('mic_settings'),
 };
