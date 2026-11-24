@@ -1,0 +1,8 @@
+{
+  "name": "vbnotes-models-api",
+  "main": "index.js",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": false,
+  "routes": [{ "pattern": "api.vbnotes.com", "custom_domain": true }],
+  "r2_buckets": [{ "binding": "MODELS", "bucket_name": "vbnotes-models" }]
+}

@@ -20,7 +20,7 @@ use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -28,7 +28,11 @@ use tauri::{AppHandle, Emitter, Manager, State};
 /// Saved with the vectors: another model's can't be compared with this one's.
 const MODEL_ID: &str = "lfm2.5-embedding-350m-q8_0";
 const MODEL_FILE: &str = "LFM2.5-Embedding-350M-Q8_0.gguf";
-const MODEL_URL: &str = "https://huggingface.co/LiquidAI/LFM2.5-Embedding-350M-GGUF/resolve/main/LFM2.5-Embedding-350M-Q8_0.gguf";
+/// Our copy (see `desktop/models-api`), then Liquid AI's own at the same revision.
+const MODEL_URLS: [&str; 2] = [
+    "https://api.vbnotes.com/models/lfm2.5-embedding-350m-a80de9c5/LFM2.5-Embedding-350M-Q8_0.gguf",
+    "https://huggingface.co/LiquidAI/LFM2.5-Embedding-350M-GGUF/resolve/a80de9c5b941d429104f0038292a0ef5a860e486/LFM2.5-Embedding-350M-Q8_0.gguf",
+];
 const MODEL_SIZE: u64 = 379_216_640;
 const MODEL_SHA256: &str = "6ec5f8e8750dbc8a0e40c431fd1b7b07a13688136b2244c5a1364b54d9032599";
 /// The model reads at most this many tokens of a chunk (its training length).
@@ -145,23 +149,45 @@ fn normalize(v: &[f32]) -> Vec<f32> {
     v.iter().map(|x| x / n).collect()
 }
 
-/// Fetches the model, carrying on from a part already downloaded, and checks it before use.
-fn download(file: &Path, progress: impl Fn(f64)) -> Res<()> {
-    let part = file.with_extension("gguf.partial");
+/// Downloads `file` from the first of `urls` that answers, carrying on from a part already
+/// downloaded (`<file>.partial`), and checks its size and sha256 before it takes the file's name.
+/// `what` names it in errors ("the search model"); `progress` gets the bytes done so far. Also used
+/// for the voice models.
+pub fn fetch(urls: &[impl AsRef<str>], size: u64, sha256: &str, file: &Path, what: &str, progress: impl Fn(u64)) -> Res<()> {
+    let mut part = file.as_os_str().to_owned();
+    part.push(".partial");
+    let part = PathBuf::from(part);
     let have = fs::metadata(&part).map_or(0, |m| m.len());
-    let mut req = ureq::get(MODEL_URL);
-    if have > 0 && have < MODEL_SIZE {
-        req = req.header("Range", &format!("bytes={have}-"));
+    // A network that drops connections silently fails here instead of showing 0% for ever.
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_connect(Some(Duration::from_secs(30)))
+        .timeout_recv_response(Some(Duration::from_secs(60)))
+        .build()
+        .into();
+    let mut failed = String::new();
+    let mut answer = None;
+    for url in urls {
+        let mut req = agent.get(url.as_ref());
+        if have > 0 && have < size {
+            req = req.header("Range", &format!("bytes={have}-"));
+        }
+        match req.call() {
+            Ok(res) => {
+                answer = Some(res);
+                break;
+            }
+            Err(e) => failed = format!("Couldn't download {what}: {e}"),
+        }
     }
-    let res = req.call().map_err(|e| format!("Couldn't download the search model: {e}"))?;
+    let res = answer.ok_or(failed)?;
     let resumed = res.status() == 206;
     let mut out = OpenOptions::new().create(true).write(true).append(resumed).truncate(!resumed).open(&part).map_err(text)?;
     let mut done = if resumed { have } else { 0 };
-    let mut reader = res.into_body().into_with_config().limit(MODEL_SIZE + 1).reader();
+    let mut reader = res.into_body().into_with_config().limit(size + 1).reader();
     let mut buf = vec![0u8; 1 << 16];
     let mut shown = Instant::now();
     loop {
-        let n = reader.read(&mut buf).map_err(|e| format!("The search model download stopped: {e}"))?;
+        let n = reader.read(&mut buf).map_err(|e| format!("The download of {what} stopped: {e}"))?;
         if n == 0 {
             break;
         }
@@ -169,7 +195,7 @@ fn download(file: &Path, progress: impl Fn(f64)) -> Res<()> {
         done += n as u64;
         if shown.elapsed() > Duration::from_millis(250) {
             shown = Instant::now();
-            progress(done as f64 / MODEL_SIZE as f64);
+            progress(done);
         }
     }
     out.sync_all().map_err(text)?;
@@ -184,9 +210,9 @@ fn download(file: &Path, progress: impl Fn(f64)) -> Res<()> {
         hasher.update(&buf[..n]);
     }
     let hex: String = hasher.finalize().iter().map(|b| format!("{b:02x}")).collect();
-    if done != MODEL_SIZE || hex != MODEL_SHA256 {
+    if done != size || hex != sha256 {
         let _ = fs::remove_file(&part);
-        return Err("The search model download was damaged; it will start again".into());
+        return Err(format!("The download of {what} was damaged; it will start again"));
     }
     fs::rename(&part, file).map_err(text)
 }
@@ -203,7 +229,7 @@ fn start_engine(file: PathBuf) -> Res<(Sender<Job>, Receiver<()>)> {
             if let Err(e) = run_engine(&file, jobs, &ready_tx) {
                 let _ = ready_tx.send(Err(e));
             }
-            // The context, the model and the backend are dropped by now.
+            // The context and the model are dropped by now (the backend stays, see `llama`).
             let _ = stopped_tx.send(());
         })
         .map_err(text)?;
@@ -211,12 +237,25 @@ fn start_engine(file: PathBuf) -> Res<(Sender<Job>, Receiver<()>)> {
     Ok((tx, stopped))
 }
 
+/// llama.cpp's backend, set up once for the whole app: the search model and voice typing's clean-up
+/// both run on it, and llama.cpp allows only one at a time.
+pub fn llama() -> Res<&'static LlamaBackend> {
+    static BACKEND: OnceLock<Result<LlamaBackend, String>> = OnceLock::new();
+    BACKEND
+        .get_or_init(|| {
+            let mut backend = LlamaBackend::init().map_err(text)?;
+            backend.void_logs();
+            Ok(backend)
+        })
+        .as_ref()
+        .map_err(Clone::clone)
+}
+
 fn run_engine(file: &Path, jobs: Receiver<Job>, ready: &Sender<Res<()>>) -> Res<()> {
-    let mut backend = LlamaBackend::init().map_err(text)?;
-    backend.void_logs();
+    let backend = llama()?;
     // Every layer on the GPU where Metal is built in (Apple Silicon); the CPU elsewhere.
     let gpu_layers = if cfg!(all(target_os = "macos", target_arch = "aarch64")) { 1000 } else { 0 };
-    let model = LlamaModel::load_from_file(&backend, file, &LlamaModelParams::default().with_n_gpu_layers(gpu_layers))
+    let model = LlamaModel::load_from_file(backend, file, &LlamaModelParams::default().with_n_gpu_layers(gpu_layers))
         .map_err(|e| format!("Couldn't load the search model: {e}"))?;
     // Half the cores, so typing stays quick while notes are read.
     let threads = thread::available_parallelism().map_or(4, |n| (n.get() / 2).max(2)) as i32;
@@ -228,7 +267,7 @@ fn run_engine(file: &Path, jobs: Receiver<Job>, ready: &Sender<Res<()>>) -> Res<
         .with_n_seq_max(MAX_SEQS as u32)
         .with_n_threads(threads)
         .with_n_threads_batch(threads);
-    let mut ctx = model.new_context(&backend, params).map_err(|e| format!("Couldn't start the search model: {e}"))?;
+    let mut ctx = model.new_context(backend, params).map_err(|e| format!("Couldn't start the search model: {e}"))?;
     let _ = ready.send(Ok(()));
     for (texts, reply) in jobs {
         let _ = reply.send(embed_texts(&model, &mut ctx, &texts));
@@ -300,7 +339,9 @@ fn work(app: &AppHandle, meaning: &Meaning, wake: &Receiver<()>) -> Res<()> {
                 s.state = "downloading";
                 s.error = None;
             });
-            download(&file, |p| meaning.update(app, |s| s.progress = p))?;
+            fetch(&MODEL_URLS, MODEL_SIZE, MODEL_SHA256, &file, "the search model", |done| {
+                meaning.update(app, |s| s.progress = done as f64 / MODEL_SIZE as f64)
+            })?;
         }
         meaning.update(app, |s| {
             s.state = "loading";
@@ -404,6 +445,20 @@ pub async fn meaning_search(app: AppHandle, q: String, section: String, limit: u
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A link that doesn't answer is passed over for the next: `cargo test -- --ignored fetch_`.
+    #[test]
+    #[ignore]
+    fn fetch_takes_the_next_link() {
+        let dir = std::env::temp_dir().join(format!("vb-fetch-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("vocab.txt");
+        let sha = "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d";
+        let urls = ["https://api.vbnotes.com/models/none/vocab.txt", "https://api.vbnotes.com/models/parakeet-tdt-0.6b-v3-8f23f0c0/vocab.txt"];
+        fetch(&urls, 93_939, sha, &file, "the test file", |_| {}).unwrap();
+        assert_eq!(fs::metadata(&file).unwrap().len(), 93_939);
+        fs::remove_dir_all(&dir).unwrap();
+    }
 
     /// `cargo test -- --ignored meaning`, with the model downloaded by the app.
     #[test]

@@ -6,6 +6,7 @@ import type { ThemeName } from '@/theme/tokens';
 import { CODE_FONTS, DIAGRAM_SIZES, TEXT_FONTS, codeFont, textFont, type DiagramSize, type Typography } from '@/theme/typography';
 import { api } from './api';
 import { useMeaning } from './meaning';
+import { THIS_COMPUTER, VOICE_KEYS, deleteTidyModel, deleteVoiceModel, downloadTidy, downloadVoice, sizeText, useVoice } from './voice';
 import { useNotes } from './store';
 import { themesOf, useThemePrefs, type ThemePref } from './theme';
 import { TRAY_OFFERED, useTray } from './windowClose';
@@ -18,9 +19,9 @@ import { CONSENT_TEXT, CONSENT_TITLE } from '@/ai/prompt';
 
 export const useSettingsOpen = create<{ open: boolean; set: (open: boolean) => void }>((set) => ({ open: false, set: (open) => set({ open }) }));
 
-type Page = 'main' | 'appearance' | 'typography' | 'folder' | 'hidden' | 'search' | 'ai' | 'window';
+type Page = 'main' | 'appearance' | 'typography' | 'folder' | 'hidden' | 'search' | 'voice' | 'ai' | 'window';
 const TITLES: Record<Page, string> = {
-  main: 'Settings', appearance: 'Appearance', typography: 'Typography', folder: 'Notes folder', hidden: 'Hide from Notes', search: 'Local search', ai: 'AI chat', window: 'Window',
+  main: 'Settings', appearance: 'Appearance', typography: 'Typography', folder: 'Notes folder', hidden: 'Hide from Notes', search: 'Local search', voice: 'Voice typing', ai: 'AI chat', window: 'Window',
 };
 
 /**
@@ -36,6 +37,7 @@ export function Settings() {
   const noteCount = useNotes((s) => s.counts.notes + s.counts.archive + s.counts.trash);
   const hidden = useNotes((s) => s.hiddenTags);
   const meaning = useMeaning();
+  const voice = useVoice();
   const ai = useAi((s) => s.view);
   const loadAi = useAi((s) => s.load);
   const tray = useTray((s) => s.on);
@@ -88,6 +90,11 @@ export function Settings() {
     : st.state === 'ready' && st.pending > 0 ? 'Reading notes…'
     : st.state === 'ready' ? 'By meaning'
     : 'Starting…';
+  const vs = voice.status;
+  const voiceLabel = !vs.supported ? 'Not on this Mac' : !voice.on ? 'Off'
+    : vs.model === 'downloading' ? `Downloading ${Math.round(vs.progress * 100)}%`
+    : vs.model === 'ready' ? VOICE_KEYS[voice.key]?.label ?? 'On'
+    : 'Not downloaded';
 
   return (
     <div className="sheet-scrim" onMouseDown={() => setOpen(false)}>
@@ -115,6 +122,7 @@ export function Settings() {
               </Group>
               <Group>
                 <NavRow label="Local search" value={searchLabel} onClick={() => setPage('search')} />
+                <NavRow label="Voice typing" value={voiceLabel} onClick={() => setPage('voice')} />
                 <NavRow label="AI chat" value={ai?.enabled ? providerOf(ai.provider).name : 'Off'} onClick={() => setPage('ai')} />
               </Group>
               {TRAY_OFFERED ? (
@@ -208,6 +216,7 @@ export function Settings() {
 
           {page === 'hidden' ? <HiddenTags /> : null}
           {page === 'search' ? <MeaningSetting /> : null}
+          {page === 'voice' ? <VoiceSetting /> : null}
           {page === 'ai' ? <AiSetting /> : null}
           {page === 'window' ? <TraySetting /> : null}
         </div>
@@ -265,6 +274,68 @@ function MeaningSetting() {
         <input type="checkbox" className="switch" checked={on} onChange={(e) => setOn(e.target.checked)} />
       </label>
     </Group>
+  );
+}
+
+/** Voice typing: on or off, its shortcut, and the speech model it needs. */
+function VoiceSetting() {
+  const { on, setOn, key, setKey, tidy, setTidy, status } = useVoice();
+  const [problem, setProblem] = useState<string | null>(null);
+  const [tidyProblem, setTidyProblem] = useState<string | null>(null);
+  if (!status.supported) {
+    return (
+      <Group footer="Voice typing needs a Mac with Apple silicon.">
+        <div className="row-setting"><span>Voice typing</span><span className="value">Not on this Mac</span></div>
+      </Group>
+    );
+  }
+  const mb = `${Math.round(status.size / 1e6)} MB`;
+  const label = VOICE_KEYS[key]?.label ?? '';
+  const remove = () => { setProblem(null); deleteVoiceModel().catch((e) => setProblem(String(e))); };
+  const removeTidy = () => { setTidyProblem(null); deleteTidyModel().catch((e) => setTidyProblem(String(e))); };
+  const tidySize = sizeText(status.tidySize);
+  return (
+    <>
+      <Group footer={on ? `Tap ${label} to start talking and again to type what you said where the caret is, or hold it while you talk. Esc cancels. With no note open, a new one is started.` : 'Talk, and VB Notes types it into the note.'}>
+        <label className="row-setting">
+          <span>Voice typing</span>
+          <input type="checkbox" className="switch" checked={on} onChange={(e) => setOn(e.target.checked)} />
+        </label>
+        {on ? <Pick label="Shortcut" value={key} options={VOICE_KEYS} onChange={setKey} css="inherit" /> : null}
+      </Group>
+      {on ? (
+        <Group title="Speech model" footer={problem ?? status.error ?? `NVIDIA Parakeet v3 runs on ${THIS_COMPUTER}: what you say never leaves it. It understands English and 24 other European languages, and picks the language as you talk.`}>
+          <div className="row-setting">
+            <span>Parakeet v3</span>
+            <span className="value">
+              {status.model === 'ready' ? mb : status.model === 'downloading' ? `Downloading ${Math.round(status.progress * 100)}%` : status.model === 'error' ? 'Download failed' : `Not downloaded (${mb})`}
+              {status.model === 'ready' ? <button className="text-btn" onClick={remove}>Delete</button>
+                : status.model === 'downloading' ? null
+                : <button className="text-btn" onClick={downloadVoice}>{status.model === 'error' ? 'Try again' : 'Download'}</button>}
+            </span>
+          </div>
+        </Group>
+      ) : null}
+      {on ? (
+        <Group title="Clean-up" footer={tidyProblem ?? status.tidyError ?? `Takes out um and uh, repeats and false starts, and keeps what you corrected to: “at 6, actually, 7” becomes “at 7”. It runs on ${THIS_COMPUTER} too, and knows English only.`}>
+          <label className="row-setting">
+            <span>Clean up what I say</span>
+            <input type="checkbox" className="switch" checked={tidy} onChange={(e) => setTidy(e.target.checked)} />
+          </label>
+          {tidy ? (
+            <div className="row-setting">
+              <span>S1-mini by Superwhisper</span>
+              <span className="value">
+                {status.tidy === 'ready' ? tidySize : status.tidy === 'downloading' ? `Downloading ${Math.round(status.tidyProgress * 100)}%` : status.tidy === 'error' ? 'Download failed' : `Not downloaded (${tidySize})`}
+                {status.tidy === 'ready' ? <button className="text-btn" onClick={removeTidy}>Delete</button>
+                  : status.tidy === 'downloading' ? null
+                  : <button className="text-btn" onClick={downloadTidy}>{status.tidy === 'error' ? 'Try again' : 'Download'}</button>}
+              </span>
+            </div>
+          ) : null}
+        </Group>
+      ) : null}
+    </>
   );
 }
 

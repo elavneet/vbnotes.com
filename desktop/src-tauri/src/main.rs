@@ -4,6 +4,13 @@
 mod ai;
 mod index;
 mod meaning;
+#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
+mod tidy;
+#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
+mod voice;
+#[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+#[path = "voice_none.rs"]
+mod voice;
 
 use index::{Counts, Hit, Index, Known, NoteMeta, Record, TagCount};
 use notify_debouncer_mini::{
@@ -686,6 +693,18 @@ fn app_menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
     Ok(menu)
 }
 
+/// The system's microphone privacy settings, for when voice typing hears nothing.
+#[tauri::command]
+fn mic_settings() -> Res<()> {
+    #[cfg(target_os = "macos")]
+    let opened = std::process::Command::new("open").arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone").status();
+    #[cfg(target_os = "windows")]
+    let opened = std::process::Command::new("explorer").arg("ms-settings:privacy-microphone").status();
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let opened: std::io::Result<()> = Err(std::io::Error::other("Check the microphone in the system's sound settings"));
+    opened.map(|_| ()).map_err(text)
+}
+
 fn main() {
     tauri::Builder::default()
         // First, so a second copy hands over its files before it sets anything up.
@@ -718,11 +737,13 @@ fn main() {
             Ok(())
         })
         .manage(meaning::Meaning::default())
+        .manage(voice::Voice::default())
         .invoke_handler(tauri::generate_handler![
             folder_places, make_place, launch_folder, open_folder, scan, read_files, write_file, move_file, copy_folder, remove_file, exists, free_path, created,
             db_known, db_put, db_remove, db_move, db_set_pinned, db_get, db_list, db_search, db_titles, db_counts, db_tag_counts, import_file, save_file, welcome_picture, path_kinds, import_folder, opened_files, set_tray, quit, window_ready, count_use, latest_release, export_note, print_page,
             ai::ai_settings, ai::ai_save, ai::ai_models, ai::ai_chat, ai::ai_cancel, ai::ai_key_usage,
-            meaning::meaning_enable, meaning::meaning_status, meaning::meaning_stale, meaning::meaning_set, meaning::meaning_search
+            meaning::meaning_enable, meaning::meaning_status, meaning::meaning_stale, meaning::meaning_set, meaning::meaning_search,
+            voice::voice_status, voice::voice_download, voice::voice_delete, voice::voice_tidy_download, voice::voice_tidy_delete, voice::voice_start, voice::voice_stop, voice::voice_cancel, mic_settings
         ])
         .build(tauri::generate_context!())
         .expect("VBNotes could not start")
@@ -733,9 +754,11 @@ fn main() {
                 let paths = urls.iter().filter_map(|u| u.to_file_path().ok()).map(|p| p.to_string_lossy().into_owned());
                 hand_over(app, paths.filter(|p| is_markdown(p)).collect());
             }
-            // The search model is freed before the process exits (see `Meaning::shutdown`). If it
-            // can't be in time, the exit skips the C++ teardown that would abort.
+            // The llama.cpp models (search, voice typing's clean-up) are freed before the process
+            // exits (see `Meaning::shutdown`). If that can't be in time, the exit skips the C++
+            // teardown that would abort.
             tauri::RunEvent::Exit => {
+                app.state::<voice::Voice>().shutdown();
                 if !app.state::<meaning::Meaning>().shutdown() {
                     extern "C" {
                         fn _exit(code: i32) -> !;

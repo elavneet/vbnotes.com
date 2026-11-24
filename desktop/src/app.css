@@ -305,6 +305,50 @@ input, select { font: inherit; color: inherit; }
 .sb-link input:focus { border-color: var(--accent); }
 .sb-link button { height: 32px; padding: 0 14px; border-radius: 8px; background: var(--volt); color: var(--onVolt); font-weight: 600; }
 
+/* Voice typing (VoicePill.tsx): a pill at the bottom of the note while it listens, in the style
+   bar's place; the words heard so far over it; a card about the speech model the first time. */
+.editor-pane.voicing .style-bar { visibility: hidden; }
+.voice-wrap { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 12; display: flex; flex-direction: column; align-items: center; gap: 8px; width: max-content; max-width: calc(100% - 32px); pointer-events: none; }
+.voice-wrap > * { pointer-events: auto; animation: voice-in 0.16s ease-out; }
+@keyframes voice-in { from { opacity: 0; transform: translateY(6px) scale(0.96); } }
+.voice-pill { display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 6px; border-radius: 21px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16); }
+[data-theme='dark'] .voice-pill, [data-theme='dark'] .voice-card, [data-theme='dark'] .voice-bubble { box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45); }
+.voice-x { width: 30px; height: 30px; border-radius: 15px; display: inline-flex; align-items: center; justify-content: center; color: var(--textMuted); flex: none; }
+.voice-x:hover { background: var(--surface2); color: var(--text); }
+.voice-x:disabled { opacity: 0.35; background: none; }
+.voice-wave { display: inline-flex; align-items: center; gap: 2px; height: 22px; }
+.voice-wave span { width: 2px; height: 3px; border-radius: 1px; background: var(--text); transition: height 0.07s ease-out; }
+.voice-pill.starting .voice-wave span, .voice-pill.writing .voice-wave span { opacity: 0.3; }
+.voice-clock { min-width: 30px; color: var(--textSecondary); font-size: 12px; font-variant-numeric: tabular-nums; }
+.voice-stop { width: 30px; height: 30px; border-radius: 15px; display: inline-flex; align-items: center; justify-content: center; background: var(--volt); flex: none; }
+.voice-stop span { width: 10px; height: 10px; border-radius: 2.5px; background: var(--onVolt); }
+.voice-stop:hover { filter: brightness(1.05); }
+.voice-pill.starting .voice-stop { animation: voice-breathe 1s ease-in-out infinite; }
+@keyframes voice-breathe { 50% { opacity: 0.55; } }
+.voice-spin { width: 30px; height: 30px; flex: none; border-radius: 15px; border: 2.5px solid var(--surface2); border-top-color: var(--volt); box-sizing: border-box; animation: voice-turn 0.7s linear infinite; }
+@keyframes voice-turn { to { transform: rotate(360deg); } }
+.voice-bubble { max-width: 460px; padding: 7px 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12); color: var(--textSecondary); font-size: 13px; line-height: 1.45; text-align: center; overflow-wrap: anywhere; }
+.voice-bubble.hint { color: var(--textMuted); }
+.voice-bubble.hint b { color: var(--textSecondary); font-weight: 600; }
+.voice-bubble.warn { color: var(--text); }
+.voice-bubble .text-btn { margin-left: 6px; }
+.voice-pill.voice-note { gap: 6px; padding-left: 16px; max-width: 520px; font-size: 13px; color: var(--text); }
+.voice-pill.voice-note > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.voice-card { width: 360px; max-width: 100%; padding: 12px 12px 14px 16px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.2); }
+.voice-card-head { display: flex; align-items: center; gap: 10px; }
+.voice-card-head strong { flex: 1; font-size: 14px; }
+.voice-badge { width: 28px; height: 28px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; background: var(--volt); color: var(--onVolt); flex: none; }
+.voice-card p { margin: 8px 4px 0 38px; color: var(--textSecondary); font-size: 13px; line-height: 1.5; }
+.voice-progress { height: 4px; margin: 12px 4px 2px 38px; border-radius: 2px; background: var(--surface2); overflow: hidden; }
+.voice-progress span { display: block; height: 100%; border-radius: 2px; background: var(--volt); transition: width 0.25s; }
+.voice-card-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px; }
+.voice-go { height: 30px; padding: 0 14px; border-radius: 15px; background: var(--volt); color: var(--onVolt); font-size: 13px; font-weight: 600; }
+.voice-go:hover { filter: brightness(1.05); }
+@media (prefers-reduced-motion: reduce) {
+  .voice-wrap > *, .voice-pill.starting .voice-stop { animation: none; }
+  .voice-spin { animation-duration: 2s; }
+}
+
 /* Chat with AI (ChatPanel.tsx): a column right of the note. */
 .app.chatting { grid-template-columns: 236px 300px 1fr 360px; }
 .chat-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; border-left: 1px solid var(--border); background: var(--bg); }
