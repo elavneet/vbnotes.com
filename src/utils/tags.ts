@@ -11,6 +11,8 @@ const TAG_RE = new RegExp(
   'g',
 );
 const HAS_LETTER = /[A-Za-zÀ-￿]/;
+/** `#0x404`, `#0b1010`: numbers as code writes them, not tags. */
+const NUMBER = /^0(?:x[0-9a-f]+|b[01]+|o[0-7]+)$/i;
 
 export interface TagMatch {
   /** Index of the leading `#`. */
@@ -37,7 +39,7 @@ export function findTags(text: string): TagMatch[] {
     }
     const raw = m[3];
     const tag = raw.replace(/[-/]+$/, '');
-    if (!tag || !HAS_LETTER.test(tag)) continue;
+    if (!tag || !HAS_LETTER.test(tag) || NUMBER.test(tag)) continue;
     out.push({ start, end: start + 1 + tag.length, rawEnd: start + 1 + raw.length, tag });
     // Let a stripped trailing `/` or `-` be scanned again.
     TAG_RE.lastIndex = start + 1 + tag.length;
