@@ -283,10 +283,9 @@ function VoiceSetting() {
   const [problem, setProblem] = useState<string | null>(null);
   const [tidyProblem, setTidyProblem] = useState<string | null>(null);
   if (!status.supported) {
-    const mac = THIS_COMPUTER === 'this Mac';
     return (
-      <Group footer={mac ? 'Voice typing needs a Mac with Apple silicon.' : 'Voice typing is in the Mac and Windows apps for now.'}>
-        <div className="row-setting"><span>Voice typing</span><span className="value">{mac ? 'Not on this Mac' : 'Not on Linux yet'}</span></div>
+      <Group footer="Voice typing needs a Mac with Apple silicon.">
+        <div className="row-setting"><span>Voice typing</span><span className="value">Not on this Mac</span></div>
       </Group>
     );
   }

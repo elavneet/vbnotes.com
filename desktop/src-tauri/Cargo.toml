@@ -30,14 +30,18 @@ ureq = { version = "=3.5.0", default-features = false, features = ["rustls"] }
 sha2 = "=0.10.9"
 
 # Voice typing: cpal hears the microphone and NVIDIA's Parakeet model (ONNX) turns speech into text
-# on this computer. ONNX Runtime has no build for Intel Macs, and its Linux build needs a newer
-# glibc than the release is built with, so voice typing is left out of both for now.
+# on this computer. ONNX Runtime has no build for Intel Macs, so voice typing is left out there.
 # ort stays at rc.13: rc.14 and later need Rust 1.92.
-[target.'cfg(any(windows, all(target_os = "macos", target_arch = "aarch64")))'.dependencies]
+[target.'cfg(any(windows, target_os = "linux", all(target_os = "macos", target_arch = "aarch64")))'.dependencies]
 transcribe-rs = { version = "=0.3.12", default-features = false, features = ["onnx"] }
 ort = "=2.0.0-rc.13"
 ort-sys = "=2.0.0-rc.13"
 cpal = "=0.18.2"
+
+# Linux: the ONNX Runtime that ort links in needs glibc 2.38, newer than many systems have. The
+# app loads Microsoft's own build instead (glibc 2.27), shipped beside it: `linux/onnxruntime.sh`.
+[target.'cfg(target_os = "linux")'.dependencies]
+ort = { version = "=2.0.0-rc.13", features = ["load-dynamic"] }
 
 # Notes that iCloud keeps only in the cloud (Optimize Mac Storage) are asked down when the folder
 # is read, so opening one doesn't wait for the download.
