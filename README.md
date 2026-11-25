@@ -119,7 +119,7 @@ brew install --cask elavneet/vbnotes/vb-notes
   0.6B v3 (25 European languages, about 670 MB, downloaded once after asking). Clean-up, on by
   default, is "S1-mini" by "Superwhisper" (English, about 480 MB): it removes fillers and repeats and
   applies the corrections you say out loud; switch it off in Settings › Voice typing to get the words
-  exactly as heard. For Windows and Macs with Apple silicon; not in the Linux app yet.
+  exactly as heard. For Windows, Linux and Macs with Apple silicon.
 - **Voice typing (iPhone).** In a note, tap the paperclip, then Voice typing: talk, tap the button,
   and the words are typed where the cursor is. The same two models as the desktop, run on the
   phone (about 1.1 GB together, downloaded once after asking); nothing you say leaves it. Settings
@@ -175,7 +175,7 @@ npm run editor:build        # editor page → src/editor/editorHtml.js
 npx expo run:ios
 ```
 
-Desktop (needs Rust 1.90+, CMake and, on Linux, `libwebkit2gtk-4.1-dev` and `libclang-dev`):
+Desktop (needs Rust 1.90+, CMake and, on Linux, `libwebkit2gtk-4.1-dev`, `libclang-dev` and `libasound2-dev`):
 
 ```bash
 npm install                 # the desktop page uses the repo's packages

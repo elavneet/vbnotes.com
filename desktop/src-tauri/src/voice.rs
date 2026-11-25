@@ -8,7 +8,8 @@
 //! listening starts (about a second, while the first words are said) and let go a few minutes after
 //! the last use: it holds about a gigabyte.
 //!
-//! Left out on Intel Macs, which ONNX Runtime has no build for (`voice_none.rs` stands in).
+//! Left out on Intel Macs, which ONNX Runtime has no build for (`voice_none.rs` stands in). On
+//! Linux ONNX Runtime is a file beside the app, loaded when the model first is (`engine`).
 
 use crate::meaning::fetch;
 use crate::tidy::{self, Tidy};
@@ -132,10 +133,33 @@ fn model_there(dir: &Path) -> bool {
     FILES.iter().all(|(name, size, _)| fs::metadata(dir.join(name)).is_ok_and(|m| m.len() == *size))
 }
 
+/// Linux: ONNX Runtime is Microsoft's own library, among the app's resources (`linux/onnxruntime.sh`
+/// fetches it for the build), loaded once before the first model is. `ORT_DYLIB_PATH` names another.
+#[cfg(target_os = "linux")]
+fn engine(app: &AppHandle) -> Res<()> {
+    static LOADED: std::sync::OnceLock<Res<()>> = std::sync::OnceLock::new();
+    LOADED
+        .get_or_init(|| {
+            if std::env::var_os("ORT_DYLIB_PATH").is_some_and(|p| !p.is_empty()) {
+                return Ok(());
+            }
+            let file = app.path().resource_dir().map_err(text)?.join("libonnxruntime.so");
+            ort::init_from(&file).map_err(|e| format!("Couldn't load the speech library ({}): {e}", file.display()))?.commit();
+            Ok(())
+        })
+        .clone()
+}
+
+#[cfg(not(target_os = "linux"))]
+fn engine(_: &AppHandle) -> Res<()> {
+    Ok(())
+}
+
 /// The model, loaded first if it isn't.
-fn loaded<'a>(model: &'a Model, dir: &Path) -> Res<MutexGuard<'a, Option<ParakeetModel>>> {
+fn loaded<'a>(app: &AppHandle, model: &'a Model, dir: &Path) -> Res<MutexGuard<'a, Option<ParakeetModel>>> {
     let mut m = model.lock().map_err(text)?;
     if m.is_none() {
+        engine(app)?;
         *m = Some(ParakeetModel::load(dir, &Quantization::Int8).map_err(|e| format!("Couldn't load the voice model: {e}"))?);
     }
     Ok(m)
@@ -384,11 +408,11 @@ pub async fn voice_start(app: AppHandle, tidy: bool) -> Res<()> {
         }
         voice.uses.fetch_add(1, Ordering::Relaxed);
         // Loading takes about a second; it happens while the first words are said.
-        let (model, dir2, tidy_model, tidy2) = (voice.model.clone(), dir.clone(), voice.tidy.clone(), tidy.clone());
+        let (app2, model, dir2, tidy_model, tidy2) = (app.clone(), voice.model.clone(), dir.clone(), voice.tidy.clone(), tidy.clone());
         thread::Builder::new()
             .name("voice-load".into())
             .spawn(move || {
-                drop(loaded(&model, &dir2));
+                drop(loaded(&app2, &model, &dir2));
                 if let Some(file) = tidy2 {
                     drop(tidy_loaded(&tidy_model, &file));
                 }
@@ -648,7 +672,7 @@ fn listen(app: AppHandle, model: Model, dir: PathBuf, tidy: (TidyModel, Option<P
                     break;
                 }
                 let said = {
-                    let mut m = loaded(&model, &dir).inspect_err(|e| drop(fail_tx.send(e.clone())))?;
+                    let mut m = loaded(&app, &model, &dir).inspect_err(|e| drop(fail_tx.send(e.clone())))?;
                     let Some(m) = m.as_mut() else { break };
                     m.transcribe(&part, &options).map_err(|e| format!("Couldn't make out the speech: {e}")).inspect_err(|e| drop(fail_tx.send(e.clone())))?.text
                 };

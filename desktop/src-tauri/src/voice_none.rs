@@ -1,5 +1,5 @@
-//! Voice typing's commands on Intel Macs and Linux, where ONNX Runtime (which runs the speech
-//! model) has no build that fits: the page is told it isn't there and hides it. See `voice.rs`.
+//! Voice typing's commands on Intel Macs, where ONNX Runtime (which runs the speech model) has no
+//! build: the page is told it isn't there and hides it. See `voice.rs`.
 
 use crate::Res;
 use serde::Serialize;
