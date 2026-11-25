@@ -40,12 +40,13 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: desktop/src-tauri
-      # Search by meaning builds llama.cpp from source: CMake, and libclang for its bindings.
-      - name: Linux libraries for the webview and llama.cpp
+      # Search by meaning builds llama.cpp from source: CMake, and libclang for its bindings. Voice
+      # typing hears the microphone through ALSA.
+      - name: Linux libraries for the webview, llama.cpp and the microphone
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf cmake libclang-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf cmake libclang-dev libasound2-dev
       - name: libclang for llama.cpp's bindings
         if: runner.os == 'Windows'
         run: echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $env:GITHUB_ENV

@@ -9,5 +9,10 @@ fn main() {
             println!("cargo:rustc-link-lib=static=clang_rt.osx");
         }
     }
+    // Linux ships ONNX Runtime as a file beside the app (voice typing); fetched once.
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux") && !std::path::Path::new("linux/onnxruntime/libonnxruntime.so").exists() {
+        let fetched = std::process::Command::new("sh").arg("linux/onnxruntime.sh").status();
+        assert!(fetched.is_ok_and(|s| s.success()), "linux/onnxruntime.sh couldn't fetch ONNX Runtime");
+    }
     tauri_build::build()
 }

@@ -4,11 +4,11 @@
 mod ai;
 mod index;
 mod meaning;
-#[cfg(any(windows, all(target_os = "macos", target_arch = "aarch64")))]
+#[cfg(any(windows, target_os = "linux", all(target_os = "macos", target_arch = "aarch64")))]
 mod tidy;
-#[cfg(any(windows, all(target_os = "macos", target_arch = "aarch64")))]
+#[cfg(any(windows, target_os = "linux", all(target_os = "macos", target_arch = "aarch64")))]
 mod voice;
-#[cfg(not(any(windows, all(target_os = "macos", target_arch = "aarch64"))))]
+#[cfg(not(any(windows, target_os = "linux", all(target_os = "macos", target_arch = "aarch64"))))]
 #[path = "voice_none.rs"]
 mod voice;
 

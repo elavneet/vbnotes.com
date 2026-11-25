@@ -4,9 +4,14 @@
       { "ext": ["md", "markdown"], "name": "Markdown", "role": "Editor", "mimeType": "text/markdown" },
       { "ext": ["txt"], "name": "Plain text", "role": "Editor", "mimeType": "text/plain" }
     ],
+    "resources": {
+      "linux/onnxruntime/libonnxruntime.so": "libonnxruntime.so",
+      "linux/onnxruntime/LICENSE": "onnxruntime-LICENSE.txt",
+      "linux/onnxruntime/ThirdPartyNotices.txt": "onnxruntime-ThirdPartyNotices.txt"
+    },
     "linux": {
-      "deb": { "desktopTemplate": "linux/vbnotes.desktop" },
-      "rpm": { "desktopTemplate": "linux/vbnotes.desktop" }
+      "deb": { "desktopTemplate": "linux/vbnotes.desktop", "depends": ["libasound2"] },
+      "rpm": { "desktopTemplate": "linux/vbnotes.desktop", "depends": ["alsa-lib"] }
     }
   }
 }

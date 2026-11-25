@@ -58,3 +58,4 @@ desktop/src-tauri/gen/
 
 # local tool settings
 .claude/
+desktop/src-tauri/linux/onnxruntime/
