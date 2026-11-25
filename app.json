@@ -97,13 +97,13 @@
         {
           "photosPermission": "VB Notes adds the photos you pick to your notes.",
           "cameraPermission": "VB Notes adds the photos you take to your notes.",
-          "microphonePermission": false
+          "microphonePermission": "VB Notes records voice notes into your notes and types what you say."
         }
       ],
       [
         "expo-audio",
         {
-          "microphonePermission": "VB Notes records voice notes into your notes."
+          "microphonePermission": "VB Notes records voice notes into your notes and types what you say."
         }
       ],
       [

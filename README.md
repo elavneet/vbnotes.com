@@ -120,6 +120,10 @@ brew install --cask elavneet/vbnotes/vb-notes
   default, is "S1-mini" by "Superwhisper" (English, about 480 MB): it removes fillers and repeats and
   applies the corrections you say out loud; switch it off in Settings › Voice typing to get the words
   exactly as heard. For Windows and Macs with Apple silicon; not in the Linux app yet.
+- **Voice typing (iPhone).** In a note, tap the paperclip, then Voice typing: talk, tap the button,
+  and the words are typed where the cursor is. The same two models as the desktop, run on the
+  phone (about 1.1 GB together, downloaded once after asking); nothing you say leaves it. Settings
+  › Voice typing has the clean-up switch and frees the models' space. Not in the Android app yet.
 - **Drag files in (desktop).** Drop files on the notes list: `.md` and `.txt` files come in as notes,
   a picture or a sound file gets a note of its own, and a folder (an export from Bear, Obsidian or
   another app) comes in with its notes and pictures. Nothing in your folder is overwritten.
@@ -147,7 +151,7 @@ brew install --cask elavneet/vbnotes/vb-notes
 | Editor | Tiptap 3 through `@10play/tentap-editor`, with our own extensions in `editor-web/` |
 | Meaning search | `react-native-executorch` on the phone, llama.cpp (`llama-cpp-2`) on the desktop |
 | Desktop app | Tauri 2 (Rust + the system webview, no Electron), React, the same editor extensions |
-| Voice typing | Parakeet TDT 0.6B v3 through ONNX Runtime (`transcribe-rs`); clean-up by "S1-mini" by "Superwhisper" through llama.cpp |
+| Voice typing | Parakeet TDT 0.6B v3 through ONNX Runtime (`transcribe-rs`; sherpa-onnx on the iPhone); clean-up by "S1-mini" by "Superwhisper" through llama.cpp (`llama.rn` on the iPhone) |
 | Desktop index | SQLite with FTS5 in Rust (`desktop/src-tauri/src/index.rs`), the same schema as the phone |
 
 ```
