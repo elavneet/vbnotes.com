@@ -10,7 +10,7 @@ import {
 } from 'expo-audio';
 import { useTheme } from '@/theme';
 import { useSettings } from '@/store/settings';
-import { hear, loadSpeech, releaseSpeech, tidy } from '@/voice/engine';
+import { hear, loadSpeech, loadTidy, releaseSpeech, tidy } from '@/voice/engine';
 import { SPEECH_SIZE, TIDY_SIZE, downloadVoiceModels, sizeText, useVoiceModels } from '@/voice/models';
 
 const BARS = 32;
@@ -122,9 +122,10 @@ function Listen({ tidyOn, onClose, onSaid, onBusy, cancelRef }: {
       recorder.record();
       // Loaded while the first words are said.
       loadSpeech().catch(() => {});
+      if (tidyOn) loadTidy().catch(() => {});
     })().catch((e) => { console.warn('voice typing could not listen', e); if (live) setProblem('The microphone could not be started.'); });
     return () => { live = false; };
-  }, [recorder]);
+  }, [recorder, tidyOn]);
 
   // Metering is dB (about -60 quiet … 0 loud); keep a short history for the bars.
   useEffect(() => {
