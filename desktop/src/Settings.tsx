@@ -44,6 +44,7 @@ export function Settings() {
   const tray = useTray((s) => s.on);
   const counting = useCountUse();
   const updates = useUpdates();
+  const pages = usePageBreaks();
   // A folder just picked, waiting for: copy the notes there, or open it as it is.
   const [picked, setPicked] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
@@ -64,7 +65,6 @@ export function Settings() {
 
   const ty = prefs.typography;
   const setTy = (patch: Partial<Typography>) => prefs.set({ typography: { ...ty, ...patch } });
-  const pages = usePageBreaks();
   const changeFolder = async () => {
     const path = await open({ directory: true, title: 'Choose your notes folder' });
     if (typeof path !== 'string' || path === folder) return;
