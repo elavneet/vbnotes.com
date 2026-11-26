@@ -98,6 +98,12 @@ input, select { font: inherit; color: inherit; }
 .menu-sub:hover > .menu-has-sub { background: var(--volt); color: var(--onVolt); }
 .note-menu { min-width: 220px; padding: 6px; border-radius: 12px; }
 .note-menu button { padding: 7px 10px; }
+.menu .mi-keys { flex: none; margin-left: 18px; color: var(--textMuted); font-size: 12px; letter-spacing: 1px; }
+.menu button:hover .mi-keys { color: inherit; }
+.menu-sub-right > .menu { right: auto; left: calc(100% - 2px); }
+/* A table's ⋮, in the cell under the pointer. */
+.table-dots { position: absolute; z-index: 5; width: 18px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color: var(--accent); cursor: default; }
+.table-dots:hover, .table-dots.on { background: var(--surface2); }
 
 /* BIU, ⓘ and ⋮ in one pill. */
 .note-pill { display: flex; align-items: center; gap: 2px; padding: 2px; margin-left: 4px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); }
@@ -140,7 +146,7 @@ input, select { font: inherit; color: inherit; }
 .editor-bar { display: flex; align-items: center; gap: 4px; padding: 8px 14px 4px 24px; height: 48px; flex: none; }
 .mac .editor-bar { height: 56px; padding-top: 12px; }
 .edited { flex: 1; color: var(--textMuted); font-size: 12px; }
-.editor-scroll { flex: 1; min-height: 0; overflow-y: auto; user-select: text; -webkit-user-select: text; cursor: text; }
+.editor-scroll { position: relative; flex: 1; min-height: 0; overflow-y: auto; user-select: text; -webkit-user-select: text; cursor: text; }
 .editor { position: relative; }
 .editor .ProseMirror { max-width: 760px; margin: 0 auto; padding: 8px 48px 40vh; }
 .editor-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--textMuted); }
