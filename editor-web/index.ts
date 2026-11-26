@@ -25,6 +25,8 @@ import { withNoteSyntax } from './markSyntax';
 import { Callouts } from './callouts';
 import { Folding } from './folding';
 import { TableKeys } from './tableKeys';
+import { TableDots } from './tableDots';
+import { TableBridge } from '../src/editor/tableBridge';
 
 declare global {
   interface Window { contentInjected: boolean | undefined }
@@ -41,7 +43,7 @@ const interval = setInterval(() => {
   const holder = document.createElement('div');
   document.getElementById('root')!.appendChild(holder);
   startTenTap(holder, {
-    bridges: [...withNoteSyntax(withPlainLinks(TenTapStartKit)), MarkdownBridge, MediaBridge, EditBridge, WikiBridge],
+    bridges: [...withNoteSyntax(withPlainLinks(TenTapStartKit)), MarkdownBridge, MediaBridge, EditBridge, WikiBridge, TableBridge],
     // Toolbar state does not need every keystroke; fewer messages keep typing smooth.
     stateUpdateDebounceMs: 60,
     tiptapOptions: {
@@ -49,7 +51,7 @@ const interval = setInterval(() => {
       contentType: 'markdown',
       // TenTapStartKit has no code block, rule or table; without them the markdown parser drops
       // ``` blocks, --- and | tables |, and the next save would delete them from the file.
-      extensions: [MarkdownPush, TagPills, WikiLinks, LinkTaps, AppPastedMedia, CodePaste, WordTaps, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers, HeadingMarks, ListTyping, MarkdownClipboard, EditingKeys, EditingStyles, Callouts, Folding, TableKeys],
+      extensions: [MarkdownPush, TagPills, WikiLinks, LinkTaps, AppPastedMedia, CodePaste, WordTaps, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers, HeadingMarks, ListTyping, MarkdownClipboard, EditingKeys, EditingStyles, Callouts, Folding, TableKeys, TableDots],
       editorProps: { attributes: { spellcheck: 'true', autocapitalize: 'sentences' } },
     },
   });

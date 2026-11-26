@@ -211,6 +211,16 @@ export function editorCss(theme: Theme, ty: Typography = TYPOGRAPHY, scale?: num
   .ProseMirror tr:first-child > *:first-child { border-top-left-radius: 11px; }
   .ProseMirror tr:first-child > *:last-child { border-top-right-radius: 11px; }
   .ProseMirror th p, .ProseMirror td p { margin: 0; }
+  /* The phone's ⋮ in the caret's cell (editor-web/tableDots.ts). */
+  .ProseMirror th, .ProseMirror td { position: relative; }
+  .ProseMirror .vb-tdots {
+    position: absolute; top: 0; right: 0; width: 30px; height: ${e.cellY * 2 + 24}px; display: flex;
+    align-items: center; justify-content: center; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .ProseMirror .vb-tdots i {
+    width: 4px; height: 4px; border-radius: 2px; background: ${c.textMuted};
+    box-shadow: 0 -7px 0 ${c.textMuted}, 0 7px 0 ${c.textMuted};
+  }
   .ProseMirror .selectedCell { background: ${c.volt}${dark ? '26' : '4D'}; }
   .ProseMirror hr { border: 0; border-top: 1px solid ${c.border}; margin: ${e.hr}em 0; }
   .ProseMirror .vb-image { margin: 0 0 ${e.blockBottom}em 0; line-height: 0; }
