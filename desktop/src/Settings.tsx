@@ -12,6 +12,7 @@ import { themesOf, useThemePrefs, type ThemePref } from './theme';
 import { TRAY_OFFERED, useTray } from './windowClose';
 import { useCountUse } from './usage';
 import { useUpdates } from './updates';
+import { PAGES_SHOWN, PAPERS, usePageBreaks } from './printPages';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { PROVIDERS, chatModels, preferredModel, providerOf, useAi, useSpend } from './ai';
 import { formatCost, keyUsageFrom, showsSpend, spentThisMonth, type KeyUsage } from '@/ai/spend';
@@ -63,6 +64,7 @@ export function Settings() {
 
   const ty = prefs.typography;
   const setTy = (patch: Partial<Typography>) => prefs.set({ typography: { ...ty, ...patch } });
+  const pages = usePageBreaks();
   const changeFolder = async () => {
     const path = await open({ directory: true, title: 'Choose your notes folder' });
     if (typeof path !== 'string' || path === folder) return;
@@ -182,6 +184,15 @@ export function Settings() {
                   <input type="checkbox" className="switch" checked={ty.lines} onChange={(e) => setTy({ lines: e.target.checked })} />
                 </label>
               </Group>
+              {PAGES_SHOWN ? (
+                <Group footer="A faint line across the note where each page ends when it is printed or exported as a PDF.">
+                  <label className="row-setting">
+                    <span>Page breaks</span>
+                    <input type="checkbox" className="switch" checked={pages.on} onChange={(e) => pages.set({ on: e.target.checked })} />
+                  </label>
+                  {pages.on ? <Pick label="Paper" value={pages.paper} options={PAPERS} onChange={(paper) => pages.set({ paper })} css="" /> : null}
+                </Group>
+              ) : null}
               <Group title="Diagrams" footer="How big Mermaid diagrams are drawn, never wider than the note. Double-click one to zoom.">
                 <div className="row-setting row-wide">
                   <div className="segmented">

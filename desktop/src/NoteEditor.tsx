@@ -26,6 +26,7 @@ import { Callouts } from '../../editor-web/callouts';
 import { Folding } from '../../editor-web/folding';
 import { TableKeys } from '../../editor-web/tableKeys';
 import { TableMenu } from './TableMenu';
+import { PageBreaks } from './PageBreaks';
 import { addFiles, useFileDrop } from './fileDrop';
 import { MEDIA, PastedMedia, dropMedia } from './noteMedia';
 import { onContentsChanged, useNotes } from './store';
@@ -230,6 +231,7 @@ function Pane({ path, initial }: { path: string; initial: string }) {
       <div className={`editor-scroll${dropping ? ' dropping' : ''}`} ref={scrollRef}>
         <EditorContent editor={editor} className="editor" />
         <TableMenu editor={editor} scroll={scrollRef} />
+        <PageBreaks editor={editor} scroll={scrollRef} />
       </div>
       <StyleBar editor={editor} />
     </>

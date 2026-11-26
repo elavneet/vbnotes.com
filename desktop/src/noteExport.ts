@@ -11,9 +11,18 @@ import { useNotes } from './store';
 
 export const REVEAL_LABEL = /Mac/.test(navigator.platform) ? 'Show in Finder' : /^Win/.test(navigator.platform) ? 'Show in Explorer' : 'Show in Folder';
 
+/** The paper's margins in mm (`printPages.ts` cuts the note into pages with them). */
+export const PAGE_MARGIN = { top: 18, side: 16 };
+
+/** What only print changes; `scope` (`printPages.ts`) gives the same rules to a sheet on screen. */
+export const PRINT_CSS = (scope = '') => `
+  ${scope}.vb-export { max-width: none; padding: 0; font-size: 12pt; }
+  ${scope}.vb-export pre, ${scope}.vb-export img, ${scope}.vb-export .diagram, ${scope}.vb-export tr { break-inside: avoid; }
+  ${scope}.vb-export h1, ${scope}.vb-export h2, ${scope}.vb-export h3 { break-after: avoid; }`;
+
 /** How exported and printed notes look: Paper's colours, the system font, nothing of the app around them. */
-const NOTE_CSS = `
-@page { margin: 18mm 16mm; }
+export const NOTE_CSS = `
+@page { margin: ${PAGE_MARGIN.top}mm ${PAGE_MARGIN.side}mm; }
 .vb-export { font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; color: #17181C; max-width: 720px; margin: 0 auto; padding: 48px 24px; overflow-wrap: break-word; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .vb-export h1 { font-size: 2em; line-height: 1.2; font-weight: 800; margin: 0 0 0.6em; }
 .vb-export h2 { font-size: 1.5em; line-height: 1.25; margin: 1.4em 0 0.5em; }
@@ -34,10 +43,7 @@ const NOTE_CSS = `
 .vb-export th { background: #F1EFEA; }
 .vb-export hr { border: 0; border-top: 1px solid #E2DED5; margin: 1.6em 0; }
 .vb-export .diagram { text-align: center; }
-@media print {
-  .vb-export { max-width: none; padding: 0; font-size: 12pt; }
-  .vb-export pre, .vb-export img, .vb-export .diagram, .vb-export tr { break-inside: avoid; }
-  .vb-export h1, .vb-export h2, .vb-export h3 { break-after: avoid; }
+@media print {${PRINT_CSS()}
 }`;
 
 const fileName = (path: string) => path.split('/').pop()!.replace(/\.(md|markdown|txt)$/i, '');
@@ -63,7 +69,7 @@ function linkedFiles(md: string) {
 let diagrams = 0;
 
 /** The note as HTML: GitHub-style markdown, pictures from `src`, Mermaid drawn in its light theme. */
-async function noteHtml(md: string, src: (path: string) => string) {
+export async function noteHtml(md: string, src: (path: string) => string) {
   const doc = new DOMParser().parseFromString(DOMPurify.sanitize(marked.parse(md, { async: false, gfm: true, breaks: true })), 'text/html');
   doc.querySelectorAll('img').forEach((img) => img.setAttribute('src', src(img.getAttribute('src') ?? '')));
   for (const code of doc.querySelectorAll('pre > code.language-mermaid')) {

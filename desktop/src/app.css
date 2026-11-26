@@ -102,6 +102,9 @@ input, select { font: inherit; color: inherit; }
 .menu button:hover .mi-keys { color: inherit; }
 .menu-sub-right > .menu { right: auto; left: calc(100% - 2px); }
 /* A table's ⋮, in the cell under the pointer. */
+/* Settings › Typography › Page breaks (`PageBreaks.tsx`): where a page ends in print, with the next page's number. */
+.page-break { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed var(--textMuted); opacity: 0.3; pointer-events: none; }
+.page-break::after { content: attr(data-page); position: absolute; right: 14px; top: -8px; padding: 0 6px; background: var(--bg); color: var(--textMuted); font-size: 10px; line-height: 14px; font-variant-numeric: tabular-nums; }
 .table-dots { position: absolute; z-index: 5; width: 18px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color: var(--accent); cursor: default; }
 .table-dots:hover, .table-dots.on { background: var(--surface2); }
 
