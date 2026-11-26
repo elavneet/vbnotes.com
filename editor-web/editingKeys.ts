@@ -10,7 +10,9 @@ import type {} from '@tiptap/extension-code';
 import type {} from '@tiptap/extension-code-block';
 import type {} from '@tiptap/extension-horizontal-rule';
 import type {} from '@tiptap/extension-strike';
+import { isInTable } from '@tiptap/pm/tables';
 import { highlightColor } from '../src/editor/noteSyntax';
+import { moveColumn, moveRow } from './tableEdits';
 
 const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
 const WORD = /[\p{L}\p{N}\p{M}_]/u;
@@ -161,11 +163,12 @@ export const EditingKeys = Extension.create({
       'Shift-Mod-t': run(() => e.commands.toggleBlockquote()),
       'Alt-Mod-s': run(() => e.commands.setHorizontalRule()),
       'Alt-Mod-t': run(() => e.commands.insertTable({ rows: 3, cols: 3, withHeaderRow: true })),
-      'Alt-Mod-ArrowUp': () => e.commands.moveBlock(-1),
-      'Alt-Mod-ArrowDown': () => e.commands.moveBlock(1),
+      // In a table these move the caret's row or column (always taken there, even at an edge).
+      'Alt-Mod-ArrowUp': () => (isInTable(e.state) ? (moveRow(e, -1), true) : e.commands.moveBlock(-1)),
+      'Alt-Mod-ArrowDown': () => (isInTable(e.state) ? (moveRow(e, 1), true) : e.commands.moveBlock(1)),
       // Shift Right / Shift Left: a list item one level in or out.
-      'Alt-Mod-ArrowRight': () => { const i = item(); return i ? (e.commands.sinkListItem(i), true) : false; },
-      'Alt-Mod-ArrowLeft': () => { const i = item(); return i ? (e.commands.liftListItem(i), true) : false; },
+      'Alt-Mod-ArrowRight': () => { if (isInTable(e.state)) return moveColumn(e, 1), true; const i = item(); return i ? (e.commands.sinkListItem(i), true) : false; },
+      'Alt-Mod-ArrowLeft': () => { if (isInTable(e.state)) return moveColumn(e, -1), true; const i = item(); return i ? (e.commands.liftListItem(i), true) : false; },
       'Mod-.': run(() => e.commands.toggleTodos()),
       // Wiki link: the selection becomes [[selection]], or the caret goes between [[ and ]].
       'Mod-d': () => {
