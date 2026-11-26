@@ -35,14 +35,12 @@ function tableMd(rows: string[][]) {
   return [line(rows[0]), line(rows[0].map(() => '---').concat(Array(width - rows[0].length).fill('---'))), ...rows.slice(1).map(line)].join('\n');
 }
 
-/** Lines drawn with box characters: a table when every line is a border or a row with the same cells, else a diagram. */
-function drawnMd(lines: string[]) {
-  const t = lines.map((l) => l.trim());
-  if (t.length === 1) return RULE.test(t[0]) ? '---' : null;
+/** The markdown table these lines draw, when every line is a border or a row with the same cells. */
+function drawnTable(t: string[]) {
   const rows = t.filter((l) => ROW.test(l));
   const bars = rows.length ? rows[0].match(BAR)!.length : 0;
   const table = bars >= 3 && t.every((l) => ROW.test(l) ? l.match(BAR)!.length === bars : BORDER.test(l) && !/^[│┃║]/.test(l) && l.replace(LINE, '').length === bars);
-  if (!table) return '```\n' + lines.join('\n') + '\n```';
+  if (!table) return null;
   const cells = (l: string) => l.split(BAR).slice(1, -1).map((c) => c.trim());
   const groups: string[][][] = [[]];
   t.forEach((l) => (ROW.test(l) ? groups[groups.length - 1].push(cells(l)) : groups.push([])));
@@ -58,6 +56,49 @@ function drawnMd(lines: string[]) {
     });
   }
   return tableMd(out.map((r) => r.map(cell)));
+}
+
+const LEFT_EDGE = /^[┌├└┏┣┗╔╠╚╭╰]/;
+const RIGHT_EDGE = /[┐┤┘┓┫┛╗╣╝╮╯]$/;
+
+/**
+ * A table whose lines were cut: copied from a window narrower than the table, each of its lines
+ * arrives as two (the row up to where the window ended, then the rest), and a selection that
+ * starts or ends inside a row leaves that row without its outer bar. The pieces are put together
+ * again, and the outer bars added.
+ */
+function mended(t: string[]) {
+  const bar = /[│┃║]/;
+  const count = (l: string) => l.match(BAR)?.length ?? 0;
+  const lines = [...t];
+  // A first line that starts inside its first cell.
+  if (!/^[\u2500-\u257f]/.test(lines[0]) && bar.test(lines[0])) lines[0] = '│ ' + lines[0];
+  // Borders first: theirs is the number of bars a whole row has.
+  const joined: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    if (LEFT_EDGE.test(line)) while (!RIGHT_EDGE.test(line) && i + 1 < lines.length && BORDER.test(lines[i + 1]) && !LEFT_EDGE.test(lines[i + 1])) line += lines[++i];
+    joined.push(line);
+  }
+  const border = joined.find((l) => LEFT_EDGE.test(l) && RIGHT_EDGE.test(l));
+  const bars = border ? border.replace(LINE, '').length : Math.max(...joined.map(count));
+  const out: string[] = [];
+  for (let i = 0; i < joined.length; i++) {
+    let line = joined[i];
+    if (!LEFT_EDGE.test(line)) while (count(line) < bars && i + 1 < joined.length && !LEFT_EDGE.test(joined[i + 1]) && count(line) + count(joined[i + 1]) <= bars) line += ' ' + joined[++i];
+    out.push(line);
+  }
+  // A last line that ends inside its last cell.
+  const last = out.length - 1;
+  if (/^[│┃║]/.test(out[last]) && count(out[last]) === bars - 1) out[last] += ' │';
+  return out;
+}
+
+/** Lines drawn with box characters: a table (also one whose lines were cut), else a diagram. */
+function drawnMd(lines: string[]) {
+  const t = lines.map((l) => l.trim());
+  if (t.length === 1) return RULE.test(t[0]) ? '---' : null;
+  return drawnTable(t) ?? drawnTable(mended(t)) ?? '```\n' + lines.join('\n') + '\n```';
 }
 
 /** Hard line breaks the terminal put where the window was full, joined back into lines. */

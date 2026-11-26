@@ -1,5 +1,5 @@
 import { Extension, type Editor } from '@tiptap/core';
-import type { Slice } from '@tiptap/pm/model';
+import { Fragment, type Node as PMNode, type ResolvedPos, type Slice } from '@tiptap/pm/model';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import type { EditorView } from '@tiptap/pm/view';
 import { fromTerminal } from './terminalText';
@@ -19,6 +19,31 @@ function markdownOf(editor: Editor, slice: Slice) {
   // Nodes made from the editor's own schema: the desktop page holds a second copy of prosemirror-model.
   const doc = top.create(null, line ? editor.schema.nodes.paragraph.create(null, line.content) : content);
   return editor.markdown?.serialize(doc.toJSON()) ?? '';
+}
+
+/**
+ * A table pasted into a table goes in cell by cell from the caret's cell (prosemirror-tables adds
+ * the rows and columns it needs). Copied whole, it brings its heading row along: when that row says
+ * what the table's own heading says over the same columns, it is left out, so the rows are added
+ * under the heading there is. Gives the pasted table without that row, or null.
+ */
+function withoutSameHeading(doc: PMNode, $context: ResolvedPos) {
+  const pasted = doc.childCount === 1 && doc.firstChild!.type.name === 'table' ? doc.firstChild! : null;
+  if (!pasted || pasted.childCount < 2) return null;
+  for (let d = $context.depth; d > 1; d--) {
+    if ($context.node(d - 1).type.name !== 'tableRow' || $context.node(d - 2).type.name !== 'table') continue;
+    const heading = $context.node(d - 2).firstChild!;
+    const from = $context.index(d - 1);
+    const first = pasted.firstChild!;
+    const text = (n: PMNode) => n.textContent.trim().toLowerCase();
+    for (let i = 0; i < first.childCount; i++) {
+      if (from + i >= heading.childCount || text(first.child(i)) !== text(heading.child(from + i))) return null;
+    }
+    const rows: PMNode[] = [];
+    pasted.forEach((row, _, i) => { if (i > 0) rows.push(row); });
+    return pasted.copy(Fragment.from(rows));
+  }
+  return null;
 }
 
 function copy(editor: Editor, view: EditorView, e: ClipboardEvent, cut: boolean) {
@@ -54,6 +79,8 @@ export const MarkdownClipboard = Extension.create({
           clipboardTextParser: (text, $context, plain) => {
             if (plain || $context.parent.type.spec.code || !editor.markdown) return null as unknown as Slice;
             const doc = editor.schema.nodeFromJSON(editor.markdown.parse(fromTerminal(text.replace(/\r\n?/g, '\n'))));
+            const rows = withoutSameHeading(doc, $context);
+            if (rows) return doc.copy(Fragment.from(rows)).slice(0, rows.nodeSize);
             return doc.slice(0, doc.content.size);
           },
         },
