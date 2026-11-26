@@ -23,6 +23,8 @@ type EditInstance = {
   highlight: (color: HighlightColor | null) => void;
   /** A callout of this type, or off again if the caret's callout is this type. */
   callout: (type: CalloutType) => void;
+  /** Types what was said (voice typing) at the caret; an empty title line takes its first sentence. */
+  say: (said: string) => void;
 };
 
 declare module '@10play/tentap-editor' {
@@ -37,13 +39,15 @@ enum EditActionType {
   Heading = 'edit-heading',
   Highlight = 'edit-highlight',
   Callout = 'edit-callout',
+  Say = 'edit-say',
 }
 
 type EditMessage =
   | { type: EditActionType.Run; payload: { command: EditCommand } }
   | { type: EditActionType.Heading; payload: { index: number } }
   | { type: EditActionType.Highlight; payload: { color: HighlightColor | null } }
-  | { type: EditActionType.Callout; payload: { type: CalloutType } };
+  | { type: EditActionType.Callout; payload: { type: CalloutType } }
+  | { type: EditActionType.Say; payload: { said: string } };
 
 export const EditBridge = new BridgeExtension<EditState, EditInstance, EditMessage>({
   forceName: 'vbEdit',
@@ -54,6 +58,25 @@ export const EditBridge = new BridgeExtension<EditState, EditInstance, EditMessa
     }
     if (message.type === EditActionType.Callout) {
       editor.chain().focus().toggleCallout(message.payload.type).run();
+      return true;
+    }
+    if (message.type === EditActionType.Say) {
+      const { said } = message.payload;
+      const { $from, empty } = editor.state.selection;
+      const block = $from.parent;
+      if (empty && block.type.name === 'heading' && block.content.size === 0 && $from.depth === 1 && $from.index(0) === 0) {
+        // The note's empty title line: the first sentence names the note, the rest goes under it.
+        const first = /^(.{1,80}?[.!?])(?:\s+([\s\S]+))?$/.exec(said);
+        const title = (first ? first[1] : said.length <= 80 ? said : '').replace(/\.$/, '');
+        if (title) {
+          const chain = editor.chain().focus().insertContent(title).enter();
+          (first?.[2] ? chain.insertContent(first[2]) : chain).scrollIntoView().run();
+          return true;
+        }
+      }
+      // A space first, after a word.
+      const before = block.textBetween(Math.max(0, $from.parentOffset - 1), $from.parentOffset, undefined, ' ');
+      editor.chain().focus().insertContent((before && !/\s/.test(before) ? ' ' : '') + said).scrollIntoView().run();
       return true;
     }
     if (message.type === EditActionType.Heading) {
@@ -99,6 +122,7 @@ export const EditBridge = new BridgeExtension<EditState, EditInstance, EditMessa
     goToHeading: (index) => sendBridgeMessage({ type: EditActionType.Heading, payload: { index } }),
     highlight: (color) => sendBridgeMessage({ type: EditActionType.Highlight, payload: { color } }),
     callout: (type) => sendBridgeMessage({ type: EditActionType.Callout, payload: { type } }),
+    say: (said) => sendBridgeMessage({ type: EditActionType.Say, payload: { said } }),
   }),
   extendEditorState: (editor) => {
     const { $from } = editor.state.selection;

@@ -5,6 +5,7 @@
   "dependencies": {
     "@10play/tentap-editor": "^1.1.0",
     "@expo/vector-icons": "^15.0.2",
+    "@siteed/sherpa-onnx.rn": "2.0.1",
     "@tiptap/extension-code-block": "^3.32.0",
     "@tiptap/extension-horizontal-rule": "^3.32.0",
     "@tiptap/extension-table": "^3.32.0",
@@ -32,6 +33,7 @@
     "expo-system-ui": "~58.0.6",
     "expo-updates": "~58.0.20",
     "highlight.js": "^11.12.0",
+    "llama.rn": "0.13.0-rc.12",
     "lowlight": "^3.3.0",
     "marked": "17.0.6",
     "react": "19.3.0",
@@ -53,6 +55,7 @@
     "@vitejs/plugin-react": "^6.1.2",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~58.0.4",
+    "patch-package": "8.0.1",
     "typescript": "~6.0.3",
     "vite": "^8.3.5",
     "vite-plugin-singlefile": "^2.3.4"
@@ -65,7 +68,8 @@
     "lint": "expo lint",
     "editor:dev": "vite --config ./editor-web/vite.config.ts -w build",
     "editor:build": "vite --config ./editor-web/vite.config.ts build",
-    "editor:post-build": "node ./node_modules/@10play/tentap-editor/scripts/buildEditor.js ./editor-web/build/index.html ./src/editor/editorHtml.js"
+    "editor:post-build": "node ./node_modules/@10play/tentap-editor/scripts/buildEditor.js ./editor-web/build/index.html ./src/editor/editorHtml.js",
+    "postinstall": "patch-package"
   },
   "private": true
 }

@@ -22,6 +22,7 @@ import { FormatActions, FormatKeyboard } from './FormatKeyboard';
 import { NotePreview } from './NotePreview';
 import { ActionSheet, type SheetAction } from './ActionSheet';
 import { VoiceRecorder } from './VoiceRecorder';
+import { VoiceTyping } from './VoiceTyping';
 import { fetchMissing, pickAudioFile, pickPhotos, savePasted, takePhoto } from '@/media/attachments';
 
 const WEBVIEW_ORIGINS = ['about:*', 'file://*'];
@@ -284,6 +285,7 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
   };
   const [attach, setAttach] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [dictating, setDictating] = useState(false);
   const formatActions = useMemo(() => ({ attach: () => setAttach(true), record: () => setRecording(true) }), []);
   const insert = (paths: (string | null)[]) => { for (const p of paths) if (p) editor.setImage(p); };
   // The pickers are native screens; give the sheet time to leave first or iOS refuses to show them.
@@ -291,6 +293,8 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
     run().then(insert).catch((e) => console.warn('adding media failed', e));
   }, 350);
   const attachActions: SheetAction[] = [
+    // Voice typing: iPhone only for now (the Android recorder can't make the WAV the model hears).
+    ...(Platform.OS === 'ios' ? [{ label: 'Voice typing', icon: 'chatbox-ellipses-outline', onPress: () => setTimeout(() => setDictating(true), 350) } as SheetAction] : []),
     { label: 'Photo library', icon: 'images-outline', onPress: after(pickPhotos) },
     { label: 'Take photo', icon: 'camera-outline', onPress: after(async () => [await takePhoto()]) },
     { label: 'Record audio', icon: 'mic-outline', onPress: () => setTimeout(() => setRecording(true), 350) },
@@ -343,6 +347,7 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
       </EditorKeyboardAvoidingView>
       <ActionSheet visible={attach} onClose={() => setAttach(false)} actions={attachActions} title="Add to note" />
       <VoiceRecorder visible={recording} onClose={() => setRecording(false)} onDone={(p) => insert([p])} />
+      <VoiceTyping visible={dictating} onClose={() => setDictating(false)} onSaid={(said) => editor.say(said)} />
     </View>
   );
 }

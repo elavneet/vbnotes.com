@@ -1,0 +1,62 @@
+diff --git a/node_modules/@siteed/sherpa-onnx.rn/android/src/main/kotlin/net/siteed/sherpaonnx/handlers/ASRHandler.kt b/node_modules/@siteed/sherpa-onnx.rn/android/src/main/kotlin/net/siteed/sherpaonnx/handlers/ASRHandler.kt
+index ebc6615..c3263ab 100644
+--- a/node_modules/@siteed/sherpa-onnx.rn/android/src/main/kotlin/net/siteed/sherpaonnx/handlers/ASRHandler.kt
++++ b/node_modules/@siteed/sherpa-onnx.rn/android/src/main/kotlin/net/siteed/sherpaonnx/handlers/ASRHandler.kt
+@@ -406,7 +406,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
+         modelConfig.tokens = tokensPath
+         
+         when (modelType) {
+-            "transducer", "zipformer", "zipformer2" -> {
++            "transducer", "zipformer", "zipformer2", "nemo_transducer" -> {
+                 Log.i(TAG, "Setting up transducer/zipformer model")
+                 val encoderFile = modelFiles["encoder"] ?: "encoder.onnx"
+                 val decoderFile = modelFiles["decoder"] ?: "decoder.onnx"
+@@ -478,7 +478,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
+ 
+                 modelConfig.canary = canaryConfig
+             }
+-            "nemo_ctc", "nemo_transducer" -> {
++            "nemo_ctc" -> {
+                 Log.i(TAG, "Setting up Nemo CTC/Transducer model")
+                 val modelFile = modelFiles["model"] ?: "model.onnx"
+                 val modelPath = File(modelDir, modelFile).absolutePath
+@@ -624,7 +624,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
+         // Check for required files
+         val files = mutableListOf<String>()
+         when (modelType) {
+-            "transducer", "zipformer", "zipformer2" -> {
++            "transducer", "zipformer", "zipformer2", "nemo_transducer" -> {
+                 files.add(modelConfig.transducer.encoder)
+                 files.add(modelConfig.transducer.decoder)
+                 files.add(modelConfig.transducer.joiner)
+@@ -640,7 +640,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
+                 files.add(modelConfig.canary.encoder)
+                 files.add(modelConfig.canary.decoder)
+             }
+-            "nemo_ctc", "nemo_transducer" -> {
++            "nemo_ctc" -> {
+                 files.add(modelConfig.nemo.model)
+             }
+             "moonshine" -> {
+diff --git a/node_modules/@siteed/sherpa-onnx.rn/ios/handlers/SherpaOnnxASRHandler.swift b/node_modules/@siteed/sherpa-onnx.rn/ios/handlers/SherpaOnnxASRHandler.swift
+index 129ba1c..5d1663c 100644
+--- a/node_modules/@siteed/sherpa-onnx.rn/ios/handlers/SherpaOnnxASRHandler.swift
++++ b/node_modules/@siteed/sherpa-onnx.rn/ios/handlers/SherpaOnnxASRHandler.swift
+@@ -228,7 +228,7 @@ import AVFoundation
+         var cohereTranscribeConfig = sherpaOnnxOfflineCohereTranscribeModelConfig()
+ 
+         switch modelType {
+-        case "transducer", "zipformer", "zipformer2":
++        case "transducer", "zipformer", "zipformer2", "nemo_transducer":
+             let encoderFile = modelFiles["encoder"] ?? "encoder.onnx"
+             let decoderFile = modelFiles["decoder"] ?? "decoder.onnx"
+             let joinerFile = modelFiles["joiner"] ?? "joiner.onnx"
+@@ -254,7 +254,7 @@ import AVFoundation
+                 task: task
+             )
+ 
+-        case "nemo_ctc", "nemo_transducer":
++        case "nemo_ctc":
+             let modelFile = modelFiles["model"] ?? "model.onnx"
+             nemoCtcConfig = sherpaOnnxOfflineNemoEncDecCtcModelConfig(
+                 model: (modelDir as NSString).appendingPathComponent(modelFile)

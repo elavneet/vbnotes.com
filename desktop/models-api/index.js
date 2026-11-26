@@ -1,4 +1,4 @@
-// The desktop app downloads its models through https://api.vbnotes.com/models/<folder>/<file>.
+// The apps download their models through https://api.vbnotes.com/models/<folder>/<file>.
 // This sends it on to our copy in R2 (models.vbnotes.com), or, if that file is missing, to where
 // the model is published, so the app's links never have to change.
 
@@ -8,6 +8,9 @@ const COPIES = 'https://models.vbnotes.com/';
 const PUBLISHED = {
   'parakeet-tdt-0.6b-v3-8f23f0c0/':
     'https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/',
+  // The phone's speech model: the same Parakeet, as sherpa-onnx reads it.
+  'parakeet-tdt-0.6b-v3-sherpa-ed5d7456/':
+    'https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/ed5d745623472f97cfc2e6c2916ee248798fc5a8/',
   's1-mini-34add00a/': 'https://huggingface.co/superwhisper/s1-mini-GGUF/resolve/34add00a48a2e5d24e5a4ee5405a99620a3a240c/',
   'lfm2.5-embedding-350m-a80de9c5/':
     'https://huggingface.co/LiquidAI/LFM2.5-Embedding-350M-GGUF/resolve/a80de9c5b941d429104f0038292a0ef5a860e486/',

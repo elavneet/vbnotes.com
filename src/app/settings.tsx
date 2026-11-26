@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CODE_FONTS, DIAGRAM_SIZES, TEXT_FONTS, THEMES, codeFont, textFont, themeFor, useTheme, type DiagramSize, type ThemeName, type Typography } from '@/theme';
 import { useSettings, type ThemePref } from '@/store/settings';
+import { SPEECH, SPEECH_SIZE, TIDY, TIDY_SIZE, deleteVoiceModel, downloadVoiceModels, sizeText, useVoiceModels } from '@/voice/models';
 import { useNotes } from '@/store/notes';
 import { semanticIndex } from '@/search';
 import { SEARCH_MODELS, searchModel, type SearchModel } from '@/search/models';
@@ -23,7 +24,7 @@ import { launchSummary } from '@/utils/launchTiming';
 
 const USAGE_NOTE = 'Once a day VB Notes tells our server it was used, with only the kind of device and the app version: no id, nothing about you or your notes.';
 
-type Page = 'main' | 'appearance' | 'typography' | 'folder' | 'hidden' | 'search' | 'ai';
+type Page = 'main' | 'appearance' | 'typography' | 'folder' | 'hidden' | 'search' | 'ai' | 'voice';
 const DIAGRAM_OPTIONS = (Object.keys(DIAGRAM_SIZES) as DiagramSize[]).map((d) => [d, DIAGRAM_SIZES[d].label] as [DiagramSize, string]);
 
 export default function SettingsScreen() {
@@ -180,7 +181,9 @@ export default function SettingsScreen() {
     : downloading ? 'Keep VB Notes open until the download finishes. If you leave, it carries on from there when you come back.'
     : `Runs on this phone; your notes never leave it. One download of about ${sizeOf(model)} MB.`;
 
-  const titles: Record<Page, string> = { main: 'Settings', appearance: 'Appearance', typography: 'Typography', folder: 'Notes folder', hidden: 'Hide from Notes', search: 'Local search', ai: 'AI chat' };
+  const voiceReady = useVoiceModels((v) => v.speech === 'ready');
+  const voiceLabel = voiceReady ? 'Ready' : 'Not downloaded';
+  const titles: Record<Page, string> = { main: 'Settings', appearance: 'Appearance', typography: 'Typography', folder: 'Notes folder', hidden: 'Hide from Notes', search: 'Local search', voice: 'Voice typing', ai: 'AI chat' };
   const modeLabel = settings.theme === 'system' ? 'System' : settings.theme === 'dark' ? 'Dark' : 'Light';
   return (
     <View style={[styles.root, { backgroundColor: t.colors.bg, paddingTop: Platform.OS === 'ios' ? 0 : insets.top }]}>
@@ -211,6 +214,7 @@ export default function SettingsScreen() {
             <Section>
               <PickRow label="Local search" value={smart ? (status === 'ready' && !semanticIndex.pending ? 'By meaning' : searchStatus) : 'Exact words'} hint="Search by meaning" onPress={() => setPage('search')} />
               <PickRow label="AI chat" value={aiOn ? providerOf(aiProvider).name : 'Off'} hint="Chat with AI about your notes" onPress={() => setPage('ai')} />
+              {Platform.OS === 'ios' ? <PickRow label="Voice typing" value={voiceLabel} hint="Type with your voice" onPress={() => setPage('voice')} /> : null}
             </Section>
             <Section title="About" footer={USAGE_NOTE}>
               <Row label="Version" value={Constants.expoConfig?.version ?? '–'} />
@@ -283,6 +287,7 @@ export default function SettingsScreen() {
         ) : null}
 
         {page === 'ai' ? <AiSection /> : null}
+        {page === 'voice' ? <VoiceSection /> : null}
       </ScrollView>
       </KeyboardAvoidingView>
       <ActionSheet
@@ -310,6 +315,37 @@ export default function SettingsScreen() {
  * Chat with AI (off until switched on): the provider, its API key (kept in the Keychain or the
  * Android keystore, never in the notes folder) and the model, picked from the provider's own list.
  */
+/** Voice typing's models (downloaded on first use, or here) and its clean-up switch. */
+function VoiceSection() {
+  const t = useTheme();
+  const tidyOn = useSettings((s) => s.voiceTidy);
+  const setTidy = useSettings((s) => s.setVoiceTidy);
+  const { speech, tidy, progress, error } = useVoiceModels();
+  const downloading = speech === 'downloading' || tidy === 'downloading';
+  const state = (m: typeof speech, size: number) => (m === 'ready' ? `On this iPhone, ${sizeText(size)}` : m === 'downloading' ? `Downloading… ${Math.round(progress * 100)}%` : `Not downloaded, ${sizeText(size)}`);
+  const missing = speech !== 'ready' || (tidyOn && tidy !== 'ready');
+  return (
+    <>
+      <Section footer="In a note, tap the paperclip, then Voice typing. Talk, and tap the button: what you said is typed where the cursor is.">
+        <Row label="Voice typing" value={speech === 'ready' ? 'Ready' : downloading ? 'Downloading…' : 'Not downloaded'} />
+      </Section>
+      <Section title="Speech model" footer={error ?? 'NVIDIA Parakeet v3 runs on this iPhone: what you say never leaves it. It understands English and 24 other European languages, and picks the language as you talk.'} footerColor={error ? t.colors.danger : undefined}>
+        <Row label="Parakeet v3" value={state(speech, SPEECH_SIZE)} />
+        {missing && !downloading ? <Action label="Download" onPress={() => void downloadVoiceModels(tidyOn)} /> : null}
+        {speech === 'ready' ? <Action label="Delete the speech model" onPress={() => deleteVoiceModel(SPEECH)} /> : null}
+      </Section>
+      <Section title="Clean-up" footer="Takes out um and uh, repeats and false starts, and keeps what you corrected to: “at 6, actually, 7” becomes “at 7”. It runs on this iPhone too, and knows English only.">
+        <View style={styles.row}>
+          <Text style={[styles.label, { color: t.colors.text }]}>Clean up what I say</Text>
+          <Switch value={tidyOn} onValueChange={setTidy} trackColor={{ true: t.colors.volt, false: t.colors.surface2 }} thumbColor="#fff" accessibilityLabel="Clean up what I say" />
+        </View>
+        <Row label={'“S1-mini” by “Superwhisper”'} value={state(tidy, TIDY_SIZE)} />
+        {tidy === 'ready' ? <Action label="Delete the clean-up model" onPress={() => deleteVoiceModel(TIDY)} /> : null}
+      </Section>
+    </>
+  );
+}
+
 function AiSection() {
   const t = useTheme();
   const ai = useAi();
