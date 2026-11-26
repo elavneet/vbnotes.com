@@ -14,8 +14,10 @@ import { MarkdownBridge, markdownListeners } from '@/editor/markdownBridge';
 import { MediaAction, MediaBridge, mediaHost } from '@/editor/mediaBridge';
 import { LinkOpenBridge, linkHost } from '@/editor/linkBridge';
 import { EditBridge } from '@/editor/editBridge';
+import { TableBridge, tableHost, type TableOp, type TablePlace } from '@/editor/tableBridge';
 import { WikiBridge, wikiHost } from '@/editor/wikiBridge';
 import { openableUrl } from '@/utils/links';
+import { copyText } from '@/utils/noteShare';
 import { probe, release, seek, toggle } from '@/media/player';
 import { EditorToolbar } from './EditorToolbar';
 import { FormatActions, FormatKeyboard } from './FormatKeyboard';
@@ -137,7 +139,7 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
   const closeNote = useNotes((s) => s.closeNote);
   const { isKeyboardUp } = useKeyboard();
 
-  const bridges = useMemo(() => [...TenTapStartKit, PlaceholderBridge.configureExtension({ placeholder: 'Start writing…' }), MarkdownBridge, MediaBridge, LinkOpenBridge, EditBridge, WikiBridge], []);
+  const bridges = useMemo(() => [...TenTapStartKit, PlaceholderBridge.configureExtension({ placeholder: 'Start writing…' }), MarkdownBridge, MediaBridge, LinkOpenBridge, EditBridge, WikiBridge, TableBridge], []);
   // Fixed for the life of this editor; later theme changes go through injectCSS. A folder picked on
   // Android first puts the note's pictures where the page can load them (`prepareMedia`).
   const [page] = useState(() => {
@@ -247,6 +249,14 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
     return () => { linkHost.open = undefined; };
   }, []);
 
+  // A table's ⋮ (drawn by the page in the caret's cell) opens its menu here; a copy comes back as text.
+  const [table, setTable] = useState<{ place: TablePlace; list: 'main' | 'copy' | 'align' } | null>(null);
+  useEffect(() => {
+    tableHost.menu = (place) => setTable({ place, list: 'main' });
+    tableHost.copied = (text) => copyText(text);
+    return () => { tableHost.menu = undefined; tableHost.copied = undefined; };
+  }, []);
+
   // `[[` lists notes by title; a `[[link]]` opens its note, or makes one with that title, as in Bear.
   useEffect(() => {
     wikiHost.find = (q) => (useNotes.getState().db?.titles(q, 8) ?? []).map((n) => ({ title: n.title, path: n.path }));
@@ -301,6 +311,30 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
     { label: 'Audio file', icon: 'musical-notes-outline', onPress: after(async () => [await pickAudioFile()]) },
   ];
 
+  const tableActions = (): SheetAction[] => {
+    if (!table) return [];
+    const { place: p, list } = table;
+    const run = (label: string, op: TableOp, more: Partial<SheetAction> = {}): SheetAction => ({ label, onPress: () => editor.table(op), ...more });
+    // The second list shows once the first has left the screen.
+    const next = (label: string, to: 'copy' | 'align'): SheetAction => ({ label, onPress: () => setTimeout(() => setTable({ place: p, list: to }), 300) });
+    if (list === 'copy') return [run('Markdown', 'copyMd'), run('HTML', 'copyHtml'), run('Plain Text', 'copyText')];
+    if (list === 'align') {
+      return [run('Left', 'alignLeft', { selected: p.align === 'left' }), run('Center', 'alignCenter', { selected: p.align === 'center' }), run('Right', 'alignRight', { selected: p.align === 'right' })];
+    }
+    return [
+      next('Copy Table As…', 'copy'),
+      next('Align Column…', 'align'),
+      run('Add Row', 'addRow'),
+      run('Add Column', 'addColumn'),
+      ...(p.row > 0 ? [run('Move Row Up', 'rowUp')] : []),
+      ...(p.row < p.rows - 1 ? [run('Move Row Down', 'rowDown')] : []),
+      ...(p.col > 0 ? [run('Move Column Left', 'columnLeft')] : []),
+      ...(p.col < p.cols - 1 ? [run('Move Column Right', 'columnRight')] : []),
+      ...(p.row > 0 ? [run('Delete Row', 'deleteRow', { destructive: true })] : []),
+      ...(p.cols > 1 ? [run('Delete Column', 'deleteColumn', { destructive: true })] : []),
+    ];
+  };
+
   // The page view is made two frames after the screen, once the slide has started (the native
   // preview shows the note meanwhile): made with the screen, it held the slide back. On the
   // simulator a long note's screen drew in about 100 ms instead of 230, and the editor was ready
@@ -346,6 +380,7 @@ function LoadedEditor({ path, initial, autofocus, isNew, onPathChange, toolbarPl
         </FormatActions.Provider>
       </EditorKeyboardAvoidingView>
       <ActionSheet visible={attach} onClose={() => setAttach(false)} actions={attachActions} title="Add to note" />
+      <ActionSheet visible={!!table} onClose={() => setTable(null)} actions={tableActions()} title={table?.list === 'copy' ? 'Copy Table As' : table?.list === 'align' ? 'Align Column' : 'Table'} />
       <VoiceRecorder visible={recording} onClose={() => setRecording(false)} onDone={(p) => insert([p])} />
       <VoiceTyping visible={dictating} onClose={() => setDictating(false)} onSaid={(said) => editor.say(said)} />
     </View>

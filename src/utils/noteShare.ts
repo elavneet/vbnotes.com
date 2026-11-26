@@ -19,6 +19,11 @@ export function copyNote(md: string, format: CopyFormat) {
   clipboard().setString(format === 'md' ? md : format === 'text' ? toPlainText(md) : (marked.parse(md, { async: false }) as string));
 }
 
+/** Text to the clipboard (a table copied from its menu). */
+export function copyText(text: string) {
+  clipboard().setString(text);
+}
+
 /** `[[file name]]`, the same link the desktop's Copy Link makes. */
 export function copyNoteLink(path: string) {
   clipboard().setString(`[[${(path.split('/').pop() ?? path).replace(/\.(md|markdown|txt)$/i, '')}]]`);
