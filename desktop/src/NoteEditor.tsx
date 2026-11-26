@@ -24,6 +24,7 @@ import { EditingKeys, EditingStyles } from '../../editor-web/editingKeys';
 import { withNoteSyntax } from '../../editor-web/markSyntax';
 import { Callouts } from '../../editor-web/callouts';
 import { Folding } from '../../editor-web/folding';
+import { TableKeys } from '../../editor-web/tableKeys';
 import { addFiles, useFileDrop } from './fileDrop';
 import { MEDIA, PastedMedia, dropMedia } from './noteMedia';
 import { onContentsChanged, useNotes } from './store';
@@ -106,7 +107,7 @@ const EXTENSIONS: AnyExtension[] = (() => {
     const { config, extendConfig } = b as unknown as { config?: unknown; extendConfig?: unknown };
     b.configureTiptapExtensionsOnRunTime(config, extendConfig).forEach(add);
   }
-  [TagPills, WikiLinks, LinkTaps, LinkClicks, BrowserReturn, StyleKeys, PastedMedia, CodePaste, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers, HeadingMarks, ListTyping, MarkdownClipboard, EditingKeys, EditingStyles, Callouts, Folding].forEach(add);
+  [TagPills, WikiLinks, LinkTaps, LinkClicks, BrowserReturn, StyleKeys, PastedMedia, CodePaste, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers, HeadingMarks, ListTyping, MarkdownClipboard, EditingKeys, EditingStyles, Callouts, Folding, TableKeys].forEach(add);
   return out;
 })();
 

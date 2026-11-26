@@ -24,6 +24,7 @@ import { EditingKeys, EditingStyles } from './editingKeys';
 import { withNoteSyntax } from './markSyntax';
 import { Callouts } from './callouts';
 import { Folding } from './folding';
+import { TableKeys } from './tableKeys';
 
 declare global {
   interface Window { contentInjected: boolean | undefined }
@@ -48,7 +49,7 @@ const interval = setInterval(() => {
       contentType: 'markdown',
       // TenTapStartKit has no code block, rule or table; without them the markdown parser drops
       // ``` blocks, --- and | tables |, and the next save would delete them from the file.
-      extensions: [MarkdownPush, TagPills, WikiLinks, LinkTaps, AppPastedMedia, CodePaste, WordTaps, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers, HeadingMarks, ListTyping, MarkdownClipboard, EditingKeys, EditingStyles, Callouts, Folding],
+      extensions: [MarkdownPush, TagPills, WikiLinks, LinkTaps, AppPastedMedia, CodePaste, WordTaps, MergeFormats, MediaViews, RichCodeBlock, HorizontalRule, PlainTable, TableRow, TableHeader, TableCell, LineNumbers, HeadingMarks, ListTyping, MarkdownClipboard, EditingKeys, EditingStyles, Callouts, Folding, TableKeys],
       editorProps: { attributes: { spellcheck: 'true', autocapitalize: 'sentences' } },
     },
   });
